@@ -31,7 +31,9 @@ const wholesalerNav: NavEntry[] = [
       { label: "顧客一覧", href: "/customers" },
       { label: "マエカク一覧", href: "/customers/maekaku" },
       { label: "アポイント一覧", href: "/appointments" },
+      { label: "商談一覧", href: "/deals" },
       { label: "契約一覧", href: "/contracts" },
+      { label: "ローン審査一覧", href: "/loan-reviews" },
       { label: "施工一覧", href: "/constructions" },
       { label: "申請一覧", href: "/applications" },
     ],
@@ -73,9 +75,5 @@ const wholesalerNav: NavEntry[] = [
 ];
 
 export default function WholesalerGroupLayout({ children }: { children: ReactNode }) {
-  return (
-    <RoleShell navItems={wholesalerNav}>
-      {children}
-    </RoleShell>
-  );
+  return <RoleShell navItems={wholesalerNav}>{children}</RoleShell>;
 }

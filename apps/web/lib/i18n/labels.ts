@@ -1045,8 +1045,7 @@ export const labels = {
       createSubmit: "登録",
       updateSubmit: "保存",
       disable: "このエリアを無効化",
-      disableConfirm:
-        "無効化すると新規イベント候補で選択できなくなります。続行しますか？",
+      disableConfirm: "無効化すると新規イベント候補で選択できなくなります。続行しますか？",
     },
     errors: {
       nameRequired: "名称を入力してください",
@@ -1073,8 +1072,7 @@ export const labels = {
       createSubmit: "登録",
       updateSubmit: "保存",
       disable: "この店舗を無効化",
-      disableConfirm:
-        "無効化すると新規イベント候補で選択できなくなります。続行しますか？",
+      disableConfirm: "無効化すると新規イベント候補で選択できなくなります。続行しますか？",
     },
     errors: {
       nameRequired: "名称を入力してください",
@@ -1153,7 +1151,8 @@ export const labels = {
     },
     scopeOverride: {
       title: "二次店スコープ上書き",
-      subtitle: "このイベントの担当二次店のスコープを個別に上書きできます。未設定の場合は関係のデフォルトスコープが適用されます。",
+      subtitle:
+        "このイベントの担当二次店のスコープを個別に上書きできます。未設定の場合は関係のデフォルトスコープが適用されます。",
       fields: {
         scope: "スコープ",
         reason: "変更理由",
@@ -1686,13 +1685,116 @@ export const labels = {
   // 施工一覧 / 申請一覧（サイドバー導線。ページ内要素は後続で定義するプレースホルダ）。
   constructionList: {
     title: "施工一覧",
-    subtitle: "施工状況を一覧で確認・管理できます",
-    placeholder: "この画面は準備中です。",
+    subtitle: "施工予定・現地調査・完工状況を一覧で確認できます。",
+    empty: "該当する施工がありません",
+    emptyCta: "検索条件を変更するか、顧客詳細の施工タブから登録してください。",
+    filters: {
+      customerName: "顧客名",
+      searchPlaceholder: "顧客名で検索",
+      status: "施工状態",
+      surveyStatus: "現地調査",
+      from: "施工予定日（開始）",
+      to: "施工予定日（終了）",
+      all: "すべて",
+      search: "検索",
+      clear: "クリア",
+      resultCount: "表示件数: {total}件",
+    },
+    columns: {
+      plannedDate: "施工予定日",
+      customerName: "顧客名",
+      assignee: "担当者",
+      installer: "施工業者",
+      surveyStatus: "現地調査",
+      status: "施工状態",
+      completedDate: "完工日",
+    },
+    noInstaller: "業者未定",
+    noSurvey: "未設定",
+    notCompleted: "未完工",
   },
   applicationList: {
     title: "申請一覧",
-    subtitle: "補助金申請状況を一覧で確認・管理できます",
-    placeholder: "この画面は準備中です。",
+    subtitle: "設置・補助金申請の提出状況と承認状況を一覧で確認できます。",
+    empty: "該当する申請がありません",
+    emptyCta: "検索条件を変更するか、顧客詳細の設置申請タブから登録してください。",
+    filters: {
+      customerName: "顧客名",
+      searchPlaceholder: "顧客名で検索",
+      status: "申請状態",
+      type: "申請種別",
+      from: "申請予定日（開始）",
+      to: "申請予定日（終了）",
+      all: "すべて",
+      search: "検索",
+      clear: "クリア",
+      resultCount: "表示件数: {total}件",
+    },
+    columns: {
+      plannedDate: "申請予定日",
+      customerName: "顧客名",
+      assignee: "担当者",
+      type: "申請種別・提出先",
+      status: "申請状態",
+      submittedDate: "提出日",
+      approvedDate: "承認日",
+      files: "関連書類",
+    },
+    noType: "種別未設定",
+    notSubmitted: "未提出",
+    notApproved: "未承認",
+    fileCount: "{n}件",
+    noFiles: "0件",
+  },
+
+  // ローン審査一覧（顧客詳細のローン審査タブを横断で俯瞰する管理者向け画面）。
+  loanReviewList: {
+    title: "ローン審査一覧",
+    subtitle: "ローン審査の進行状況と不備の解消状況を一覧で確認できます。",
+    empty: "該当するローン審査がありません",
+    emptyCta: "検索条件を変更するか、顧客詳細のローン審査タブから登録してください。",
+    filters: {
+      customerName: "顧客名",
+      searchPlaceholder: "顧客名で検索",
+      status: "審査状態",
+      defect: "不備",
+      all: "すべて",
+      search: "検索",
+      clear: "クリア",
+      resultCount: "表示件数: {total}件",
+    },
+    columns: {
+      customerName: "顧客名",
+      loanCompany: "ローン会社",
+      status: "審査状態",
+      defect: "不備状態",
+      defectAssignee: "不備担当者",
+      latestResult: "直近の審査結果",
+      updatedAt: "最終更新",
+    },
+    statusLabels: {
+      not_reviewed: "審査前",
+      reviewing: "審査中",
+      completed: "審査完了",
+      defect: "不備あり",
+    },
+    resultLabels: {
+      approved: "承認",
+      rejected: "否決",
+      defect: "不備",
+      other: "その他",
+    },
+    defectLabels: {
+      none: "なし",
+      open: "未解消",
+      resolved: "解消済み",
+    },
+    defectFilter: {
+      open: "未解消の不備あり",
+      none: "不備なし",
+    },
+    noCompany: "未設定",
+    noResult: "履歴なし",
   },
 
   // S-029 / S-030 — F-027 配属済みイベント一覧・詳細 (T-04-02)
@@ -2745,6 +2847,37 @@ export const labels = {
   appointment: {
     title: "アポ管理",
     listTitle: "アポ一覧",
+    // S-034 アポイント一覧（横断一覧・顧客一覧と同じ情報設計）。
+    list: {
+      title: "アポイント一覧",
+      subtitle: "全てのアポイントを予定日時順に一覧で確認できます。",
+      empty: "該当するアポイントがありません",
+      emptyCta: "検索条件を変更するか、顧客詳細からアポイントを登録してください。",
+      filters: {
+        customerName: "顧客名",
+        searchPlaceholder: "顧客名で検索",
+        assignee: "担当者",
+        status: "状態",
+        from: "予定日（開始）",
+        to: "予定日（終了）",
+        all: "すべて",
+        search: "検索",
+        clear: "クリア",
+        resultCount: "表示件数: {total}件",
+      },
+      columns: {
+        scheduledAt: "予定日時",
+        customerName: "顧客名",
+        area: "エリア",
+        assignee: "担当者",
+        appointmentType: "種別・場所",
+        status: "状態",
+        preCall: "対応状況（マエカク）",
+        nextAction: "次に必要な対応",
+        actions: "操作",
+      },
+      preCallNone: "マエカク未実施",
+    },
     new: "アポを新規登録",
     edit: "アポを編集",
     empty: "アポ未登録",
@@ -3030,6 +3163,36 @@ export const labels = {
   contract: {
     title: "契約管理",
     listTitle: "契約一覧",
+    // S-040 契約一覧（横断一覧・顧客一覧と同じ情報設計）。
+    list: {
+      title: "契約一覧",
+      subtitle: "成約済み案件を契約日順に一覧で確認できます。",
+      empty: "該当する契約がありません",
+      emptyCta: "検索条件を変更するか、顧客詳細の契約タブから登録してください。",
+      filters: {
+        customerName: "顧客名",
+        searchPlaceholder: "顧客名で検索",
+        assignee: "担当者",
+        status: "契約状態",
+        from: "契約日（開始）",
+        to: "契約日（終了）",
+        all: "すべて",
+        search: "検索",
+        clear: "クリア",
+        resultCount: "表示件数: {total}件",
+      },
+      columns: {
+        contractDate: "契約日",
+        customerName: "顧客名",
+        assignee: "担当者",
+        status: "契約状態",
+        contractAmount: "契約金額",
+        construction: "施工（後続工程）",
+        subsidy: "設置申請（後続工程）",
+      },
+      noConstruction: "施工未登録",
+      noApplication: "申請未登録",
+    },
     detailTitle: "契約詳細",
     new: "契約を登録",
     empty: "契約未登録",
@@ -3114,8 +3277,7 @@ export const labels = {
       totalAmountRequired: "契約金額を入力してください",
       totalAmountNonNegative: "契約金額は 0 以上で入力してください",
       dealNotFound: "商談が見つかりません",
-      dealNotLikelyContract:
-        "契約登録には商談が「契約見込み」状態である必要があります",
+      dealNotLikelyContract: "契約登録には商談が「契約見込み」状態である必要があります",
     },
   },
 
@@ -3644,7 +3806,8 @@ export const labels = {
     finalizeButton: "月次確定する",
     finalizing: "確定中…",
     finalizeSuccess: "月次報告を確定しました",
-    finalizeConfirm: "この月次報告を確定します。確定後は集計値が固定され、手動調整ができなくなります。よろしいですか？",
+    finalizeConfirm:
+      "この月次報告を確定します。確定後は集計値が固定され、手動調整ができなくなります。よろしいですか？",
     unlockButton: "確定を解除する",
     unlocking: "解除中…",
     unlockSuccess: "確定を解除しました",
@@ -3972,7 +4135,8 @@ export const labels = {
     subtitle: "ユーザーの一覧と招待状況を確認できます",
     inviteButton: "招待",
     inviteDialogTitle: "メンバーを招待",
-    inviteDialogDescription: "招待メールを送信します。受け取ったメンバーはリンクからアカウントを開設できます。",
+    inviteDialogDescription:
+      "招待メールを送信します。受け取ったメンバーはリンクからアカウントを開設できます。",
     empty: "メンバーが登録されていません",
     emptyCta: "招待ボタンから最初のメンバーを招待しましょう",
     fields: {
@@ -4027,7 +4191,8 @@ export const labels = {
     emptyCta: "招待コードを発行して二次店に渡してください",
     inviteCodeSectionTitle: "新規招待コード発行",
     inviteCodeDialogTitle: "招待コードを発行",
-    inviteCodeDialogDescription: "有効期限と最大使用回数を設定して招待コードを発行します。コードは画面に一度だけ表示されます。",
+    inviteCodeDialogDescription:
+      "有効期限と最大使用回数を設定して招待コードを発行します。コードは画面に一度だけ表示されます。",
     inviteCodeResult: "発行した招待コード",
     inviteCodeResultNote: "このコードは今後表示されません。二次店に安全な方法でお伝えください。",
     inviteCodeCopied: "コードをコピーしました",
@@ -4160,7 +4325,8 @@ export const labels = {
     // S-007 — Invite acceptance (F-006)
     invite: {
       title: "アカウントを開設する",
-      subtitle: "招待メールに記載のリンクからアクセスしています。氏名とパスワードを設定してください。",
+      subtitle:
+        "招待メールに記載のリンクからアクセスしています。氏名とパスワードを設定してください。",
       nameLabel: "氏名",
       namePlaceholder: "例: 山田 太郎",
       passwordLabel: "パスワード",
@@ -4216,13 +4382,15 @@ export const labels = {
       errors: {
         codeRequired: "招待コードを入力してください",
         invalidCode: "招待コードが無効または期限切れです。卸業者にご確認ください。",
-        codeExhausted: "この招待コードは利用上限に達しています。卸業者に新しいコードを発行してもらってください。",
+        codeExhausted:
+          "この招待コードは利用上限に達しています。卸業者に新しいコードを発行してもらってください。",
         companyNameRequired: "会社名を入力してください",
         adminEmailRequired: "管理者メールアドレスを入力してください",
         adminNameRequired: "管理者氏名を入力してください",
         passwordMinLength: "パスワードは 8 文字以上で入力してください",
         passwordMismatch: "パスワードが一致しません",
-        emailAlreadyExists: "このメールアドレスはすでに登録されています。別のアドレスを使用してください。",
+        emailAlreadyExists:
+          "このメールアドレスはすでに登録されています。別のアドレスを使用してください。",
         validationError: "入力内容に誤りがあります。ご確認ください。",
         unknownError: "予期しないエラーが発生しました。時間を置いて再度お試しください",
       },
@@ -4238,7 +4406,8 @@ export const labels = {
     submitButton: "再設定リンクを送信",
     submitting: "送信中…",
     sentTitle: "メールを送信しました",
-    sentBody: "パスワード再設定リンクをメールに送りました。メールが届かない場合は迷惑メールフォルダをご確認ください。",
+    sentBody:
+      "パスワード再設定リンクをメールに送りました。メールが届かない場合は迷惑メールフォルダをご確認ください。",
     backToSignIn: "サインインへ戻る",
     newPasswordTitle: "新しいパスワードを設定",
     newPasswordSubtitle: "新しいパスワードを入力してください。",

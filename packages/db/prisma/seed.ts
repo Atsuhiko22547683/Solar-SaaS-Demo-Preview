@@ -282,643 +282,648 @@ export async function seedAll(): Promise<SeedSummary> {
   // and can exceed Prisma's 5s default — especially over a public proxy
   // (Railway demo seed run). 5 minutes is generous but safe; the work itself
   // takes ~10s over an internal connection.
-  return withTenant(SYSTEM_TENANT_CONTEXT, async (tx) => {
-    const saasOps = await upsertTenantByName(tx, {
-      name: TENANT_KEY.saasOps,
-      type: "WHOLESALER",
-      plan: null,
-    });
-    const pilot = await upsertTenantByName(tx, {
-      name: TENANT_KEY.pilotWholesaler,
-      type: "WHOLESALER",
-      plan: "PILOT",
-    });
-    const alpha = await upsertTenantByName(tx, {
-      name: TENANT_KEY.dealerAlpha,
-      type: "DEALER",
-      plan: null,
-    });
-    const beta = await upsertTenantByName(tx, {
-      name: TENANT_KEY.dealerBeta,
-      type: "DEALER",
-      plan: null,
-    });
-    const gamma = await upsertTenantByName(tx, {
-      name: TENANT_KEY.dealerGamma,
-      type: "DEALER",
-      plan: null,
-    });
-
-    // WholesalerSettings: ensure the row exists for both wholesaler tenants so
-    // downstream features that read it via include() don't trip on a null
-    // relation. The demo/pilot wholesaler runs in FULL PII mode so the demo
-    // shows real full names (顧客名フルネーム＋様) / phone / address; the SaaS-ops
-    // tenant keeps the schema default (MASKED — forced anyway for SAAS_ADMIN).
-    for (const { wsId, piiMaskingMode } of [
-      { wsId: saasOps.id, piiMaskingMode: undefined },
-      { wsId: pilot.id, piiMaskingMode: "FULL" as const },
-    ]) {
-      await tx.wholesalerSettings.upsert({
-        where: { wholesalerId: wsId },
-        update: piiMaskingMode ? { piiMaskingMode } : {},
-        create: { wholesalerId: wsId, ...(piiMaskingMode ? { piiMaskingMode } : {}) },
+  return withTenant(
+    SYSTEM_TENANT_CONTEXT,
+    async (tx) => {
+      const saasOps = await upsertTenantByName(tx, {
+        name: TENANT_KEY.saasOps,
+        type: "WHOLESALER",
+        plan: null,
       });
-    }
-
-    const rels = await Promise.all([
-      upsertRelationship(tx, {
-        wholesalerId: pilot.id,
-        dealerId: alpha.id,
-        defaultScope: DEALER_SCOPE_BY_KEY.dealerAlpha,
-        franchiseNo: "ERP01",
-      }),
-      upsertRelationship(tx, {
-        wholesalerId: pilot.id,
-        dealerId: beta.id,
-        defaultScope: DEALER_SCOPE_BY_KEY.dealerBeta,
-        franchiseNo: "ERP02",
-      }),
-      upsertRelationship(tx, {
-        wholesalerId: pilot.id,
-        dealerId: gamma.id,
-        defaultScope: DEALER_SCOPE_BY_KEY.dealerGamma,
-        franchiseNo: "ERP03",
-      }),
-    ]);
-
-    const tenantIdByKey: Record<keyof typeof TENANT_KEY, string> = {
-      saasOps: saasOps.id,
-      pilotWholesaler: pilot.id,
-      dealerAlpha: alpha.id,
-      dealerBeta: beta.id,
-      dealerGamma: gamma.id,
-    };
-
-    for (const u of USER_SEEDS) {
-      await upsertUser(tx, {
-        email: u.email,
-        name: u.name,
-        tenantId: tenantIdByKey[u.tenantKey],
-        role: u.role,
-        twoFactorRequired: u.twoFactorRequired,
-        passwordHash,
+      const pilot = await upsertTenantByName(tx, {
+        name: TENANT_KEY.pilotWholesaler,
+        type: "WHOLESALER",
+        plan: "PILOT",
       });
-    }
+      const alpha = await upsertTenantByName(tx, {
+        name: TENANT_KEY.dealerAlpha,
+        type: "DEALER",
+        plan: null,
+      });
+      const beta = await upsertTenantByName(tx, {
+        name: TENANT_KEY.dealerBeta,
+        type: "DEALER",
+        plan: null,
+      });
+      const gamma = await upsertTenantByName(tx, {
+        name: TENANT_KEY.dealerGamma,
+        type: "DEALER",
+        plan: null,
+      });
 
-    // Demo release shared account — distinct from the role-based seeds above.
-    // Lives in the pilot wholesaler tenant as WHOLESALER_ADMIN with 2FA off so
-    // demo participants can hop in without setting up TOTP. Password comes
-    // from SEED_DEMO_PASSWORD (different from SEED_PILOT_PASSWORD).
-    const demoPasswordHash = await hashPilotPassword(DEMO_PASSWORD);
-    await upsertUser(tx, {
-      email: "demo@solar-saas.demo",
-      name: "藤原 健太郎",
-      tenantId: tenantIdByKey.pilotWholesaler,
-      role: "WHOLESALER_ADMIN",
-      twoFactorRequired: false,
-      passwordHash: demoPasswordHash,
-    });
-
-    // Seed one VenueProvider for pilotWholesaler so the UC-01 E2E test can
-    // select a venue provider without depending on the masters test suite
-    // having created one first. VenueProvider has no schema-level UNIQUE
-    // constraint beyond `id`, so we find-or-create manually.
-    const existingVp = await tx.venueProvider.findFirst({
-      where: { wholesalerId: pilot.id, name: "スーパービバホーム" },
-      select: { id: true },
-    });
-    const venueProvider = existingVp
-      ? existingVp
-      : await tx.venueProvider.create({
-          data: {
-            wholesalerId: pilot.id,
-            name: "スーパービバホーム",
-            area: "東京都",
-            isActive: true,
-          },
-          select: { id: true },
+      // WholesalerSettings: ensure the row exists for both wholesaler tenants so
+      // downstream features that read it via include() don't trip on a null
+      // relation. The demo/pilot wholesaler runs in FULL PII mode so the demo
+      // shows real full names (顧客名フルネーム＋様) / phone / address; the SaaS-ops
+      // tenant keeps the schema default (MASKED — forced anyway for SAAS_ADMIN).
+      for (const { wsId, piiMaskingMode } of [
+        { wsId: saasOps.id, piiMaskingMode: undefined },
+        { wsId: pilot.id, piiMaskingMode: "FULL" as const },
+      ]) {
+        await tx.wholesalerSettings.upsert({
+          where: { wholesalerId: wsId },
+          update: piiMaskingMode ? { piiMaskingMode } : {},
+          create: { wholesalerId: wsId, ...(piiMaskingMode ? { piiMaskingMode } : {}) },
         });
+      }
 
-    // Demo VenueProviders（チェーン）+ Stores（支店）— 1 : N の親子構造。
-    // 場所提供元はチェーン本部相当、Store は各支店として venueProviderId で
-    // 紐づける。VenueNegotiation はチェーン (VenueProvider) 単位で起票し、
-    // 単位を細かく分けたい運用では Store を別途参照する想定。
-    const DEMO_CHAIN_PROVIDERS: Array<{
-      name: string;
-      hqArea: string;
-      contactName: string;
-      phone: string;
-      address: string;
-      contractType: "FIXED" | "PERFORMANCE" | "OTHER";
-      fixedFee?: number;
-      performanceRate?: number;
-      stores: string[];
-    }> = [
-      {
-        name: "カインズ",
-        hqArea: "埼玉県",
-        contactName: "本部 催事推進室 田中",
-        phone: "048-555-0100",
-        address: "埼玉県本庄市早稲田の杜1-2-1",
-        contractType: "FIXED",
-        fixedFee: 80_000,
-        stores: ["浦和美園店", "新所沢店", "幕張店"],
-      },
-      {
-        name: "コメリパワー",
-        hqArea: "新潟県",
-        contactName: "本部 催事担当 佐々木",
-        phone: "025-555-0200",
-        address: "新潟県新潟市南区清水4501-1",
-        contractType: "PERFORMANCE",
-        performanceRate: 5,
-        stores: ["千葉ニュータウン店", "船橋店"],
-      },
-      {
-        name: "ホームセンタームサシ",
-        hqArea: "石川県",
-        contactName: "本部 営業企画 中島",
-        phone: "076-555-0300",
-        address: "石川県金沢市鞍月東2-21",
-        contractType: "FIXED",
-        fixedFee: 65_000,
-        stores: ["横浜瀬谷店", "町田忠生店"],
-      },
-      {
-        name: "ヤマダデンキ",
-        hqArea: "群馬県",
-        contactName: "本部 催事窓口 鈴木",
-        phone: "027-555-0400",
-        address: "群馬県高崎市栄町1-1",
-        contractType: "PERFORMANCE",
-        performanceRate: 7,
-        stores: ["テックランド町田店", "テックランド川越店", "テックランド千葉店"],
-      },
-      {
-        name: "ベイシア",
-        hqArea: "群馬県",
-        contactName: "本部 店舗運営部 山田",
-        phone: "0270-555-0500",
-        address: "群馬県前橋市亀里町900",
-        contractType: "OTHER",
-        stores: ["前橋みなみモール店", "渋川店"],
-      },
-      {
-        name: "ロイヤルホームセンター",
-        hqArea: "大阪府",
-        contactName: "本部 催事担当 佐藤",
-        phone: "06-555-0600",
-        address: "大阪府大阪市住之江区南港北1-21-72",
-        contractType: "FIXED",
-        fixedFee: 70_000,
-        stores: ["大宮店", "千葉北店"],
-      },
-    ];
+      const rels = await Promise.all([
+        upsertRelationship(tx, {
+          wholesalerId: pilot.id,
+          dealerId: alpha.id,
+          defaultScope: DEALER_SCOPE_BY_KEY.dealerAlpha,
+          franchiseNo: "ERP01",
+        }),
+        upsertRelationship(tx, {
+          wholesalerId: pilot.id,
+          dealerId: beta.id,
+          defaultScope: DEALER_SCOPE_BY_KEY.dealerBeta,
+          franchiseNo: "ERP02",
+        }),
+        upsertRelationship(tx, {
+          wholesalerId: pilot.id,
+          dealerId: gamma.id,
+          defaultScope: DEALER_SCOPE_BY_KEY.dealerGamma,
+          franchiseNo: "ERP03",
+        }),
+      ]);
 
-    const venueProviderIdsByName: Record<string, string> = {};
-    for (const vp of DEMO_CHAIN_PROVIDERS) {
-      const existing = await tx.venueProvider.findFirst({
-        where: { wholesalerId: pilot.id, name: vp.name },
+      const tenantIdByKey: Record<keyof typeof TENANT_KEY, string> = {
+        saasOps: saasOps.id,
+        pilotWholesaler: pilot.id,
+        dealerAlpha: alpha.id,
+        dealerBeta: beta.id,
+        dealerGamma: gamma.id,
+      };
+
+      for (const u of USER_SEEDS) {
+        await upsertUser(tx, {
+          email: u.email,
+          name: u.name,
+          tenantId: tenantIdByKey[u.tenantKey],
+          role: u.role,
+          twoFactorRequired: u.twoFactorRequired,
+          passwordHash,
+        });
+      }
+
+      // Demo release shared account — distinct from the role-based seeds above.
+      // Lives in the pilot wholesaler tenant as WHOLESALER_ADMIN with 2FA off so
+      // demo participants can hop in without setting up TOTP. Password comes
+      // from SEED_DEMO_PASSWORD (different from SEED_PILOT_PASSWORD).
+      const demoPasswordHash = await hashPilotPassword(DEMO_PASSWORD);
+      await upsertUser(tx, {
+        email: "demo@solar-saas.demo",
+        name: "藤原 健太郎",
+        tenantId: tenantIdByKey.pilotWholesaler,
+        role: "WHOLESALER_ADMIN",
+        twoFactorRequired: false,
+        passwordHash: demoPasswordHash,
+      });
+
+      // Seed one VenueProvider for pilotWholesaler so the UC-01 E2E test can
+      // select a venue provider without depending on the masters test suite
+      // having created one first. VenueProvider has no schema-level UNIQUE
+      // constraint beyond `id`, so we find-or-create manually.
+      const existingVp = await tx.venueProvider.findFirst({
+        where: { wholesalerId: pilot.id, name: "スーパービバホーム" },
         select: { id: true },
       });
-      let providerId: string;
-      if (existing) {
-        providerId = existing.id;
-      } else {
-        const created = await tx.venueProvider.create({
-          data: {
-            wholesalerId: pilot.id,
-            name: vp.name,
-            area: vp.hqArea,
-            contactName: vp.contactName,
-            phone: vp.phone,
-            address: vp.address,
-            contractType: vp.contractType,
-            ...(vp.fixedFee !== undefined ? { fixedFee: vp.fixedFee } : {}),
-            ...(vp.performanceRate !== undefined
-              ? { performanceRate: vp.performanceRate }
-              : {}),
-            isActive: true,
-          },
-          select: { id: true },
-        });
-        providerId = created.id;
-      }
-      venueProviderIdsByName[vp.name] = providerId;
-
-      // Stores（支店）— venueProviderId で紐づける。同 (wholesalerId, name) で
-      // upsert。既に親未紐づけで存在していたら親をセット。
-      for (const storeName of vp.stores) {
-        const existingStore = await tx.store.findFirst({
-          where: { wholesalerId: pilot.id, name: storeName },
-          select: { id: true, venueProviderId: true },
-        });
-        if (!existingStore) {
-          await tx.store.create({
+      const venueProvider = existingVp
+        ? existingVp
+        : await tx.venueProvider.create({
             data: {
               wholesalerId: pilot.id,
-              venueProviderId: providerId,
-              name: storeName,
+              name: "スーパービバホーム",
+              area: "東京都",
               isActive: true,
             },
+            select: { id: true },
           });
-        } else if (existingStore.venueProviderId !== providerId) {
-          await tx.store.update({
-            where: { id: existingStore.id },
-            data: { venueProviderId: providerId },
-          });
-        }
-      }
-    }
 
-    // Legacy demo providers (旧 "カインズ 浦和美園店" 等) を整理。リンクを
-    // 失う前に紐づく VenueNegotiation を削除し、参照不要となった旧 provider
-    // を物理削除する。EventCandidate からの参照が無いケースが前提（旧デモ
-    // データは VenueNegotiation 単位までしか作っていない）。
-    const LEGACY_PROVIDER_NAMES = [
-      "カインズ 浦和美園店",
-      "コメリパワー 千葉ニュータウン店",
-      "ホームセンタームサシ 横浜瀬谷店",
-      "ヤマダデンキ テックランド町田店",
-      "ベイシア 前橋みなみモール店",
-      "ロイヤルホームセンター 大宮店",
-    ];
-    const legacyProviders = await tx.venueProvider.findMany({
-      where: { wholesalerId: pilot.id, name: { in: LEGACY_PROVIDER_NAMES } },
-      select: { id: true },
-    });
-    if (legacyProviders.length > 0) {
-      const legacyIds = legacyProviders.map((p) => p.id);
-      await tx.venueNegotiation.deleteMany({
-        where: { wholesalerId: pilot.id, venueProviderId: { in: legacyIds } },
-      });
-      // 物理削除は EventCandidate 等の外部参照があると ON DELETE 制約で失敗
-      // するので try/catch。失敗時は isActive=false に fallback。
-      try {
-        await tx.venueProvider.deleteMany({ where: { id: { in: legacyIds } } });
-      } catch {
-        await tx.venueProvider.updateMany({
-          where: { id: { in: legacyIds } },
-          data: { isActive: false },
-        });
-      }
-    }
-
-    const hasDemoNegotiation = await tx.venueNegotiation.findFirst({
-      where: { wholesalerId: pilot.id },
-      select: { id: true },
-    });
-    if (!hasDemoNegotiation) {
-      const today = new Date();
-      const isoDate = (offsetDays: number) => {
-        const d = new Date(today);
-        d.setDate(d.getDate() + offsetDays);
-        return d.toISOString().slice(0, 10);
-      };
-      const DEMO_NEGOTIATIONS: Array<{
-        providerName: string;
-        status:
-          | "NOT_CONTACTED"
-          | "CONTACTING"
-          | "CONDITION_REVIEW"
-          | "FEASIBLE"
-          | "INFEASIBLE"
-          | "FIXED"
-          | "CANCELLED";
-        candidateDates: string[];
-        nextAction?: string;
-        conditionNote?: string;
-        decidedDate?: string;
-        contractType?: "FIXED" | "PERFORMANCE" | "OTHER";
+      // Demo VenueProviders（チェーン）+ Stores（支店）— 1 : N の親子構造。
+      // 場所提供元はチェーン本部相当、Store は各支店として venueProviderId で
+      // 紐づける。VenueNegotiation はチェーン (VenueProvider) 単位で起票し、
+      // 単位を細かく分けたい運用では Store を別途参照する想定。
+      const DEMO_CHAIN_PROVIDERS: Array<{
+        name: string;
+        hqArea: string;
+        contactName: string;
+        phone: string;
+        address: string;
+        contractType: "FIXED" | "PERFORMANCE" | "OTHER";
         fixedFee?: number;
         performanceRate?: number;
+        stores: string[];
       }> = [
         {
-          providerName: "カインズ",
-          status: "FIXED",
-          candidateDates: [isoDate(14), isoDate(15)],
-          decidedDate: isoDate(14),
+          name: "カインズ",
+          hqArea: "埼玉県",
+          contactName: "本部 催事推進室 田中",
+          phone: "048-555-0100",
+          address: "埼玉県本庄市早稲田の杜1-2-1",
           contractType: "FIXED",
           fixedFee: 80_000,
-          conditionNote: "浦和美園店の入口正面ブース、2 日間借用で確定",
+          stores: ["浦和美園店", "新所沢店", "幕張店"],
         },
         {
-          providerName: "コメリパワー",
-          status: "CONDITION_REVIEW",
-          candidateDates: [isoDate(21), isoDate(28)],
-          nextAction: "千葉ニュータウン店、成果報酬率の最終回答待ち（6/8 まで）",
+          name: "コメリパワー",
+          hqArea: "新潟県",
+          contactName: "本部 催事担当 佐々木",
+          phone: "025-555-0200",
+          address: "新潟県新潟市南区清水4501-1",
           contractType: "PERFORMANCE",
           performanceRate: 5,
+          stores: ["千葉ニュータウン店", "船橋店"],
         },
         {
-          providerName: "ホームセンタームサシ",
-          status: "FEASIBLE",
-          candidateDates: [isoDate(30)],
-          nextAction: "横浜瀬谷店、二次店募集 → 開催体制決定へ",
+          name: "ホームセンタームサシ",
+          hqArea: "石川県",
+          contactName: "本部 営業企画 中島",
+          phone: "076-555-0300",
+          address: "石川県金沢市鞍月東2-21",
           contractType: "FIXED",
           fixedFee: 65_000,
+          stores: ["横浜瀬谷店", "町田忠生店"],
         },
         {
-          providerName: "ヤマダデンキ",
-          status: "CONTACTING",
-          candidateDates: [isoDate(35), isoDate(42)],
-          nextAction: "テックランド町田店、店長と日程調整中（6/5 折り返し電話）",
+          name: "ヤマダデンキ",
+          hqArea: "群馬県",
+          contactName: "本部 催事窓口 鈴木",
+          phone: "027-555-0400",
+          address: "群馬県高崎市栄町1-1",
+          contractType: "PERFORMANCE",
+          performanceRate: 7,
+          stores: ["テックランド町田店", "テックランド川越店", "テックランド千葉店"],
         },
         {
-          providerName: "ベイシア",
-          status: "NOT_CONTACTED",
-          candidateDates: [],
-          nextAction: "前橋みなみモール店、問い合わせフォーム送付予定",
+          name: "ベイシア",
+          hqArea: "群馬県",
+          contactName: "本部 店舗運営部 山田",
+          phone: "0270-555-0500",
+          address: "群馬県前橋市亀里町900",
+          contractType: "OTHER",
+          stores: ["前橋みなみモール店", "渋川店"],
         },
         {
-          providerName: "ロイヤルホームセンター",
-          status: "INFEASIBLE",
-          candidateDates: [],
-          conditionNote: "大宮店、別催事と重複のため当月開催不可、来月再打診",
+          name: "ロイヤルホームセンター",
+          hqArea: "大阪府",
+          contactName: "本部 催事担当 佐藤",
+          phone: "06-555-0600",
+          address: "大阪府大阪市住之江区南港北1-21-72",
+          contractType: "FIXED",
+          fixedFee: 70_000,
+          stores: ["大宮店", "千葉北店"],
         },
       ];
 
-      for (const n of DEMO_NEGOTIATIONS) {
-        const providerId = venueProviderIdsByName[n.providerName];
-        if (!providerId) continue;
-        await tx.venueNegotiation.create({
-          data: {
-            wholesalerId: pilot.id,
-            venueProviderId: providerId,
-            candidateDates: n.candidateDates,
-            status: n.status,
-            ...(n.nextAction ? { nextAction: n.nextAction } : {}),
-            ...(n.conditionNote ? { conditionNote: n.conditionNote } : {}),
-            ...(n.decidedDate ? { decidedDate: new Date(n.decidedDate) } : {}),
-            ...(n.contractType ? { contractType: n.contractType } : {}),
-            ...(n.fixedFee !== undefined ? { fixedFee: n.fixedFee } : {}),
-            ...(n.performanceRate !== undefined
-              ? { performanceRate: n.performanceRate }
-              : {}),
-          },
+      const venueProviderIdsByName: Record<string, string> = {};
+      for (const vp of DEMO_CHAIN_PROVIDERS) {
+        const existing = await tx.venueProvider.findFirst({
+          where: { wholesalerId: pilot.id, name: vp.name },
+          select: { id: true },
         });
-      }
-    }
+        let providerId: string;
+        if (existing) {
+          providerId = existing.id;
+        } else {
+          const created = await tx.venueProvider.create({
+            data: {
+              wholesalerId: pilot.id,
+              name: vp.name,
+              area: vp.hqArea,
+              contactName: vp.contactName,
+              phone: vp.phone,
+              address: vp.address,
+              contractType: vp.contractType,
+              ...(vp.fixedFee !== undefined ? { fixedFee: vp.fixedFee } : {}),
+              ...(vp.performanceRate !== undefined ? { performanceRate: vp.performanceRate } : {}),
+              isActive: true,
+            },
+            select: { id: true },
+          });
+          providerId = created.id;
+        }
+        venueProviderIdsByName[vp.name] = providerId;
 
-    // Seed a few Areas for pilotWholesaler so the イベント候補登録フォームの
-    // エリア選択肢が空にならない。Area has no schema-level UNIQUE constraint
-    // beyond `id`, so we find-or-create manually per (wholesalerId, name).
-    // イベント開催エリア (EVENT) — イベント候補登録時に選択する開催地区分。
-    const EVENT_AREA_NAMES = ["東京都", "神奈川県", "埼玉県", "千葉県"];
-    for (const areaName of EVENT_AREA_NAMES) {
-      const existingArea = await tx.area.findFirst({
-        where: { wholesalerId: pilot.id, name: areaName, type: "EVENT" },
+        // Stores（支店）— venueProviderId で紐づける。同 (wholesalerId, name) で
+        // upsert。既に親未紐づけで存在していたら親をセット。
+        for (const storeName of vp.stores) {
+          const existingStore = await tx.store.findFirst({
+            where: { wholesalerId: pilot.id, name: storeName },
+            select: { id: true, venueProviderId: true },
+          });
+          if (!existingStore) {
+            await tx.store.create({
+              data: {
+                wholesalerId: pilot.id,
+                venueProviderId: providerId,
+                name: storeName,
+                isActive: true,
+              },
+            });
+          } else if (existingStore.venueProviderId !== providerId) {
+            await tx.store.update({
+              where: { id: existingStore.id },
+              data: { venueProviderId: providerId },
+            });
+          }
+        }
+      }
+
+      // Legacy demo providers (旧 "カインズ 浦和美園店" 等) を整理。リンクを
+      // 失う前に紐づく VenueNegotiation を削除し、参照不要となった旧 provider
+      // を物理削除する。EventCandidate からの参照が無いケースが前提（旧デモ
+      // データは VenueNegotiation 単位までしか作っていない）。
+      const LEGACY_PROVIDER_NAMES = [
+        "カインズ 浦和美園店",
+        "コメリパワー 千葉ニュータウン店",
+        "ホームセンタームサシ 横浜瀬谷店",
+        "ヤマダデンキ テックランド町田店",
+        "ベイシア 前橋みなみモール店",
+        "ロイヤルホームセンター 大宮店",
+      ];
+      const legacyProviders = await tx.venueProvider.findMany({
+        where: { wholesalerId: pilot.id, name: { in: LEGACY_PROVIDER_NAMES } },
         select: { id: true },
       });
-      if (!existingArea) {
-        await tx.area.create({
-          data: {
-            wholesalerId: pilot.id,
-            name: areaName,
-            type: "EVENT",
-            isActive: true,
-          },
+      if (legacyProviders.length > 0) {
+        const legacyIds = legacyProviders.map((p) => p.id);
+        await tx.venueNegotiation.deleteMany({
+          where: { wholesalerId: pilot.id, venueProviderId: { in: legacyIds } },
         });
+        // 物理削除は EventCandidate 等の外部参照があると ON DELETE 制約で失敗
+        // するので try/catch。失敗時は isActive=false に fallback。
+        try {
+          await tx.venueProvider.deleteMany({ where: { id: { in: legacyIds } } });
+        } catch {
+          await tx.venueProvider.updateMany({
+            where: { id: { in: legacyIds } },
+            data: { isActive: false },
+          });
+        }
       }
-    }
 
-    // 顧客エリア (CUSTOMER) — 顧客マスタで参照する営業対象エリア区分。
-    // 同名でも EVENT と CUSTOMER は別レコードで管理する。
-    const CUSTOMER_AREA_NAMES = [
-      "東京都北部",
-      "東京都南部",
-      "神奈川北部",
-      "神奈川南部",
-      "埼玉エリア",
-      "千葉エリア",
-    ];
-    for (const areaName of CUSTOMER_AREA_NAMES) {
-      const existingArea = await tx.area.findFirst({
-        where: { wholesalerId: pilot.id, name: areaName, type: "CUSTOMER" },
+      const hasDemoNegotiation = await tx.venueNegotiation.findFirst({
+        where: { wholesalerId: pilot.id },
         select: { id: true },
       });
-      if (!existingArea) {
-        await tx.area.create({
-          data: {
-            wholesalerId: pilot.id,
-            name: areaName,
-            type: "CUSTOMER",
-            isActive: true,
+      if (!hasDemoNegotiation) {
+        const today = new Date();
+        const isoDate = (offsetDays: number) => {
+          const d = new Date(today);
+          d.setDate(d.getDate() + offsetDays);
+          return d.toISOString().slice(0, 10);
+        };
+        const DEMO_NEGOTIATIONS: Array<{
+          providerName: string;
+          status:
+            | "NOT_CONTACTED"
+            | "CONTACTING"
+            | "CONDITION_REVIEW"
+            | "FEASIBLE"
+            | "INFEASIBLE"
+            | "FIXED"
+            | "CANCELLED";
+          candidateDates: string[];
+          nextAction?: string;
+          conditionNote?: string;
+          decidedDate?: string;
+          contractType?: "FIXED" | "PERFORMANCE" | "OTHER";
+          fixedFee?: number;
+          performanceRate?: number;
+        }> = [
+          {
+            providerName: "カインズ",
+            status: "FIXED",
+            candidateDates: [isoDate(14), isoDate(15)],
+            decidedDate: isoDate(14),
+            contractType: "FIXED",
+            fixedFee: 80_000,
+            conditionNote: "浦和美園店の入口正面ブース、2 日間借用で確定",
           },
-        });
-      }
-    }
+          {
+            providerName: "コメリパワー",
+            status: "CONDITION_REVIEW",
+            candidateDates: [isoDate(21), isoDate(28)],
+            nextAction: "千葉ニュータウン店、成果報酬率の最終回答待ち（6/8 まで）",
+            contractType: "PERFORMANCE",
+            performanceRate: 5,
+          },
+          {
+            providerName: "ホームセンタームサシ",
+            status: "FEASIBLE",
+            candidateDates: [isoDate(30)],
+            nextAction: "横浜瀬谷店、二次店募集 → 開催体制決定へ",
+            contractType: "FIXED",
+            fixedFee: 65_000,
+          },
+          {
+            providerName: "ヤマダデンキ",
+            status: "CONTACTING",
+            candidateDates: [isoDate(35), isoDate(42)],
+            nextAction: "テックランド町田店、店長と日程調整中（6/5 折り返し電話）",
+          },
+          {
+            providerName: "ベイシア",
+            status: "NOT_CONTACTED",
+            candidateDates: [],
+            nextAction: "前橋みなみモール店、問い合わせフォーム送付予定",
+          },
+          {
+            providerName: "ロイヤルホームセンター",
+            status: "INFEASIBLE",
+            candidateDates: [],
+            conditionNote: "大宮店、別催事と重複のため当月開催不可、来月再打診",
+          },
+        ];
 
-    // Seed a few Stores for pilotWholesaler so the イベント候補登録フォームの
-    // 店舗選択肢が空にならない。Store has no schema-level UNIQUE constraint
-    // beyond `id`, so we find-or-create manually per (wholesalerId, name).
-    const STORE_NAMES = ["テスト店舗A", "テスト店舗B", "テスト店舗C"];
-    for (const storeName of STORE_NAMES) {
-      const existingStore = await tx.store.findFirst({
-        where: { wholesalerId: pilot.id, name: storeName },
+        for (const n of DEMO_NEGOTIATIONS) {
+          const providerId = venueProviderIdsByName[n.providerName];
+          if (!providerId) continue;
+          await tx.venueNegotiation.create({
+            data: {
+              wholesalerId: pilot.id,
+              venueProviderId: providerId,
+              candidateDates: n.candidateDates,
+              status: n.status,
+              ...(n.nextAction ? { nextAction: n.nextAction } : {}),
+              ...(n.conditionNote ? { conditionNote: n.conditionNote } : {}),
+              ...(n.decidedDate ? { decidedDate: new Date(n.decidedDate) } : {}),
+              ...(n.contractType ? { contractType: n.contractType } : {}),
+              ...(n.fixedFee !== undefined ? { fixedFee: n.fixedFee } : {}),
+              ...(n.performanceRate !== undefined ? { performanceRate: n.performanceRate } : {}),
+            },
+          });
+        }
+      }
+
+      // Seed a few Areas for pilotWholesaler so the イベント候補登録フォームの
+      // エリア選択肢が空にならない。Area has no schema-level UNIQUE constraint
+      // beyond `id`, so we find-or-create manually per (wholesalerId, name).
+      // イベント開催エリア (EVENT) — イベント候補登録時に選択する開催地区分。
+      const EVENT_AREA_NAMES = ["東京都", "神奈川県", "埼玉県", "千葉県"];
+      for (const areaName of EVENT_AREA_NAMES) {
+        const existingArea = await tx.area.findFirst({
+          where: { wholesalerId: pilot.id, name: areaName, type: "EVENT" },
+          select: { id: true },
+        });
+        if (!existingArea) {
+          await tx.area.create({
+            data: {
+              wholesalerId: pilot.id,
+              name: areaName,
+              type: "EVENT",
+              isActive: true,
+            },
+          });
+        }
+      }
+
+      // 顧客エリア (CUSTOMER) — 顧客マスタで参照する営業対象エリア区分。
+      // 同名でも EVENT と CUSTOMER は別レコードで管理する。
+      const CUSTOMER_AREA_NAMES = [
+        "東京都北部",
+        "東京都南部",
+        "神奈川北部",
+        "神奈川南部",
+        "埼玉エリア",
+        "千葉エリア",
+      ];
+      for (const areaName of CUSTOMER_AREA_NAMES) {
+        const existingArea = await tx.area.findFirst({
+          where: { wholesalerId: pilot.id, name: areaName, type: "CUSTOMER" },
+          select: { id: true },
+        });
+        if (!existingArea) {
+          await tx.area.create({
+            data: {
+              wholesalerId: pilot.id,
+              name: areaName,
+              type: "CUSTOMER",
+              isActive: true,
+            },
+          });
+        }
+      }
+
+      // Seed a few Stores for pilotWholesaler so the イベント候補登録フォームの
+      // 店舗選択肢が空にならない。Store has no schema-level UNIQUE constraint
+      // beyond `id`, so we find-or-create manually per (wholesalerId, name).
+      const STORE_NAMES = ["テスト店舗A", "テスト店舗B", "テスト店舗C"];
+      for (const storeName of STORE_NAMES) {
+        const existingStore = await tx.store.findFirst({
+          where: { wholesalerId: pilot.id, name: storeName },
+          select: { id: true },
+        });
+        if (!existingStore) {
+          await tx.store.create({
+            data: { wholesalerId: pilot.id, name: storeName, isActive: true },
+          });
+        }
+      }
+
+      // Seed a couple of LineEvents for pilotWholesaler so the ライン一覧
+      // (F-059) が空にならない。LineEvent has no schema-level UNIQUE constraint
+      // beyond `id`, so we find-or-create manually per (wholesalerId, name).
+      // createdBy はパイロット卸の管理者ユーザを解決して使う。
+      const pilotAdmin = await tx.user.findUnique({
+        where: { email: "wholesaler_admin@solar-saas.dev" },
         select: { id: true },
       });
-      if (!existingStore) {
-        await tx.store.create({
-          data: { wholesalerId: pilot.id, name: storeName, isActive: true },
-        });
-      }
-    }
-
-    // Seed a couple of LineEvents for pilotWholesaler so the ライン一覧
-    // (F-059) が空にならない。LineEvent has no schema-level UNIQUE constraint
-    // beyond `id`, so we find-or-create manually per (wholesalerId, name).
-    // createdBy はパイロット卸の管理者ユーザを解決して使う。
-    const pilotAdmin = await tx.user.findUnique({
-      where: { email: "wholesaler_admin@solar-saas.dev" },
-      select: { id: true },
-    });
-    const pilotAdminId = pilotAdmin?.id ?? "seed";
-    const now = new Date();
-    const lineMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-    const LINE_EVENT_SEEDS = [
-      {
-        name: "イオンモール幕張新都心",
-        area: "千葉県",
-        scheduledDates: [
-          `${lineMonth}-01`,
-          `${lineMonth}-08`,
-          `${lineMonth}-15`,
-          `${lineMonth}-22`,
-        ],
-        contractType: "FIXED" as const,
-        fixedFee: "30000",
-        status: "CONFIRMED" as const,
-      },
-      {
-        name: "ららぽーとTOKYO-BAY",
-        area: "千葉県",
-        scheduledDates: [
-          `${lineMonth}-02`,
-          `${lineMonth}-09`,
-          `${lineMonth}-16`,
-          `${lineMonth}-23`,
-          `${lineMonth}-30`,
-        ],
-        contractType: "PERFORMANCE" as const,
-        performanceRate: "5",
-        status: "DRAFT" as const,
-      },
-    ];
-    for (const le of LINE_EVENT_SEEDS) {
-      const existingLine = await tx.lineEvent.findFirst({
-        where: { wholesalerId: pilot.id, name: le.name },
-        select: { id: true },
-      });
-      if (!existingLine) {
-        await tx.lineEvent.create({
-          data: {
-            wholesalerId: pilot.id,
-            venueProviderId: venueProvider.id,
-            name: le.name,
-            targetMonth: lineMonth,
-            area: le.area,
-            scheduledDates: le.scheduledDates,
-            contractType: le.contractType,
-            fixedFee: "fixedFee" in le ? le.fixedFee : null,
-            performanceRate: "performanceRate" in le ? le.performanceRate : null,
-            status: le.status,
-            createdBy: pilotAdminId,
-          },
-        });
-      }
-    }
-
-    // Seed 二次店レーン希望 (F-060 / ボトムアップ構造) so the 二次店希望一覧 screen
-    // renders data. 二次店は希望場所(venueLabel)・希望開催日(desiredDates)を自由記述で
-    // 提出する（確定レーン LineEvent に依存しない）。任意リンク venueProviderId は
-    // 突合用に付与（loader が name 解決）。idempotent: (relationshipId, targetMonth) 一意。
-    // rels[] is [alpha, beta, gamma]. 日付は決定論的に lineMonth から週単位で組む。
-    const wd = (day: number) => `${lineMonth}-${String(day).padStart(2, "0")}`;
-    const LANE_PREFERENCE_SEEDS = [
-      {
-        relationshipId: rels[0]!.id, // alpha
-        note: "土日を中心に2会場で展開希望。要員2名で対応可能です。",
-        items: [
-          {
-            priority: 1,
-            venueLabel: "カインズ 大宮店",
-            venueProviderId: venueProvider.id,
-            desiredDates: [wd(7), wd(8), wd(14), wd(15)],
-            memo: "駐車場側スペースを希望",
-          },
-          {
-            priority: 2,
-            venueLabel: "コメリ 大宮店",
-            desiredDates: [wd(21), wd(22)],
-            memo: null,
-          },
-        ],
-      },
-      {
-        relationshipId: rels[1]!.id, // beta
-        note: "平日も対応可能です。",
-        items: [
-          {
-            priority: 1,
-            venueLabel: "ビバホーム さいたま新都心店",
-            desiredDates: [wd(7), wd(8), wd(9)],
-            memo: "初週に集中したい",
-          },
-          {
-            priority: 2,
-            venueLabel: "カインズ 大宮店",
-            venueProviderId: venueProvider.id,
-            desiredDates: [wd(28), wd(29)],
-            memo: null,
-          },
-        ],
-      },
-    ];
-    // upsert（items 入れ替え含む）: 構造変更（ボトムアップ化）前の旧構造 LanePreference
-    // 行が残る環境でも新構造デモへ収束させる。既存があれば note を更新し子 items を
-    // 全削除→新構造で再作成。無ければ create。tx 内なので delete→create は原子的。
-    // 複数回流しても同一結果（決定論的・冪等）。
-    for (const pref of LANE_PREFERENCE_SEEDS) {
-      const itemsCreate = pref.items.map((it) => ({
-        priority: it.priority,
-        venueLabel: it.venueLabel,
-        venueProviderId: it.venueProviderId ?? null,
-        desiredDates: it.desiredDates,
-        memo: it.memo ?? null,
-      }));
-      const existingPref = await tx.lanePreference.findUnique({
-        where: {
-          relationshipId_targetMonth: {
-            relationshipId: pref.relationshipId,
-            targetMonth: lineMonth,
-          },
+      const pilotAdminId = pilotAdmin?.id ?? "seed";
+      const now = new Date();
+      const lineMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      const LINE_EVENT_SEEDS = [
+        {
+          name: "イオンモール幕張新都心",
+          area: "千葉県",
+          scheduledDates: [
+            `${lineMonth}-01`,
+            `${lineMonth}-08`,
+            `${lineMonth}-15`,
+            `${lineMonth}-22`,
+          ],
+          contractType: "FIXED" as const,
+          fixedFee: "30000",
+          status: "CONFIRMED" as const,
         },
-        select: { id: true },
-      });
-      if (existingPref) {
-        await tx.lanePreferenceItem.deleteMany({
-          where: { lanePreferenceId: existingPref.id },
+        {
+          name: "ららぽーとTOKYO-BAY",
+          area: "千葉県",
+          scheduledDates: [
+            `${lineMonth}-02`,
+            `${lineMonth}-09`,
+            `${lineMonth}-16`,
+            `${lineMonth}-23`,
+            `${lineMonth}-30`,
+          ],
+          contractType: "PERFORMANCE" as const,
+          performanceRate: "5",
+          status: "DRAFT" as const,
+        },
+      ];
+      for (const le of LINE_EVENT_SEEDS) {
+        const existingLine = await tx.lineEvent.findFirst({
+          where: { wholesalerId: pilot.id, name: le.name },
+          select: { id: true },
         });
-        await tx.lanePreference.update({
-          where: { id: existingPref.id },
-          data: {
-            note: pref.note,
-            submittedBy: pilotAdminId,
-            items: { create: itemsCreate },
-          },
-        });
-      } else {
-        await tx.lanePreference.create({
-          data: {
-            wholesalerId: pilot.id,
-            relationshipId: pref.relationshipId,
-            targetMonth: lineMonth,
-            note: pref.note,
-            submittedBy: pilotAdminId,
-            items: { create: itemsCreate },
-          },
-        });
+        if (!existingLine) {
+          await tx.lineEvent.create({
+            data: {
+              wholesalerId: pilot.id,
+              venueProviderId: venueProvider.id,
+              name: le.name,
+              targetMonth: lineMonth,
+              area: le.area,
+              scheduledDates: le.scheduledDates,
+              contractType: le.contractType,
+              fixedFee: "fixedFee" in le ? le.fixedFee : null,
+              performanceRate: "performanceRate" in le ? le.performanceRate : null,
+              status: le.status,
+              createdBy: pilotAdminId,
+            },
+          });
+        }
       }
-    }
 
-    // Seed ~12 sample customers for pilotWholesaler with VARIED related records
-    // so every status badge value on the 顧客一覧 screen (F-032) is visible.
-    // Idempotent: skipped entirely if any sample customer (by name prefix) is
-    // already present, mirroring the find-or-create style used above.
-    await seedCustomers(tx, { wholesalerId: pilot.id, userId: pilotAdminId, now });
+      // Seed 二次店レーン希望 (F-060 / ボトムアップ構造) so the 二次店希望一覧 screen
+      // renders data. 二次店は希望場所(venueLabel)・希望開催日(desiredDates)を自由記述で
+      // 提出する（確定レーン LineEvent に依存しない）。任意リンク venueProviderId は
+      // 突合用に付与（loader が name 解決）。idempotent: (relationshipId, targetMonth) 一意。
+      // rels[] is [alpha, beta, gamma]. 日付は決定論的に lineMonth から週単位で組む。
+      const wd = (day: number) => `${lineMonth}-${String(day).padStart(2, "0")}`;
+      const LANE_PREFERENCE_SEEDS = [
+        {
+          relationshipId: rels[0]!.id, // alpha
+          note: "土日を中心に2会場で展開希望。要員2名で対応可能です。",
+          items: [
+            {
+              priority: 1,
+              venueLabel: "カインズ 大宮店",
+              venueProviderId: venueProvider.id,
+              desiredDates: [wd(7), wd(8), wd(14), wd(15)],
+              memo: "駐車場側スペースを希望",
+            },
+            {
+              priority: 2,
+              venueLabel: "コメリ 大宮店",
+              desiredDates: [wd(21), wd(22)],
+              memo: null,
+            },
+          ],
+        },
+        {
+          relationshipId: rels[1]!.id, // beta
+          note: "平日も対応可能です。",
+          items: [
+            {
+              priority: 1,
+              venueLabel: "ビバホーム さいたま新都心店",
+              desiredDates: [wd(7), wd(8), wd(9)],
+              memo: "初週に集中したい",
+            },
+            {
+              priority: 2,
+              venueLabel: "カインズ 大宮店",
+              venueProviderId: venueProvider.id,
+              desiredDates: [wd(28), wd(29)],
+              memo: null,
+            },
+          ],
+        },
+      ];
+      // upsert（items 入れ替え含む）: 構造変更（ボトムアップ化）前の旧構造 LanePreference
+      // 行が残る環境でも新構造デモへ収束させる。既存があれば note を更新し子 items を
+      // 全削除→新構造で再作成。無ければ create。tx 内なので delete→create は原子的。
+      // 複数回流しても同一結果（決定論的・冪等）。
+      for (const pref of LANE_PREFERENCE_SEEDS) {
+        const itemsCreate = pref.items.map((it) => ({
+          priority: it.priority,
+          venueLabel: it.venueLabel,
+          venueProviderId: it.venueProviderId ?? null,
+          desiredDates: it.desiredDates,
+          memo: it.memo ?? null,
+        }));
+        const existingPref = await tx.lanePreference.findUnique({
+          where: {
+            relationshipId_targetMonth: {
+              relationshipId: pref.relationshipId,
+              targetMonth: lineMonth,
+            },
+          },
+          select: { id: true },
+        });
+        if (existingPref) {
+          await tx.lanePreferenceItem.deleteMany({
+            where: { lanePreferenceId: existingPref.id },
+          });
+          await tx.lanePreference.update({
+            where: { id: existingPref.id },
+            data: {
+              note: pref.note,
+              submittedBy: pilotAdminId,
+              items: { create: itemsCreate },
+            },
+          });
+        } else {
+          await tx.lanePreference.create({
+            data: {
+              wholesalerId: pilot.id,
+              relationshipId: pref.relationshipId,
+              targetMonth: lineMonth,
+              note: pref.note,
+              submittedBy: pilotAdminId,
+              items: { create: itemsCreate },
+            },
+          });
+        }
+      }
 
-    // 顧客ファイルのカテゴリ分離（GENERAL / APPLICATION）のデモシード。先頭サンプル顧客に
-    // 各カテゴリ 1 件ずつメタデータのみ投入（冪等）。activity 投入有無に依存しない独立ステップ。
-    await seedCustomerFiles(tx, { wholesalerId: pilot.id, userId: pilotAdminId });
+      // Seed ~12 sample customers for pilotWholesaler with VARIED related records
+      // so every status badge value on the 顧客一覧 screen (F-032) is visible.
+      // Idempotent: skipped entirely if any sample customer (by name prefix) is
+      // already present, mirroring the find-or-create style used above.
+      await seedCustomers(tx, { wholesalerId: pilot.id, userId: pilotAdminId, now });
 
-    // F-061 案件情報の実データ化（docs/05 §16-C）。サンプル / イベントデモ顧客の
-    // 契約に ContractPayment / ContractEquipment + Contract/Construction 拡張列の
-    // デモ値を冪等に投入する。
-    await seedContractProjectData(tx, { wholesalerId: pilot.id, now });
+      // 顧客ファイルのカテゴリ分離（GENERAL / APPLICATION）のデモシード。先頭サンプル顧客に
+      // 各カテゴリ 1 件ずつメタデータのみ投入（冪等）。activity 投入有無に依存しない独立ステップ。
+      await seedCustomerFiles(tx, { wholesalerId: pilot.id, userId: pilotAdminId });
 
-    // F-063 住環境・家族属性ヒアリングのデモ化（docs/05 §17）。既設設備（現況）・家族
-    // 年齢・分離電話・マエカク希望日時・アポ取得日を冪等に投入（既存顧客に紐づけ）。
-    await seedCustomerHearing(tx, { wholesalerId: pilot.id, now });
+      // F-061 案件情報の実データ化（docs/05 §16-C）。サンプル / イベントデモ顧客の
+      // 契約に ContractPayment / ContractEquipment + Contract/Construction 拡張列の
+      // デモ値を冪等に投入する。
+      await seedContractProjectData(tx, { wholesalerId: pilot.id, now });
 
-    // Seed DealerCommissionRate (F-049 / S-049) — 手数料設定. 3 つのパイロット
-    // 関係に対し率と履歴 1〜2 行を作る。idempotent：relationshipId に対する
-    // findUnique でスキップ。
-    await seedDealerCommissionRates(tx, {
-      wholesalerId: pilot.id,
-      userId: pilotAdminId,
-      relationshipIds: rels.map((r) => r.id),
-    });
+      // F-063 住環境・家族属性ヒアリングのデモ化（docs/05 §17）。既設設備（現況）・家族
+      // 年齢・分離電話・マエカク希望日時・アポ取得日を冪等に投入（既存顧客に紐づけ）。
+      await seedCustomerHearing(tx, { wholesalerId: pilot.id, now });
 
-    return {
-      saasOpsTenantId: saasOps.id,
-      wholesalerTenantId: pilot.id,
-      dealerTenantIds: { alpha: alpha.id, beta: beta.id, gamma: gamma.id },
-      relationshipIds: rels.map((r) => r.id),
-      userCount: USER_SEEDS.length + 1, // +1 for the demo release shared account
-      venueProviderId: venueProvider.id,
-    };
-  }, { timeout: 300_000, maxWait: 60_000 });
+      // 顧客管理系の横断一覧（アポイント / 契約 / 施工 / 設置申請）で「状態の違い」を
+      // 目視確認できるようにするデモ値。既存レコードの未設定列を埋めるだけで、
+      // 新しいレコードは作らない（何度実行しても増えない）。
+      await seedCrossListDemoData(tx, { wholesalerId: pilot.id, now });
+
+      // Seed DealerCommissionRate (F-049 / S-049) — 手数料設定. 3 つのパイロット
+      // 関係に対し率と履歴 1〜2 行を作る。idempotent：relationshipId に対する
+      // findUnique でスキップ。
+      await seedDealerCommissionRates(tx, {
+        wholesalerId: pilot.id,
+        userId: pilotAdminId,
+        relationshipIds: rels.map((r) => r.id),
+      });
+
+      return {
+        saasOpsTenantId: saasOps.id,
+        wholesalerTenantId: pilot.id,
+        dealerTenantIds: { alpha: alpha.id, beta: beta.id, gamma: gamma.id },
+        relationshipIds: rels.map((r) => r.id),
+        userCount: USER_SEEDS.length + 1, // +1 for the demo release shared account
+        venueProviderId: venueProvider.id,
+      };
+    },
+    { timeout: 300_000, maxWait: 60_000 },
+  );
 }
 
 // Demo customers carry realistic names (no synthetic prefix). The idempotency
@@ -1307,7 +1312,8 @@ async function seedContractProjectData(
         data: {
           surveyDate: day(-7),
           // 現地調査ステータス（施工ステータスとは独立）。デモは進捗に合わせて散らす。
-          surveyStatus: completed || constructing ? "surveyed" : seq % 2 === 0 ? "scheduled" : "not_surveyed",
+          surveyStatus:
+            completed || constructing ? "surveyed" : seq % 2 === 0 ? "scheduled" : "not_surveyed",
           startedDate: constructing || completed ? day(-5) : null,
           completedDate: completed ? day(-1) : null,
           powerSaleStartDate: completed ? day(10) : null,
@@ -1415,6 +1421,180 @@ async function seedContractProjectData(
   }
 }
 
+// 顧客管理系の横断一覧（/appointments, /contracts, /constructions, /applications）で
+// 状態の違いを目視確認できるようにするデモシード。
+//
+// 方針:
+//   - **既存レコードの update のみ**。create は一切しないので、何度実行しても件数は増えない。
+//   - 値は「レコードの並び順に対する決定論的な関数」。同じ seed を再実行すれば同じ値になる。
+//   - 状態は業務的に整合させる（例: 過去のアポでマエカク済 → 訪問済 / 施工完了 → 契約も完了）。
+//     一覧で状態が散らばって見えることだけを目的にした無意味な値は入れない。
+//   - 埋めるのは「本来入るはずなのに seed が未設定のまま残していた列」に限る。
+async function seedCrossListDemoData(
+  tx: TxClient,
+  args: { wholesalerId: string; now: Date },
+): Promise<void> {
+  const { wholesalerId, now } = args;
+  const day = (offset: number): Date => new Date(now.getTime() + offset * 24 * 60 * 60 * 1000);
+
+  // --- Appointment: 種別 + ステータス --------------------------------------
+  // seed の既定は全件 UNCONFIRMED / appointmentType 未設定だったため、一覧の
+  // 「種別」「状態」列が全行同じになってしまう。予定日とマエカク有無から
+  // 業務的に妥当なステータスを決める。
+  const appointments = await tx.appointment.findMany({
+    where: { customer: { wholesalerId } },
+    orderBy: { scheduledAt: "asc" },
+    select: { id: true, scheduledAt: true, preCall: { select: { id: true } } },
+  });
+  const APPOINTMENT_TYPES = ["初回訪問", "現地調査同行", "見積提示", "契約手続き"];
+  let a = 0;
+  for (const ap of appointments) {
+    const seq = a++;
+    const isPast = ap.scheduledAt.getTime() < now.getTime();
+    const hasPreCall = ap.preCall !== null;
+    // 過去 + マエカク済 → 訪問済 / 過去 + マエカク無 → 不在 /
+    // 未来 + マエカク済 → マエカク済 / 未来 + マエカク無 → 未確認
+    const status = isPast
+      ? hasPreCall
+        ? "VISITED"
+        : "ABSENT"
+      : hasPreCall
+        ? "PRE_CALL_DONE"
+        : "UNCONFIRMED";
+    await tx.appointment.update({
+      where: { id: ap.id },
+      data: {
+        status,
+        appointmentType: APPOINTMENT_TYPES[seq % APPOINTMENT_TYPES.length]!,
+        location: seq % 3 === 0 ? "ご自宅" : seq % 3 === 1 ? "店舗商談スペース" : "オンライン",
+      },
+    });
+  }
+
+  // --- Customer.nextAction: 一覧の「次に必要な対応」列 ----------------------
+  // 次回アポが未来なら訪問準備、過去（または未設定）ならフォロー。空欄だらけの
+  // 一覧にならないよう、契約状況に応じた定型文を決定論的に入れる。
+  const customersForNextAction = await tx.customer.findMany({
+    where: { wholesalerId, nextAction: null },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, contractStatus: true },
+  });
+  const NEXT_ACTION_BY_STATUS: Record<string, string> = {
+    pre_visit: "初回訪問の日程を確定する",
+    negotiating: "ヒアリング内容を整理し提案書を作成する",
+    quote_presented: "見積の検討状況を確認する（TEL）",
+    contract_pending: "契約書類の記入漏れを確認して回収する",
+    contracted: "施工日程の確定を施工業者と調整する",
+    lost: "半年後に再アプローチ（リスト保持）",
+    cancelled: "解約手続きの完了を確認する",
+  };
+  for (const c of customersForNextAction) {
+    const text = NEXT_ACTION_BY_STATUS[c.contractStatus];
+    if (!text) continue;
+    await tx.customer.update({ where: { id: c.id }, data: { nextAction: text } });
+  }
+
+  // --- Contract: ステータスと金額 -------------------------------------------
+  // seed は全件 CONTRACTED / 3,500,000 円で、契約一覧の「契約状態」「契約金額」列が
+  // 全行同じになる。紐づく施工の進捗から契約ステータスを導く。
+  const contracts = await tx.contract.findMany({
+    where: { wholesalerId },
+    orderBy: { contractDate: "desc" },
+    select: { id: true, constructions: { select: { status: true } } },
+  });
+  let k = 0;
+  for (const c of contracts) {
+    const seq = k++;
+    const done = c.constructions.some((x) => x.status === "DONE");
+    const building = c.constructions.some(
+      (x) => x.status === "CONSTRUCTING" || x.status === "PAUSED",
+    );
+    await tx.contract.update({
+      where: { id: c.id },
+      data: {
+        status: done ? "DONE" : building ? "CONSTRUCTING" : "CONTRACTED",
+        // 2,980,000 〜 4,780,000 の範囲で決定論的に散らす。
+        contractAmount: (2_980_000 + (seq % 5) * 450_000).toString(),
+      },
+    });
+  }
+
+  // --- Construction: 施工予定日（開始 / 終了） -------------------------------
+  // surveyStatus / vendorName / completedDate は seedContractProjectData が
+  // 設定済み。予定日だけが未設定で一覧の先頭列が全行「—」になるため補完する。
+  const constructions = await tx.construction.findMany({
+    where: { contract: { wholesalerId } },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, status: true },
+  });
+  let n = 0;
+  for (const con of constructions) {
+    const seq = n++;
+    // 完工は過去、施工中は直近、それ以外は未来に散らす。
+    const startOffset =
+      con.status === "DONE" ? -14 - seq : con.status === "CONSTRUCTING" ? -2 : 7 + seq * 3;
+    await tx.construction.update({
+      where: { id: con.id },
+      data: {
+        plannedStartDate: day(startOffset),
+        plannedEndDate: day(startOffset + 2),
+      },
+    });
+  }
+
+  // --- LoanReviewLog: 「未解消の不備」を発生させる --------------------------
+  // 既存の不備シードは result = RESULTS[(s+i+j) % 4] === "defect"（index 2）の
+  // ときだけ不備ログを作るため (s+i+j) は常に偶数になり、同じ式を使う
+  // defectResolved: (s+i+j) % 2 === 0 が必ず true になる。結果として
+  // 「未解消の不備」が構造的に 1 件も生まれず、ローン審査一覧の不備列・
+  // 不備担当者列・不備フィルタが確認できない（実測: 未解消 0 件 / 不備なし 6 件）。
+  // 既存ログの defectResolved を決定論的に半々へ振り分けて解消する。
+  // 新しいログは作らないので再実行しても件数は増えない。
+  // LoanReviewLog は Customer への直接リレーションを持たない（customerId は素の
+  // String 列）ため、親の LoanReview 経由でテナントを絞る。
+  const defectLogs = await tx.loanReviewLog.findMany({
+    where: { loanReview: { customer: { wholesalerId } }, defectContent: { not: null } },
+    orderBy: [{ reviewedAt: "asc" }, { id: "asc" }],
+    select: { id: true },
+  });
+  let d = 0;
+  for (const log of defectLogs) {
+    const seq = d++;
+    await tx.loanReviewLog.update({
+      where: { id: log.id },
+      data: { defectResolved: seq % 2 === 1 },
+    });
+  }
+
+  // --- Application: 提出先と各日付 ------------------------------------------
+  // seed は type だけ設定しており、agency / plannedDate / submittedDate /
+  // approvedDate が全件 null。申請ステータスと矛盾しないよう日付を埋める。
+  const applications = await tx.application.findMany({
+    where: { contract: { wholesalerId } },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, status: true },
+  });
+  const AGENCIES = ["経済産業省 資源エネルギー庁", "都道府県 環境部", "市区町村 環境課"];
+  let m = 0;
+  for (const app of applications) {
+    const seq = m++;
+    const submitted = app.status === "SUBMITTED" || app.status === "APPROVED";
+    const approved = app.status === "APPROVED";
+    await tx.application.update({
+      where: { id: app.id },
+      data: {
+        agency: AGENCIES[seq % AGENCIES.length]!,
+        // 未提出は未来の予定日、提出済みは過去の予定日。
+        plannedDate: submitted ? day(-20 - seq) : day(10 + seq * 4),
+        submittedDate: submitted ? day(-15 - seq) : null,
+        approvedDate: approved ? day(-5) : null,
+        expectedAmount: (120_000 + (seq % 4) * 30_000).toString(),
+        grantedAmount: approved ? (120_000 + (seq % 4) * 30_000).toString() : null,
+      },
+    });
+  }
+}
+
 // F-063 住環境・家族属性ヒアリングのデモシード（docs/05 §17）。当該卸業者の顧客に対し、
 // 家族年齢・分離電話・案内者・マエカク希望日時・既設設備（現況）・アポ取得日を投入する。
 // 冪等・決定論的: Customer 拡張列は常に同値で update、CustomerExistingEquipment は
@@ -1471,8 +1651,7 @@ async function seedCustomerHearing(
         thankYouCallPreferredAt: s % 3 === 1 ? day(2 + (s % 4)) : null,
         thankYouCallNote: s % 4 === 1 ? "ご契約御礼コール" : null,
         maekakuCallNote: s % 3 === 0 ? "前確: 在宅時間 夜間希望" : null,
-        specialNote:
-          s % 4 === 0 ? "特記: 旧型パワコン交換要相談。近隣に既設導入実績あり。" : null,
+        specialNote: s % 4 === 0 ? "特記: 旧型パワコン交換要相談。近隣に既設導入実績あり。" : null,
         generalCallPreferredTime: s % 2 === 0 ? "平日19:00以降" : "土日終日",
         maekakuPreferredPhone: `080-2${String(1000 + s).padStart(4, "0")}-${String(4000 + s).padStart(4, "0")}`,
         // 次回アポ担当者（自社社員）。コールタブ read-only / 商談タブ編集のデモ。
@@ -1661,9 +1840,7 @@ async function seedCustomerActivities(
     { content: "補助金制度の案内資料送付", dueInDays: 8, done: true },
   ];
   const lightThreads: Record<number, { category: string; detail: string; date: Date }[]> = {
-    1: [
-      { category: "phone", detail: "在宅状況の確認とご訪問日時の打診。", date: at(2, 13, 0) },
-    ],
+    1: [{ category: "phone", detail: "在宅状況の確認とご訪問日時の打診。", date: at(2, 13, 0) }],
     2: [
       {
         category: "appointment",
@@ -1685,7 +1862,7 @@ async function seedCustomerActivities(
     const already = await tx.customerActivity.count({ where: { customerId: customer.id } });
     if (already > 0) continue;
 
-    const thread = i === 0 ? richThread : lightThreads[i] ?? lightThreads[1]!;
+    const thread = i === 0 ? richThread : (lightThreads[i] ?? lightThreads[1]!);
     let createdFirst = "";
     for (const entry of thread) {
       const activity = await tx.customerActivity.create({
@@ -1784,26 +1961,28 @@ async function seedDealerCommissionRates(
   const applyFrom = new Date("2026-04-01T00:00:00Z");
 
   // [alpha, beta, gamma] — rels 配列の順番に対応した率セット.
-  const PROFILES: { tossUp: string; closing: string; initialSummary: string; adjustSummary: string }[] = [
+  const PROFILES: {
+    tossUp: string;
+    closing: string;
+    initialSummary: string;
+    adjustSummary: string;
+  }[] = [
     {
       tossUp: "1.50",
       closing: "3.00",
-      initialSummary:
-        "新規作成（トスアップ率 1.0% → 1.5% / クロージング率 2.5% → 3.0%）",
+      initialSummary: "新規作成（トスアップ率 1.0% → 1.5% / クロージング率 2.5% → 3.0%）",
       adjustSummary: "クロージング率 2.5% → 3.0%（運用条件見直し）",
     },
     {
       tossUp: "2.00",
       closing: "3.50",
-      initialSummary:
-        "新規作成（トスアップ率 1.5% → 2.0% / クロージング率 3.0% → 3.5%）",
+      initialSummary: "新規作成（トスアップ率 1.5% → 2.0% / クロージング率 3.0% → 3.5%）",
       adjustSummary: "トスアップ率 1.5% → 2.0%（成約率向上施策に伴う引き上げ）",
     },
     {
       tossUp: "1.00",
       closing: "2.50",
-      initialSummary:
-        "新規作成（トスアップ率 1.0% / クロージング率 2.5%）",
+      initialSummary: "新規作成（トスアップ率 1.0% / クロージング率 2.5%）",
       adjustSummary: "値の変更なし",
     },
   ];

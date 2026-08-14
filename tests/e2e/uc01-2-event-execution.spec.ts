@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+
 import { signIn } from "./fixtures/auth";
 
 // E2E spec for T-04-12 (part 1) — UC-01 後半 steps 8b-10
@@ -43,9 +44,9 @@ test.describe.serial("UC-01 後半 — イベント実施・報告・顧客・�
 
     // 場所提供元対応を新規起票
     await page.goto("/venue-negotiations/new");
-    await expect(
-      page.getByRole("heading", { name: "対応を新規起票" }),
-    ).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole("heading", { name: "対応を新規起票" })).toBeVisible({
+      timeout: 30_000,
+    });
 
     const vpSelect = page.locator("#venueProviderId");
     await vpSelect.waitFor({ state: "visible" });
@@ -63,14 +64,12 @@ test.describe.serial("UC-01 後半 — イベント実施・報告・顧客・�
     }
 
     await page.getByRole("button", { name: "登録" }).click();
-    await expect(
-      page.getByRole("heading", { name: "場所提供元対応詳細" }),
-    ).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByRole("heading", { name: "場所提供元対応詳細" })).toBeVisible({
+      timeout: 60_000,
+    });
 
     // Verify we're on a detail page (not the new-form URL)
-    expect(
-      page.url().match(/\/venue-negotiations\/[A-Za-z0-9_-]+/),
-    ).not.toBeNull();
+    expect(page.url().match(/\/venue-negotiations\/[A-Za-z0-9_-]+/)).not.toBeNull();
 
     // NOT_CONTACTED → CONDITION_REVIEW → FEASIBLE → FIXED
     await page.getByRole("button", { name: "条件確認中" }).click();
@@ -80,9 +79,9 @@ test.describe.serial("UC-01 後半 — イベント実施・報告・顧客・�
     await page.getByRole("button", { name: "確定" }).click();
     await page.waitForLoadState("networkidle");
 
-    await expect(
-      page.getByRole("button", { name: "イベント候補として登録" }),
-    ).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole("button", { name: "イベント候補として登録" })).toBeVisible({
+      timeout: 20_000,
+    });
 
     // 候補昇格フォームを入力
     await page.locator("#targetMonth").fill("2027-03");
@@ -114,9 +113,9 @@ test.describe.serial("UC-01 後半 — イベント実施・報告・顧客・�
     // dealer_admin が希望提出
     await signIn(page, "alpha-admin@solar-saas.dev");
     await page.goto("/visible-event-candidates");
-    await expect(
-      page.getByRole("heading", { name: "公開中のイベント候補" }),
-    ).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole("heading", { name: "公開中のイベント候補" })).toBeVisible({
+      timeout: 30_000,
+    });
 
     const storeLabel = `UC-01-2 店舗 ${RUN_ID}`;
     await expect(page.getByText(storeLabel, { exact: false })).toBeVisible({
@@ -139,13 +138,11 @@ test.describe.serial("UC-01 後半 — イベント実施・報告・顧客・�
     // wholesaler_admin が開催体制決定
     await signIn(page, "wholesaler_admin@solar-saas.dev");
     await page.goto(`/event-candidates/${eventCandidateId}/decide`);
-    await expect(
-      page.getByRole("heading", { name: "開催体制決定" }),
-    ).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole("heading", { name: "開催体制決定" })).toBeVisible({
+      timeout: 30_000,
+    });
 
-    const jointLabel = page
-      .locator("label")
-      .filter({ has: page.locator("input[value='JOINT']") });
+    const jointLabel = page.locator("label").filter({ has: page.locator("input[value='JOINT']") });
     await expect(jointLabel).toBeVisible({ timeout: 10_000 });
     await jointLabel.click();
 
@@ -182,9 +179,9 @@ test.describe.serial("UC-01 後半 — イベント実施・報告・顧客・�
     await signIn(page, "wholesaler_admin@solar-saas.dev");
 
     await page.goto(`/events/${eventId}`);
-    await expect(
-      page.getByText(`UC-01-2 店舗 ${RUN_ID}`, { exact: false }),
-    ).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(`UC-01-2 店舗 ${RUN_ID}`, { exact: false })).toBeVisible({
+      timeout: 30_000,
+    });
 
     // 「開始報告を提出」ボタン（ReportButtons コンポーネント）
     const startBtn = page.getByRole("button", { name: "開始報告を提出" });
@@ -209,9 +206,9 @@ test.describe.serial("UC-01 後半 — イベント実施・報告・顧客・�
     await signIn(page, "wholesaler_admin@solar-saas.dev");
 
     await page.goto(`/events/${eventId}`);
-    await expect(
-      page.getByText(`UC-01-2 店舗 ${RUN_ID}`, { exact: false }),
-    ).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(`UC-01-2 店舗 ${RUN_ID}`, { exact: false })).toBeVisible({
+      timeout: 30_000,
+    });
 
     // 開始報告が既に提出済みなのでボタンは「開始報告は提出済みです」で disabled
     const startSubmittedBtn = page.getByRole("button", { name: "開始報告は提出済みです" });
@@ -241,9 +238,9 @@ test.describe.serial("UC-01 後半 — イベント実施・報告・顧客・�
     await signIn(page, "wholesaler_admin@solar-saas.dev");
 
     await page.goto(`/events/${eventId}`);
-    await expect(
-      page.getByText(`UC-01-2 店舗 ${RUN_ID}`, { exact: false }),
-    ).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(`UC-01-2 店舗 ${RUN_ID}`, { exact: false })).toBeVisible({
+      timeout: 30_000,
+    });
 
     // 成果報告フォーム（ResultReportForm）が存在することを確認
     const resultSection = page.getByRole("region", { name: "成果報告" });
@@ -268,25 +265,23 @@ test.describe.serial("UC-01 後半 — イベント実施・報告・顧客・�
     await submitBtn.click();
 
     // 成功トーストが表示される
-    await expect(
-      page.getByText("成果報告を提出しました", { exact: false }),
-    ).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText("成果報告を提出しました", { exact: false })).toBeVisible({
+      timeout: 30_000,
+    });
   });
 
   // -------------------------------------------------------------------------
   // Step 10b — wholesaler_admin: 顧客登録（催事チャネル / sourceEventId 指定）
   // -------------------------------------------------------------------------
 
-  test("step-10b: wholesaler_admin registers a customer (EVENT channel)", async ({
-    page,
-  }) => {
+  test("step-10b: wholesaler_admin registers a customer (EVENT channel)", async ({ page }) => {
     expect(eventId, "Setup-1 で eventId が取得できていない").toBeTruthy();
     await signIn(page, "wholesaler_admin@solar-saas.dev");
 
     await page.goto("/customers/new");
-    await expect(
-      page.getByRole("heading", { name: "顧客を新規登録" }),
-    ).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole("heading", { name: "顧客を新規登録" })).toBeVisible({
+      timeout: 30_000,
+    });
 
     // 氏名
     await page.getByLabel("氏名").fill(`テスト 太郎 ${RUN_ID}`);
@@ -306,9 +301,7 @@ test.describe.serial("UC-01 後半 — イベント実施・報告・顧客・�
     await page.waitForURL((url) => url.pathname.startsWith("/customers"), {
       timeout: 60_000,
     });
-    await expect(
-      page.getByRole("heading", { name: "顧客一覧" }),
-    ).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole("heading", { name: "顧客一覧" })).toBeVisible({ timeout: 30_000 });
 
     // 一覧の先頭行のリンク href から顧客 ID を取得
     // （顧客一覧は最終更新降順 — 今登録したレコードが先頭に来るはず）
@@ -325,16 +318,14 @@ test.describe.serial("UC-01 後半 — イベント実施・報告・顧客・�
   // Step 10c — wholesaler_admin: アポ登録
   // -------------------------------------------------------------------------
 
-  test("step-10c: wholesaler_admin registers an appointment for the customer", async ({
-    page,
-  }) => {
+  test("step-10c: wholesaler_admin registers an appointment for the customer", async ({ page }) => {
     expect(customerId, "Step 10b で顧客 ID が取得できていない").toBeTruthy();
     await signIn(page, "wholesaler_admin@solar-saas.dev");
 
     await page.goto(`/appointments/new?customerId=${customerId}`);
-    await expect(
-      page.getByRole("heading", { name: "アポを新規登録" }),
-    ).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole("heading", { name: "アポを新規登録" })).toBeVisible({
+      timeout: 30_000,
+    });
 
     // customerId が事前入力されていることを確認（aria-required="true" の先頭 input）
     const customerIdInput = page.locator("input[aria-required='true']").first();
@@ -352,9 +343,9 @@ test.describe.serial("UC-01 後半 — イベント実施・報告・顧客・�
 
     // アポ一覧へリダイレクト（redirectTo="/appointments"）
     await page.waitForURL(/\/appointments/, { timeout: 60_000 });
-    await expect(
-      page.getByRole("heading", { name: "アポ一覧" }),
-    ).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole("heading", { name: "アポイント一覧" })).toBeVisible({
+      timeout: 30_000,
+    });
 
     // data-appointment-id 属性の先頭行が存在することを確認
     const firstApptRow = page.locator("table tbody tr[data-appointment-id]").first();
