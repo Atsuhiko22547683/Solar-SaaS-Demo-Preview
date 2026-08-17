@@ -9,18 +9,18 @@
 # Railway dashboard to match the [service.*] key below.
 
 [build]
-builder = "NIXPACKS"
+builder = "RAILPACK"
 buildCommand = "pnpm install --frozen-lockfile && pnpm -w run build"
 
 # ---------------------------------------------------------------------------
 # Web service  (Railway service name: "web")
 # ---------------------------------------------------------------------------
 [deploy]
-# Run pending migrations before the new instance starts receiving traffic.
-# Set this as the "Release Command" in the Railway web service settings.
-# releaseCommand is not a top-level TOML key in Railway — configure it in
-# the dashboard or via the CLI:
-#   railway service web --release-command "pnpm db:migrate:deploy"
+# Pre-deploy Command: runs after the build succeeds and before the new
+# instance starts receiving traffic. If it exits non-zero the deploy is
+# aborted and the current instance keeps serving, so pending Prisma
+# migrations are applied exactly once per deploy.
+preDeployCommand = ["pnpm db:migrate:deploy"]
 startCommand = "pnpm --filter @solar/web start"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 30
