@@ -1961,11 +1961,128 @@ export const labels = {
     title: "顧客管理",
     listTitle: "顧客一覧",
     subtitle: "全ての顧客情報を一覧で確認・管理できます。",
-    maekaku: {
-      title: "マエカク一覧",
-      subtitle: "マエカク（事前確約）の状況を一覧で管理します。",
-      placeholderTitle: "マエカク一覧は準備中です",
-      placeholderBody: "この画面は今後実装予定です。",
+    // コール一覧（旧「マエカク一覧」）— 顧客詳細「コール」タブの内容を顧客横断で俯瞰する画面。
+    // 列ラベルはグループ見出し (groups) + グループ内の短縮列名 (columns) の 2 段ヘッダで
+    // 組み立てる（例: サンキューコール × 希望日時）。ステータスの値域ラベルは顧客詳細と
+    // 共有する（detail.projectInfo.maekakuStatusDisplayLabels / callPhaseStatusLabels）。
+    calls: {
+      title: "コール一覧",
+      subtitle: "顧客ごとの各種コール対応状況を一覧で確認・管理できます。",
+      empty: "該当する顧客がありません",
+      emptyCta: "検索条件を変更して再度お試しください。",
+      filters: {
+        // 折りたたみ式の検索パネル。閉じているときはこのヘッダ 1 行だけが見える。
+        panelTitle: "検索条件",
+        /** ヘッダに出す有効条件数（0 件のときは出さない）。 */
+        activeCount: "{n}件",
+        customerName: "顧客名",
+        searchPlaceholder: "顧客名で検索",
+        assignee: "担当者",
+        // 【対象項目】×【ステータス】の 2 段絞り込み。
+        callType: "対象項目",
+        callStatus: "ステータス",
+        // 【日付対象】×【検索範囲】。2 つの日付入力は「検索範囲」の見出しでまとめ、
+        // 各 input には aria-label（開始日 / 終了日）を個別に付ける。
+        dateField: "日付対象",
+        dateRange: "検索範囲",
+        dateRangeFrom: "検索範囲 開始日",
+        dateRangeTo: "検索範囲 終了日",
+        rangeSeparator: "〜",
+        // 【並び替え項目】×【昇順/降順】。検索パネルではなく一覧直前（表示件数の横）に置く。
+        sortField: "並び替え",
+        sortDirection: "並び順",
+        all: "すべて",
+        search: "検索",
+        clear: "クリア",
+        resultCount: "表示件数: {total}件",
+      },
+      // 【対象項目】の選択肢（CALL_TYPE_VALUES と 1:1）。
+      callTypeLabels: {
+        all: "すべて",
+        maekaku: "マエカク",
+        thank_you: "サンキューコール",
+        loan_completion: "ローン審査完了コール",
+        post_completion: "施工完了コール",
+      } as Record<string, string>,
+      // 対象項目 = すべて のときの統合ステータス。マエカク pending と他 3 種 not_done を
+      // 1 つにまとめた表示上の値（DB 値ではない）。個別種別を選んだときは顧客詳細の
+      // maekakuStatusDisplayLabels / callPhaseStatusLabels をそのまま使う。
+      combinedStatusLabels: {
+        not_done: "未実施・実施前",
+        done: "実施済",
+        unnecessary: "不要",
+      } as Record<string, string>,
+      // 【日付対象】の選択肢（CALL_DATE_FIELD_VALUES と 1:1）。
+      dateFieldLabels: {
+        maekaku_preferred_at: "マエカク希望日時",
+        thank_you_preferred_at: "サンキューコール希望日時",
+        loan_completion_preferred_at: "ローン審査完了コール希望日時",
+        post_completion_preferred_at: "施工完了コール希望日時",
+        next_appointment_at: "次回アポイント",
+        last_called_at: "最終架電日時",
+      } as Record<string, string>,
+      // 【並び替え項目】の選択肢（CALL_SORT_FIELD_VALUES と 1:1）。
+      sortFieldLabels: {
+        updated_at: "更新日時",
+        name: "顧客名",
+        maekaku_preferred_at: "マエカク希望日時",
+        thank_you_preferred_at: "サンキューコール希望日時",
+        loan_completion_preferred_at: "ローン審査完了コール希望日時",
+        post_completion_preferred_at: "施工完了コール希望日時",
+        next_appointment_at: "次回アポイント日",
+      } as Record<string, string>,
+      sortDirectionLabels: {
+        asc: "昇順",
+        desc: "降順",
+      } as Record<string, string>,
+      // 通常行の列。横スクロールを避けるため 4 コール列は短縮名にする
+      // （正式名称は展開バナーの見出し sections / 次回対応の nextTaskKindLabels 側）。
+      columns: {
+        name: "顧客名",
+        assignee: "担当者",
+        maekaku: "マエカク",
+        thankYouCall: "サンキュー",
+        loanCompletionCall: "ローン完了",
+        postCompletionCall: "施工完了",
+        nextTask: "次回対応",
+      },
+      // 「次回対応」に出す対応項目名（NEXT_TASK_KIND_VALUES と 1:1）。
+      nextTaskKindLabels: {
+        maekaku: "マエカク",
+        thank_you: "サンキューコール",
+        loan_completion: "ローン審査完了コール",
+        post_completion: "施工完了コール",
+        next_appointment: "次回アポイント",
+      } as Record<string, string>,
+      /** 次回対応の日時が現在時刻より前のときに添えるバッジ。 */
+      overdue: "期限超過",
+      // 行の展開（詳細バナー）。
+      expand: {
+        open: "詳細を開く",
+        close: "詳細を閉じる",
+        detailLink: "詳細を見る",
+      },
+      // 展開バナーの情報ブロック見出し（電話番号は最上段の 1 行に置くので見出しを持たない）。
+      sections: {
+        maekaku: "マエカク",
+        thankYouCall: "サンキューコール",
+        loanCompletionCall: "ローン審査完了コール",
+        postCompletionCall: "施工完了コール",
+        nextAppointment: "次回対応",
+        lastCall: "直近コール履歴",
+      },
+      // 展開バナーの項目名。
+      fields: {
+        landlinePhone: "固定電話",
+        mobilePhone: "携帯電話",
+        preferredAt: "希望日時",
+        note: "メモ",
+        appointmentAt: "次回アポイント",
+        appointmentAssignee: "次回担当者",
+        nextAction: "次回アクション",
+        lastCalledAt: "最終架電日時",
+        lastHandler: "対応者",
+      },
     },
     new: "顧客を新規登録",
     newShort: "＋ 新規顧客登録",

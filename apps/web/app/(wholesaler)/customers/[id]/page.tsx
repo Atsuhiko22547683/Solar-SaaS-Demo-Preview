@@ -37,12 +37,12 @@ import {
   ProjectContractList,
   ProjectLoanInfoList,
 } from "./customer-project-info";
-import { ProjectProfitEditor } from "./project-info-edit";
 import { CustomerTasks } from "./customer-tasks";
 import { getCustomerDetail } from "./data";
 import { EditAssigneeDialog } from "./edit-assignee-dialog";
 import { NegotiationStatusPanel } from "./negotiation-status-panel";
 import { NewActivityDialog } from "./new-activity-dialog";
+import { ProjectProfitEditor } from "./project-info-edit";
 import { QuoteFiles } from "./quote-files";
 
 import type {
@@ -58,6 +58,28 @@ export const dynamic = "force-dynamic";
 
 interface PageProps {
   params: Promise<{ id: string }>;
+  /** `?tab=` で初期表示タブを指定できる（例: マエカク一覧から ?tab=calls で遷移）。 */
+  searchParams?: Promise<{ tab?: string }>;
+}
+
+// `?tab=` で受け付ける値。TabsTrigger の value と一対一。損益計算タブは二次店に
+// 存在しない（showProfitTab）ため、ここでは受け付けず既定タブへフォールバックする。
+const TAB_VALUES = [
+  "basic",
+  "history",
+  "contract",
+  "loan",
+  "construction",
+  "subsidy",
+  "calls",
+  "files",
+  "todo",
+  "chat",
+] as const;
+const DEFAULT_TAB = "basic";
+
+function normalizeTab(value: string | undefined): string {
+  return (TAB_VALUES as readonly string[]).includes(value ?? "") ? value! : DEFAULT_TAB;
 }
 
 function formatDay(iso: string | null): string {
@@ -126,7 +148,7 @@ function StatusChip({
 }) {
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span className="text-xs text-mute-light">{label}</span>
+      <span className="text-mute-light text-xs">{label}</span>
       <Badge variant={variant}>{value}</Badge>
     </span>
   );
@@ -137,9 +159,9 @@ function StatusChip({
 function SectionHeading({ title, hint }: { title: string; hint: string }) {
   return (
     <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 pt-2">
-      <h2 className="text-base font-semibold text-ink">{title}</h2>
-      <span className="text-xs text-mute-light">{hint}</span>
-      <div className="h-px flex-1 bg-hairline-light" aria-hidden />
+      <h2 className="text-ink text-base font-semibold">{title}</h2>
+      <span className="text-mute-light text-xs">{hint}</span>
+      <div className="bg-hairline-light h-px flex-1" aria-hidden />
     </div>
   );
 }
@@ -147,8 +169,8 @@ function SectionHeading({ title, hint }: { title: string; hint: string }) {
 function InfoRow({ label, value }: { label: string; value: string | null }) {
   return (
     <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-3">
-      <dt className="w-24 shrink-0 text-xs text-mute-light">{label}</dt>
-      <dd className="text-sm text-ink">{value && value.length > 0 ? value : "—"}</dd>
+      <dt className="text-mute-light w-24 shrink-0 text-xs">{label}</dt>
+      <dd className="text-ink text-sm">{value && value.length > 0 ? value : "—"}</dd>
     </div>
   );
 }
@@ -161,7 +183,7 @@ function AssigneeBlock({ role, assignee }: { role: string; assignee: AssigneeDis
   const Icon = isDealer ? Building2 : User2;
 
   return (
-    <div className="flex items-center gap-3 rounded-md border border-hairline-light bg-surface-soft/40 p-3">
+    <div className="border-hairline-light bg-surface-soft/40 flex items-center gap-3 rounded-md border p-3">
       <div
         className={[
           "flex size-9 shrink-0 items-center justify-center rounded-full",
@@ -175,16 +197,16 @@ function AssigneeBlock({ role, assignee }: { role: string; assignee: AssigneeDis
         <Icon size={18} />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-xs text-mute-light">{role}</p>
+        <p className="text-mute-light text-xs">{role}</p>
         {assignee ? (
           <div className="flex items-center gap-1.5">
-            <span className="truncate text-sm font-medium text-ink">{assignee.name}</span>
+            <span className="text-ink truncate text-sm font-medium">{assignee.name}</span>
             <Badge variant={isDealer ? "warning" : "secondary"} className="shrink-0">
               {isDealer ? d.dealerBadge : d.ownStaffBadge}
             </Badge>
           </div>
         ) : (
-          <p className="text-sm text-mute-light">{d.unassigned}</p>
+          <p className="text-mute-light text-sm">{d.unassigned}</p>
         )}
       </div>
     </div>
@@ -196,9 +218,7 @@ function AssigneeBlock({ role, assignee }: { role: string; assignee: AssigneeDis
 // the mask. Fetch raw fields via the same auth → assertCan('customer.update')
 // → withTenant idiom as the dedicated edit page; only fields the editing user
 // already may change are returned.
-async function getCustomerEditableValues(
-  id: string,
-): Promise<
+async function getCustomerEditableValues(id: string): Promise<
   | (EditBasicInfoInitial & {
       note: string | null;
       registeredByUserId: string;
@@ -272,8 +292,9 @@ async function getCustomerEditableValues(
   };
 }
 
-export default async function CustomerDetailPage({ params }: PageProps) {
+export default async function CustomerDetailPage({ params, searchParams }: PageProps) {
   const { id } = await params;
+  const initialTab = normalizeTab((await searchParams)?.tab);
   const detail = await getCustomerDetail(id);
   if (!detail) notFound();
 
@@ -335,17 +356,17 @@ export default async function CustomerDetailPage({ params }: PageProps) {
 
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
         <div className="space-y-2.5">
-          <h1 className="text-2xl font-bold text-ink">
+          <h1 className="text-ink text-2xl font-bold">
             {detail.name}
-            <span className="ml-1 text-xl font-medium text-body-light">{t.honorific}</span>
+            <span className="text-body-light ml-1 text-xl font-medium">{t.honorific}</span>
           </h1>
           {/* at-a-glance — タブを開かずに主要な状態を一望できるステータス帯。 */}
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             {detail.nextAppointmentAt ? (
               <span className="inline-flex items-center gap-1.5 text-sm">
-                <CalendarClock className="size-4 text-mute-light" />
-                <span className="text-xs text-mute-light">{d.glance.nextAppointment}</span>
-                <span className="font-medium tabular-nums text-ink">
+                <CalendarClock className="text-mute-light size-4" />
+                <span className="text-mute-light text-xs">{d.glance.nextAppointment}</span>
+                <span className="text-ink font-medium tabular-nums">
                   {formatAppointmentShort(detail.nextAppointmentAt)}
                 </span>
               </span>
@@ -373,7 +394,7 @@ export default async function CustomerDetailPage({ params }: PageProps) {
       </div>
 
       {/* 詳細はタブで分割 — 基本情報 / 商談履歴 / 契約 / 施工 / 設置申請 / ファイル / ToDo / チャット */}
-      <Tabs defaultValue="basic" className="space-y-4">
+      <Tabs defaultValue={initialTab} className="space-y-4">
         <TabsList variant="underline">
           <TabsTrigger value="basic">{d.tabs.basic}</TabsTrigger>
           <TabsTrigger value="history">{d.tabs.history}</TabsTrigger>
@@ -393,7 +414,7 @@ export default async function CustomerDetailPage({ params }: PageProps) {
           {/* 担当者 — トスアップ / クロージングを自社社員 or 二次店から登録。 */}
           <Card className="p-5">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-ink">{d.assigneeLabel}</h2>
+              <h2 className="text-ink text-sm font-semibold">{d.assigneeLabel}</h2>
               <EditAssigneeDialog
                 customerId={detail.id}
                 currentTossUpUserId={editable.tossUpUserId}
@@ -414,13 +435,9 @@ export default async function CustomerDetailPage({ params }: PageProps) {
           <SectionHeading title={d.currentInfoSection} hint={d.currentInfoHint} />
 
           <Card className="p-5">
-            <h2 className="mb-4 text-sm font-semibold text-ink">{d.customerInfo}</h2>
+            <h2 className="text-ink mb-4 text-sm font-semibold">{d.customerInfo}</h2>
             {basicInitial ? (
-              <BasicInfoInlineEdit
-                customerId={detail.id}
-                initial={basicInitial}
-                areas={areas}
-              />
+              <BasicInfoInlineEdit customerId={detail.id} initial={basicInitial} areas={areas} />
             ) : (
               <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
                 <InfoRow label={d.fields.kana} value={detail.kana} />
@@ -456,11 +473,11 @@ export default async function CustomerDetailPage({ params }: PageProps) {
           </Card>
 
           <Card className="p-5">
-            <h2 className="mb-4 text-sm font-semibold text-ink">{d.memo}</h2>
+            <h2 className="text-ink mb-4 text-sm font-semibold">{d.memo}</h2>
             {basicInitial ? (
               <MemoInlineEdit customerId={detail.id} initial={{ note: editable.note }} />
             ) : (
-              <p className="whitespace-pre-wrap text-sm text-body-light">
+              <p className="text-body-light whitespace-pre-wrap text-sm">
                 {detail.note && detail.note.length > 0 ? detail.note : d.noMemo}
               </p>
             )}
@@ -485,11 +502,11 @@ export default async function CustomerDetailPage({ params }: PageProps) {
         <TabsContent value="history" className="space-y-4">
           <Card className="p-5">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-              <h2 className="text-sm font-semibold text-ink">{d.negotiation.title}</h2>
+              <h2 className="text-ink text-sm font-semibold">{d.negotiation.title}</h2>
               {/* コール業務向けに顧客電話番号を近傍表示（detail.phone はローダでマスク済み）。 */}
               <span className="inline-flex items-center gap-1.5 text-sm">
-                <span className="text-xs text-mute-light">{d.fields.phone}</span>
-                <span className="font-medium tabular-nums text-ink">
+                <span className="text-mute-light text-xs">{d.fields.phone}</span>
+                <span className="text-ink font-medium tabular-nums">
                   {detail.phone && detail.phone.length > 0 ? detail.phone : "—"}
                 </span>
               </span>
@@ -509,7 +526,7 @@ export default async function CustomerDetailPage({ params }: PageProps) {
             {/* 左: 商談履歴（見積提示は右の見積セクションに分離） */}
             <Card className="p-5">
               <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-ink">{d.history.title}</h2>
+                <h2 className="text-ink text-sm font-semibold">{d.history.title}</h2>
                 <NewActivityDialog
                   customerId={detail.id}
                   users={users}
@@ -522,7 +539,7 @@ export default async function CustomerDetailPage({ params }: PageProps) {
             {/* 右: 見積（見積提示の記録一覧） */}
             <Card className="p-5">
               <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-ink">{d.quoteSection.title}</h2>
+                <h2 className="text-ink text-sm font-semibold">{d.quoteSection.title}</h2>
                 <NewActivityDialog
                   customerId={detail.id}
                   users={users}
@@ -532,7 +549,7 @@ export default async function CustomerDetailPage({ params }: PageProps) {
                 />
               </div>
               {quoteEntries.length === 0 ? (
-                <p className="text-sm text-mute-light">{d.quoteSection.empty}</p>
+                <p className="text-mute-light text-sm">{d.quoteSection.empty}</p>
               ) : (
                 <ul className="space-y-3">
                   {quoteEntries.map((q) => (
@@ -543,7 +560,7 @@ export default async function CustomerDetailPage({ params }: PageProps) {
                       <span className="absolute inset-y-0 left-0 w-1 bg-amber-500" aria-hidden />
                       <div className="p-3">
                         <div className="flex items-baseline justify-between gap-3">
-                          <span className="text-xs tabular-nums text-mute-light">
+                          <span className="text-mute-light text-xs tabular-nums">
                             {formatDay(q.date)}
                           </span>
                           <span className="text-lg font-semibold tabular-nums text-amber-700">
@@ -551,7 +568,9 @@ export default async function CustomerDetailPage({ params }: PageProps) {
                           </span>
                         </div>
                         {q.body ? (
-                          <p className="mt-1 whitespace-pre-wrap text-sm text-body-light">{q.body}</p>
+                          <p className="text-body-light mt-1 whitespace-pre-wrap text-sm">
+                            {q.body}
+                          </p>
                         ) : null}
                         <QuoteFiles customerId={detail.id} activityId={q.id} files={q.files} />
                       </div>
@@ -569,8 +588,8 @@ export default async function CustomerDetailPage({ params }: PageProps) {
         <TabsContent value="contract" className="space-y-4">
           <Card className="p-5">
             <div className="mb-1 flex items-baseline gap-2">
-              <h2 className="text-sm font-semibold text-ink">{d.contractTab.detailTitle}</h2>
-              <span className="text-xs text-mute-light">{d.contractTab.detailHint}</span>
+              <h2 className="text-ink text-sm font-semibold">{d.contractTab.detailTitle}</h2>
+              <span className="text-mute-light text-xs">{d.contractTab.detailHint}</span>
             </div>
             <div className="mt-3">
               <ProjectContractList
@@ -581,7 +600,7 @@ export default async function CustomerDetailPage({ params }: PageProps) {
             </div>
           </Card>
           <Card className="p-5">
-            <h2 className="mb-3 text-sm font-semibold text-ink">{d.contractFiles.title}</h2>
+            <h2 className="text-ink mb-3 text-sm font-semibold">{d.contractFiles.title}</h2>
             <CustomerFiles
               customerId={detail.id}
               category="CONTRACT"
@@ -593,7 +612,7 @@ export default async function CustomerDetailPage({ params }: PageProps) {
         {/* ローン情報 — 顧客に紐づく全契約のローン・団信（loanReviewStatus 編集含む） */}
         <TabsContent value="loan">
           <Card className="p-5">
-            <h2 className="mb-4 text-sm font-semibold text-ink">{d.tabs.loan}</h2>
+            <h2 className="text-ink mb-4 text-sm font-semibold">{d.tabs.loan}</h2>
             <ProjectLoanInfoList data={projectInfo} editable={projectInfoEditable} users={users} />
           </Card>
         </TabsContent>
@@ -604,11 +623,11 @@ export default async function CustomerDetailPage({ params }: PageProps) {
             顧客レベルのため最下部に残す。 */}
         <TabsContent value="construction" className="space-y-4">
           <Card className="p-5">
-            <h2 className="mb-4 text-sm font-semibold text-ink">{d.cards.construction}</h2>
+            <h2 className="text-ink mb-4 text-sm font-semibold">{d.cards.construction}</h2>
             <ProjectConstructionList data={projectInfo} editable={projectInfoEditable} />
           </Card>
           <Card className="p-5">
-            <h2 className="mb-3 text-sm font-semibold text-ink">{d.pvDrawing.title}</h2>
+            <h2 className="text-ink mb-3 text-sm font-semibold">{d.pvDrawing.title}</h2>
             <CustomerFiles
               customerId={detail.id}
               category="PV_DRAWING"
@@ -622,7 +641,7 @@ export default async function CustomerDetailPage({ params }: PageProps) {
             関連ドキュメントをアップロードする（per-application）。 */}
         <TabsContent value="subsidy" className="space-y-4">
           <Card className="p-5">
-            <h2 className="mb-4 text-sm font-semibold text-ink">{d.cards.subsidy}</h2>
+            <h2 className="text-ink mb-4 text-sm font-semibold">{d.cards.subsidy}</h2>
             <ProjectApplicationList data={projectInfo} editable={projectInfoEditable} />
           </Card>
         </TabsContent>
@@ -630,7 +649,7 @@ export default async function CustomerDetailPage({ params }: PageProps) {
         {/* コール状況 — 電話番号ヘッダ・4 コール状況/希望日時・次回アポ read-only・過去コール履歴 */}
         <TabsContent value="calls">
           <Card className="p-5">
-            <h2 className="mb-4 text-sm font-semibold text-ink">{d.tabs.calls}</h2>
+            <h2 className="text-ink mb-4 text-sm font-semibold">{d.tabs.calls}</h2>
             <ProjectCallStatusSection
               data={projectInfo}
               editable={projectInfoEditable}
@@ -644,11 +663,11 @@ export default async function CustomerDetailPage({ params }: PageProps) {
         {showProfitTab ? (
           <TabsContent value="profit">
             <Card className="p-5">
-              <h2 className="mb-4 text-sm font-semibold text-ink">{d.profitTab.title}</h2>
+              <h2 className="text-ink mb-4 text-sm font-semibold">{d.profitTab.title}</h2>
               <ProjectProfitEditor
-              rows={profitRows}
-              customerId={projectInfoEditable?.customerId ?? null}
-            />
+                rows={profitRows}
+                customerId={projectInfoEditable?.customerId ?? null}
+              />
             </Card>
           </TabsContent>
         ) : null}
@@ -656,7 +675,7 @@ export default async function CustomerDetailPage({ params }: PageProps) {
         {/* 関連ファイル — ファイルピッカー + 一覧 */}
         <TabsContent value="files">
           <Card className="p-5">
-            <h2 className="mb-3 text-sm font-semibold text-ink">{d.files.title}</h2>
+            <h2 className="text-ink mb-3 text-sm font-semibold">{d.files.title}</h2>
             <CustomerFiles customerId={detail.id} files={detail.files} />
           </Card>
         </TabsContent>

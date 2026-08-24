@@ -54,6 +54,10 @@ export default defineConfig({
         here,
         "../../packages/contracts/src/schemas/product.ts",
       ),
+      "@solar/contracts/schemas/customer": path.resolve(
+        here,
+        "../../packages/contracts/src/schemas/customer.ts",
+      ),
       "@solar/contracts/services/product-effective": path.resolve(
         here,
         "../../packages/contracts/src/services/product-effective.ts",
@@ -82,10 +86,7 @@ export default defineConfig({
         here,
         "../../packages/contracts/src/dto/project-info.ts",
       ),
-      "@solar/contracts/logger": path.resolve(
-        here,
-        "../../packages/contracts/src/logger.ts",
-      ),
+      "@solar/contracts/logger": path.resolve(here, "../../packages/contracts/src/logger.ts"),
       "@solar/contracts": path.resolve(here, "../../packages/contracts/src/index.ts"),
     },
   },

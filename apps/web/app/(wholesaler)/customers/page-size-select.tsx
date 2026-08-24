@@ -9,9 +9,14 @@ import { PAGE_SIZE_OPTIONS } from "./constants";
 
 interface PageSizeSelectProps {
   pageSize: number;
+  /**
+   * 遷移先のパス。既定は顧客一覧。マエカク一覧など同じ表示件数セレクトを使う
+   * 一覧画面が自分のパスを渡す（他の検索条件はそのまま維持される）。
+   */
+  basePath?: string;
 }
 
-export function PageSizeSelect({ pageSize }: PageSizeSelectProps) {
+export function PageSizeSelect({ pageSize, basePath = "/customers" }: PageSizeSelectProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const t = labels.customer;
@@ -22,9 +27,9 @@ export function PageSizeSelect({ pageSize }: PageSizeSelectProps) {
       params.set("pageSize", value);
       // Changing page size resets to page 1.
       params.delete("page");
-      router.push(`/customers?${params.toString()}`);
+      router.push(`${basePath}?${params.toString()}`);
     },
-    [searchParams, router],
+    [searchParams, router, basePath],
   );
 
   return (
@@ -32,7 +37,7 @@ export function PageSizeSelect({ pageSize }: PageSizeSelectProps) {
       value={String(pageSize)}
       onChange={(e) => onChange(e.target.value)}
       aria-label={t.pageSize.label.replace("{n}", String(pageSize))}
-      className="h-9 rounded-md border border-hairline-light bg-white px-3 py-1 text-sm text-body-light focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+      className="border-hairline-light text-body-light focus:ring-primary/20 focus:border-primary h-9 rounded-md border bg-white px-3 py-1 text-sm focus:outline-none focus:ring-2"
     >
       {PAGE_SIZE_OPTIONS.map((n) => (
         <option key={n} value={n}>
