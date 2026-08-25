@@ -2176,6 +2176,10 @@ export const labels = {
       unassigned: "未設定",
       ownStaffBadge: "自社",
       dealerBadge: "二次店",
+      // 担当者変更ダイアログの 1 段目（所属区分）。2 段目の担当者候補を
+      // 自社社員(User) / 二次店(Relationship) のどちらから出すかを決める。
+      // 区分そのものは保存せず、どちらの ID 列に値が入るかで復元する。
+      assigneeKind: "所属区分",
       ownStaffGroup: "自社社員",
       dealerGroup: "二次店",
       areaUnset: "未設定",

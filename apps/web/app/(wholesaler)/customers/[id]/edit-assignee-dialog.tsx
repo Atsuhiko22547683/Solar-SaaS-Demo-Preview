@@ -1,9 +1,22 @@
 "use client";
 
-// 顧客詳細ページ ヘッダーの担当者変更ダイアログ (F-031 / docs/04 §1.3).
+// 顧客ページ ヘッダーの担当者変更ダイアログ (F-031 / docs/04 §1.3).
 // 「トスアップ担当」「クロージング担当」を、自社社員(User) または二次店(Relationship)
 // から選んで更新する。各役割は自社/二次店いずれか一方（排他）で、「未設定」も可。
-// option の value は種別を埋め込んだ `user:<id>` / `dealer:<relId>` 形式。
+//
+// 以前は 1 つの select に optgroup で自社社員と二次店を詰めていたため、
+// 候補が増えると非常に長いプルダウンになっていた。これを
+//   【所属区分】（未設定 / 自社社員 / 二次店）→【担当者】
+// の 2 段階に分割する。所属区分を変えると担当者の選択肢が入れ替わり、選択済みの
+// 担当者はリセットされる（自社社員を選んだまま区分だけ二次店、のような不整合を作らない）。
+//
+// 保存形式は従来どおり tossUpUserId / tossUpRelationshipId /
+// closingUserId / closingRelationshipId の 4 列（排他）。所属区分は保存せず、
+// どちらの列に値が入っているかで判定・復元する（DB 変更なし）。
+//
+// 候補集合（users / dealers）は呼び出し元 page.tsx が
+// listWholesalerUsers() / listActiveDealers() で取得したものをそのまま使う。
+// テナント・権限の絞り込みは変更していない（UI 上で分類するだけ）。
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -43,20 +56,120 @@ interface EditAssigneeDialogProps {
   dealers: DealerChoice[];
 }
 
-const UNSET = "__unset__";
+/** 所属区分。"unset" は担当者そのものが未設定（担当者 select は disabled）。 */
+const KINDS = ["unset", "user", "dealer"] as const;
+type AssigneeKind = (typeof KINDS)[number];
 
-// 現在値 → select の value（種別プレフィックス付き）。
-function toValue(userId: string | null, relationshipId: string | null): string {
-  if (relationshipId) return `dealer:${relationshipId}`;
-  if (userId) return `user:${userId}`;
-  return UNSET;
+/** 1 役割ぶんの選択状態。id は kind に対応する User.id または Relationship.id。 */
+interface AssigneeSelection {
+  kind: AssigneeKind;
+  id: string;
 }
 
-// select の value → 保存用の {userId, relationshipId}（排他、未選択側は null）。
-function fromValue(value: string): { userId: string | null; relationshipId: string | null } {
-  if (value.startsWith("dealer:")) return { userId: null, relationshipId: value.slice(7) };
-  if (value.startsWith("user:")) return { userId: value.slice(5), relationshipId: null };
+/**
+ * 保存済みの値 → 初期選択。どちらの列に値が入っているかで所属区分を判定する
+ * （所属区分は DB に持たないので、既存データからの復元はここだけで完結する）。
+ */
+function toSelection(userId: string | null, relationshipId: string | null): AssigneeSelection {
+  if (relationshipId) return { kind: "dealer", id: relationshipId };
+  if (userId) return { kind: "user", id: userId };
+  return { kind: "unset", id: "" };
+}
+
+/** 選択状態 → 保存用の {userId, relationshipId}（排他、未選択側は null）。 */
+function toPayload(sel: AssigneeSelection): {
+  userId: string | null;
+  relationshipId: string | null;
+} {
+  if (sel.kind === "user") return { userId: sel.id || null, relationshipId: null };
+  if (sel.kind === "dealer") return { userId: null, relationshipId: sel.id || null };
   return { userId: null, relationshipId: null };
+}
+
+const SELECT_CLASS =
+  "h-9 w-full rounded-sm border border-hairline-light bg-white px-3 text-sm text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-surface-soft disabled:text-mute-light";
+
+/**
+ * 1 役割ぶんの入力（所属区分 → 担当者 の 2 段）。
+ * コンポーネント本体の外に置く（本体内に定義すると再レンダーのたびに再マウントされ、
+ * select のフォーカスが飛ぶため）。
+ */
+function AssigneeFields({
+  idPrefix,
+  roleLabel,
+  selection,
+  onChange,
+  users,
+  dealers,
+}: {
+  idPrefix: string;
+  roleLabel: string;
+  selection: AssigneeSelection;
+  onChange: (next: AssigneeSelection) => void;
+  users: UserChoice[];
+  dealers: DealerChoice[];
+}) {
+  const d = labels.customer.detail;
+  const kindLabel: Record<AssigneeKind, string> = {
+    unset: d.unassigned,
+    user: d.ownStaffGroup,
+    dealer: d.dealerGroup,
+  };
+
+  // 所属区分を変えたら担当者は必ず未選択に戻す（区分と担当者の不整合を作らない）。
+  function onKindChange(kind: AssigneeKind) {
+    onChange({ kind, id: "" });
+  }
+
+  return (
+    <fieldset className="space-y-1.5">
+      <legend className="text-ink mb-1.5 text-sm font-medium">{roleLabel}</legend>
+
+      <div className="space-y-1.5">
+        <Label htmlFor={`${idPrefix}-kind`}>{d.assigneeKind}</Label>
+        <select
+          id={`${idPrefix}-kind`}
+          value={selection.kind}
+          onChange={(e) => onKindChange(e.target.value as AssigneeKind)}
+          className={SELECT_CLASS}
+        >
+          {KINDS.map((k) => (
+            <option key={k} value={k}>
+              {kindLabel[k]}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor={`${idPrefix}-select`}>{d.assigneeLabel}</Label>
+        <select
+          id={`${idPrefix}-select`}
+          value={selection.id}
+          // 所属区分が未設定のときは選ぶものが無いので無効化する。
+          disabled={selection.kind === "unset"}
+          onChange={(e) => onChange({ kind: selection.kind, id: e.target.value })}
+          className={SELECT_CLASS}
+        >
+          <option value="">{d.unassigned}</option>
+          {selection.kind === "user" &&
+            users.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name}
+              </option>
+            ))}
+          {/* 二次店側の担当主体は「二次店（会社）」そのもの（Relationship）。
+              二次店所属の個人ユーザーを持つデータ構造ではないため会社名を並べる。 */}
+          {selection.kind === "dealer" &&
+            dealers.map((dl) => (
+              <option key={dl.relationshipId} value={dl.relationshipId}>
+                {dl.dealerName}
+              </option>
+            ))}
+        </select>
+      </div>
+    </fieldset>
+  );
 }
 
 export function EditAssigneeDialog({
@@ -72,15 +185,16 @@ export function EditAssigneeDialog({
   const c = labels.common;
   const router = useRouter();
 
-  const tossUpInitial = toValue(currentTossUpUserId, currentTossUpRelationshipId);
-  const closingInitial = toValue(currentClosingUserId, currentClosingRelationshipId);
+  const tossUpInitial = toSelection(currentTossUpUserId, currentTossUpRelationshipId);
+  const closingInitial = toSelection(currentClosingUserId, currentClosingRelationshipId);
 
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const [tossUp, setTossUp] = useState(tossUpInitial);
-  const [closing, setClosing] = useState(closingInitial);
+  const [tossUp, setTossUp] = useState<AssigneeSelection>(tossUpInitial);
+  const [closing, setClosing] = useState<AssigneeSelection>(closingInitial);
 
   function onOpenChange(next: boolean) {
+    // 開くたびに保存済みの値へ戻す（キャンセル後に編集途中の状態を持ち越さない）。
     if (next) {
       setTossUp(tossUpInitial);
       setClosing(closingInitial);
@@ -89,8 +203,8 @@ export function EditAssigneeDialog({
   }
 
   function handleSave() {
-    const tu = fromValue(tossUp);
-    const cl = fromValue(closing);
+    const tu = toPayload(tossUp);
+    const cl = toPayload(closing);
     startTransition(async () => {
       try {
         await updateCustomerAction({
@@ -109,44 +223,6 @@ export function EditAssigneeDialog({
     });
   }
 
-  const selectClass =
-    "h-9 w-full rounded-sm border border-hairline-light bg-white px-3 text-sm text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20";
-
-  function AssigneeSelect({
-    id,
-    label,
-    value,
-    onChange,
-  }: {
-    id: string;
-    label: string;
-    value: string;
-    onChange: (v: string) => void;
-  }) {
-    return (
-      <div className="space-y-1.5">
-        <Label htmlFor={id}>{label}</Label>
-        <select id={id} value={value} onChange={(e) => onChange(e.target.value)} className={selectClass}>
-          <option value={UNSET}>{d.unassigned}</option>
-          <optgroup label={d.ownStaffGroup}>
-            {users.map((u) => (
-              <option key={u.id} value={`user:${u.id}`}>
-                {u.name}
-              </option>
-            ))}
-          </optgroup>
-          <optgroup label={d.dealerGroup}>
-            {dealers.map((dl) => (
-              <option key={dl.relationshipId} value={`dealer:${dl.relationshipId}`}>
-                {dl.dealerName}
-              </option>
-            ))}
-          </optgroup>
-        </select>
-      </div>
-    );
-  }
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
@@ -158,22 +234,32 @@ export function EditAssigneeDialog({
         <DialogHeader>
           <DialogTitle>{d.editAssignee}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4">
-          <AssigneeSelect
-            id="edit-tossup-select"
-            label={d.fields.tossUpAssignee}
-            value={tossUp}
+        {/* トスアップ / クロージングはそれぞれ独立に所属区分と担当者を選べる。 */}
+        <div className="space-y-5">
+          <AssigneeFields
+            idPrefix="edit-tossup"
+            roleLabel={d.fields.tossUpAssignee}
+            selection={tossUp}
             onChange={setTossUp}
+            users={users}
+            dealers={dealers}
           />
-          <AssigneeSelect
-            id="edit-closing-select"
-            label={d.fields.closingAssignee}
-            value={closing}
+          <AssigneeFields
+            idPrefix="edit-closing"
+            roleLabel={d.fields.closingAssignee}
+            selection={closing}
             onChange={setClosing}
+            users={users}
+            dealers={dealers}
           />
         </div>
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isPending}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setOpen(false)}
+            disabled={isPending}
+          >
             {d.cancel}
           </Button>
           <Button type="button" onClick={handleSave} disabled={isPending}>
