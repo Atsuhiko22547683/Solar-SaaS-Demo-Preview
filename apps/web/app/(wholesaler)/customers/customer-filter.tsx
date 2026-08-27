@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { Button } from "@/components/ui/button";
+import { ListFilterPanel } from "@/components/list/list-filter-panel";
 import { labels } from "@/lib/i18n/labels";
 
 import { CONTRACT_STATUS_VALUES } from "./constants";
@@ -23,6 +23,8 @@ interface CustomerFilterProps {
   assigneeUserId: string;
   contractStatus: string;
   assignees: AssigneeOption[];
+  activeCount: number;
+  defaultOpen: boolean;
 }
 
 export function CustomerFilter({
@@ -30,6 +32,8 @@ export function CustomerFilter({
   assigneeUserId,
   contractStatus,
   assignees,
+  activeCount,
+  defaultOpen,
 }: CustomerFilterProps) {
   const router = useRouter();
   const t = labels.customer;
@@ -57,63 +61,57 @@ export function CustomerFilter({
   }
 
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        applyFilters();
-      }}
+    <ListFilterPanel
+      idPrefix="cust"
+      activeCount={activeCount}
+      defaultOpen={defaultOpen}
+      onSubmit={applyFilters}
+      onClear={clearFilters}
     >
-      <div className="flex flex-wrap items-end gap-3">
-        {/* 顧客名 — 単一ボーダー入力（アイコンなし・二重枠/ネイティブ枠を排除） */}
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-mute-light">{t.filters.customerName}</label>
-          <input
-            type="search"
-            value={searchValue}
-            onChange={(e) => setSearchValue(e.target.value)}
-            placeholder={t.searchPlaceholderFull}
-            aria-label={t.searchPlaceholderFull}
-            className="h-9 w-56 appearance-none rounded-md border border-hairline-light bg-white px-3 text-sm text-ink placeholder:text-mute-light focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 [&::-webkit-search-cancel-button]:appearance-none"
-          />
-        </div>
-
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-mute-light">{t.filters.assignee}</label>
-          <select
-            value={assigneeValue}
-            onChange={(e) => setAssigneeValue(e.target.value)}
-            className={SELECT_CLASS}
-          >
-            <option value="">{t.filters.all}</option>
-            {assignees.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-mute-light">{t.filters.contractStatus}</label>
-          <select
-            value={contractValue}
-            onChange={(e) => setContractValue(e.target.value)}
-            className={SELECT_CLASS}
-          >
-            <option value="">{t.filters.all}</option>
-            {CONTRACT_OPTIONS.map((s) => (
-              <option key={s} value={s}>
-                {t.contractStatusLabels[s]}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <Button type="submit">{t.filters.search}</Button>
-        <Button type="button" variant="outline" onClick={clearFilters}>
-          {t.filters.clear}
-        </Button>
+      {/* 顧客名 — 単一ボーダー入力（アイコンなし・二重枠/ネイティブ枠を排除） */}
+      <div className="space-y-1">
+        <label className="text-mute-light text-xs font-medium">{t.filters.customerName}</label>
+        <input
+          type="search"
+          value={searchValue}
+          onChange={(e) => setSearchValue(e.target.value)}
+          placeholder={t.searchPlaceholderFull}
+          aria-label={t.searchPlaceholderFull}
+          className="border-hairline-light text-ink placeholder:text-mute-light focus:border-primary focus:ring-primary/20 h-9 w-56 appearance-none rounded-md border bg-white px-3 text-sm focus:outline-none focus:ring-2 [&::-webkit-search-cancel-button]:appearance-none"
+        />
       </div>
-    </form>
+
+      <div className="space-y-1">
+        <label className="text-mute-light text-xs font-medium">{t.filters.assignee}</label>
+        <select
+          value={assigneeValue}
+          onChange={(e) => setAssigneeValue(e.target.value)}
+          className={SELECT_CLASS}
+        >
+          <option value="">{t.filters.all}</option>
+          {assignees.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="space-y-1">
+        <label className="text-mute-light text-xs font-medium">{t.filters.contractStatus}</label>
+        <select
+          value={contractValue}
+          onChange={(e) => setContractValue(e.target.value)}
+          className={SELECT_CLASS}
+        >
+          <option value="">{t.filters.all}</option>
+          {CONTRACT_OPTIONS.map((s) => (
+            <option key={s} value={s}>
+              {t.contractStatusLabels[s]}
+            </option>
+          ))}
+        </select>
+      </div>
+    </ListFilterPanel>
   );
 }

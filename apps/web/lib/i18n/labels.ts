@@ -110,6 +110,30 @@ export const labels = {
   },
 
   // Common form / action labels
+  // 顧客管理配下の各一覧が共有する検索・並び替え UI の文言（components/list/ 配下）。
+  // 一覧固有の検索項目名は各一覧の labels に残し、ここは「枠」だけを持つ。
+  listCommon: {
+    /** 折りたたみ検索パネルのヘッダ。閉じているときはこの 1 行だけが見える。 */
+    filterPanel: "検索条件",
+    /** ヘッダに出す有効条件数（0 件のときは出さない）。 */
+    activeCount: "{n}件",
+    // 日付は「開始日」「終了日」を独立見出しにせず、1 つの見出しでまとめる
+    // （何の日付か分からなくなるため）。個々の input には aria-label を付ける。
+    dateRange: "検索範囲",
+    dateRangeFrom: "検索範囲 開始日",
+    dateRangeTo: "検索範囲 終了日",
+    rangeSeparator: "〜",
+    // 並び替えは検索条件ではないので検索パネルの外（表示件数の横）に置く。
+    sortField: "並び替え",
+    sortDirection: "並び順",
+    sortDirectionLabels: {
+      asc: "昇順",
+      desc: "降順",
+    } as Record<string, string>,
+    search: "検索",
+    clear: "クリア",
+    all: "すべて",
+  },
   common: {
     save: "保存",
     saving: "保存中…",
@@ -1693,13 +1717,35 @@ export const labels = {
       searchPlaceholder: "顧客名で検索",
       status: "施工状態",
       surveyStatus: "現地調査",
-      from: "施工予定日（開始）",
-      to: "施工予定日（終了）",
+      /** 検索範囲（開始日〜終了日）をどの日付に掛けるか。 */
+      dateField: "日付対象",
       all: "すべて",
-      search: "検索",
-      clear: "クリア",
       resultCount: "表示件数: {total}件",
     },
+    /** 【日付対象】の選択肢。いずれも Construction の実列。既定は「すべて」。 */
+    dateFieldLabels: {
+      all: "すべて",
+      planned: "施工予定日",
+      started: "着工日",
+      completed: "完工日",
+    } as Record<string, string>,
+    // 行の展開（施工日程の編集バナー）。文言はコール一覧と揃える。
+    expand: {
+      open: "詳細を開く",
+      close: "詳細を閉じる",
+      detailLink: "案件詳細",
+    },
+    /** 展開バナーの編集セクション見出し。 */
+    editSection: {
+      title: "施工日程",
+    },
+    /** 【並び替え項目】の選択肢。 */
+    sortFieldLabels: {
+      planned_date: "施工予定日",
+      started_date: "着工日",
+      survey_date: "現地調査日",
+      completed_date: "完工日",
+    } as Record<string, string>,
     columns: {
       plannedDate: "施工予定日",
       customerName: "顧客名",
@@ -1707,6 +1753,8 @@ export const labels = {
       installer: "施工業者",
       surveyStatus: "現地調査",
       status: "施工状態",
+      // 着工日は一覧から直接編集できる（保存先は Construction.startedDate）。
+      startedDate: "着工日",
       completedDate: "完工日",
     },
     noInstaller: "業者未定",
@@ -1723,13 +1771,24 @@ export const labels = {
       searchPlaceholder: "顧客名で検索",
       status: "申請状態",
       type: "申請種別",
-      from: "申請予定日（開始）",
-      to: "申請予定日（終了）",
       all: "すべて",
-      search: "検索",
-      clear: "クリア",
       resultCount: "表示件数: {total}件",
     },
+    // 行の展開（申請日程の編集バナー）。文言はコール一覧・施工一覧と揃える。
+    expand: {
+      open: "詳細を開く",
+      close: "詳細を閉じる",
+      detailLink: "案件詳細",
+    },
+    /** 展開バナーの編集セクション見出し。 */
+    editSection: {
+      title: "申請日程",
+    },
+    /** 【並び替え項目】の選択肢（Application の実列）。 */
+    sortFieldLabels: {
+      planned_date: "申請予定日",
+      created_at: "登録日時",
+    } as Record<string, string>,
     columns: {
       plannedDate: "申請予定日",
       customerName: "顧客名",
@@ -1759,19 +1818,27 @@ export const labels = {
       status: "審査状態",
       defect: "不備",
       all: "すべて",
-      search: "検索",
-      clear: "クリア",
       resultCount: "表示件数: {total}件",
     },
+    /** 【並び替え項目】の選択肢（LoanReview の実列）。 */
+    sortFieldLabels: {
+      updated_at: "更新日時",
+      created_at: "登録日時",
+    } as Record<string, string>,
     columns: {
       customerName: "顧客名",
       loanCompany: "ローン会社",
       status: "審査状態",
-      defect: "不備状態",
+      defect: "不備",
       defectAssignee: "不備担当者",
       latestResult: "直近の審査結果",
-      updatedAt: "最終更新",
     },
+    // 一覧では不備の有無だけ分かれば十分なので 2 値に畳む
+    // （未解消 / 解消済みの区別と不備内容は顧客詳細のローン審査タブで確認する）。
+    defectPresenceLabels: {
+      yes: "あり",
+      no: "なし",
+    } as Record<string, string>,
     statusLabels: {
       not_reviewed: "審査前",
       reviewing: "審査中",
@@ -2014,6 +2081,7 @@ export const labels = {
       } as Record<string, string>,
       // 【日付対象】の選択肢（CALL_DATE_FIELD_VALUES と 1:1）。
       dateFieldLabels: {
+        all: "すべて",
         maekaku_preferred_at: "マエカク希望日時",
         thank_you_preferred_at: "サンキューコール希望日時",
         loan_completion_preferred_at: "ローン審査完了コール希望日時",
@@ -2060,7 +2128,7 @@ export const labels = {
       expand: {
         open: "詳細を開く",
         close: "詳細を閉じる",
-        detailLink: "詳細を見る",
+        detailLink: "案件詳細",
       },
       // 展開バナーの情報ブロック見出し（電話番号は最上段の 1 行に置くので見出しを持たない）。
       sections: {
@@ -2075,6 +2143,7 @@ export const labels = {
       fields: {
         landlinePhone: "固定電話",
         mobilePhone: "携帯電話",
+        statusLabel: "ステータス",
         preferredAt: "希望日時",
         note: "メモ",
         appointmentAt: "次回アポイント",
@@ -2111,6 +2180,12 @@ export const labels = {
       clear: "クリア",
       resultCount: "表示件数: {total}件",
     },
+    /** 【並び替え項目】の選択肢（Customer の実列）。顧客名はフリガナ優先。 */
+    sortFieldLabels: {
+      updated_at: "更新日時",
+      name: "顧客名",
+      created_at: "登録日時",
+    } as Record<string, string>,
     columns: {
       name: "顧客名",
       area: "エリア",
@@ -2536,10 +2611,23 @@ export const labels = {
         profit: "損益計算",
         construction: "施工",
         subsidy: "設置申請",
+        powerSale: "売電状況",
         calls: "コール",
         files: "関連ファイル",
         todo: "ToDo",
         chat: "チャット",
+      },
+      // 売電状況タブ — 顧客ごとの現在値（売電開始日 + 備考）だけを持つ簡易フォーム。
+      // 申請 ID などの補足は独立項目を設けず、備考へ自由記述する運用。
+      powerSaleTab: {
+        title: "売電状況",
+        hint: "売電開始日と補足事項を記録します（申請 ID などは備考へ記入してください）",
+        startDate: "売電開始日",
+        note: "備考",
+        notePlaceholder:
+          "例）店舗契約→2月21日の14時〜16時の間\n電力情報施工店共有済み〇\n★申請ID：09174680",
+        save: "保存",
+        saving: "保存中…",
       },
       // 契約状況タブ — 契約予定情報の単一の表示・編集面（Contract モデル由来 per-contract）。
       // 商材ライン（PV/BT/付帯/施工）をカード内インラインで入力する（概況は廃止）。
@@ -2979,13 +3067,14 @@ export const labels = {
         searchPlaceholder: "顧客名で検索",
         assignee: "担当者",
         status: "状態",
-        from: "予定日（開始）",
-        to: "予定日（終了）",
         all: "すべて",
-        search: "検索",
-        clear: "クリア",
         resultCount: "表示件数: {total}件",
       },
+      /** 【並び替え項目】の選択肢（Appointment の実列）。 */
+      sortFieldLabels: {
+        scheduled_at: "アポ日時",
+        created_at: "登録日時",
+      } as Record<string, string>,
       columns: {
         scheduledAt: "予定日時",
         customerName: "顧客名",
@@ -2994,8 +3083,14 @@ export const labels = {
         appointmentType: "種別・場所",
         status: "状態",
         preCall: "対応状況（マエカク）",
+        // 次に必要な対応は文章なので通常列には出さず、行を展開して全文を読む。
         nextAction: "次に必要な対応",
-        actions: "操作",
+      },
+      // 行の展開（詳細バナー）。文言はコール一覧と揃える。
+      expand: {
+        open: "詳細を開く",
+        close: "詳細を閉じる",
+        detailLink: "案件詳細",
       },
       preCallNone: "マエカク未実施",
     },
@@ -3047,6 +3142,8 @@ export const labels = {
       cancelConfirm: "このアポをキャンセルします。続行しますか？",
       cancelling: "キャンセル中…",
       preCall: "マエカク",
+      /** 旧「操作」列の実体 — マエカク入力画面 (/appointments/[id]/pre-call) への導線。 */
+      preCallEntry: "マエカクを入力",
     },
     feedback: {
       created: "アポを登録しました",
@@ -3295,24 +3392,25 @@ export const labels = {
         searchPlaceholder: "顧客名で検索",
         assignee: "担当者",
         status: "契約状態",
-        from: "契約日（開始）",
-        to: "契約日（終了）",
         all: "すべて",
-        search: "検索",
-        clear: "クリア",
         resultCount: "表示件数: {total}件",
       },
+      /** 【並び替え項目】の選択肢（Contract の実列）。 */
+      sortFieldLabels: {
+        contract_date: "契約日",
+        contract_amount: "契約金額",
+        created_at: "登録日時",
+      } as Record<string, string>,
       columns: {
         contractDate: "契約日",
         customerName: "顧客名",
         assignee: "担当者",
         status: "契約状態",
         contractAmount: "契約金額",
-        construction: "施工（後続工程）",
-        subsidy: "設置申請（後続工程）",
+        // 施工 / 設置申請は専用一覧へ集約したため契約一覧では扱わない。
+        // 入金状況は一覧から直接変更できる（保存先は ContractPayment.paymentStatus）。
+        paymentStatus: "入金状況",
       },
-      noConstruction: "施工未登録",
-      noApplication: "申請未登録",
     },
     detailTitle: "契約詳細",
     new: "契約を登録",

@@ -72,8 +72,9 @@ describe("コール一覧 — 値域", () => {
     expect(STATUS_OPTIONS_BY_CALL_TYPE.all).toEqual([UNSET_STATUS, ...COMBINED_STATUS_VALUES]);
   });
 
-  it("日付対象は 4 コールの希望日時 + 次回アポイント + 最終架電日時", () => {
+  it("日付対象は すべて + 4 コールの希望日時 + 次回アポイント + 最終架電日時", () => {
     expect([...CALL_DATE_FIELD_VALUES]).toEqual([
+      "all",
       "maekaku_preferred_at",
       "thank_you_preferred_at",
       "loan_completion_preferred_at",
@@ -81,7 +82,8 @@ describe("コール一覧 — 値域", () => {
       "next_appointment_at",
       "last_called_at",
     ]);
-    expect(DEFAULT_CALL_DATE_FIELD).toBe("maekaku_preferred_at");
+    // 既定は「すべて」= 検索できる日時を横断して OR で絞り込む。
+    expect(DEFAULT_CALL_DATE_FIELD).toBe("all");
   });
 
   it("並び替え項目は 更新日時 / 顧客名 / 4 コール希望日時 / 次回アポイント日", () => {

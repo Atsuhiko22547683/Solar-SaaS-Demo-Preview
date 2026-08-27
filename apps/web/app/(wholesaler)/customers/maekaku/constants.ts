@@ -72,6 +72,8 @@ export const STATUS_OPTIONS_BY_CALL_TYPE: Record<CallTypeValue, readonly string[
 
 /** 期間絞り込みの対象日時。last_called_at のみ CustomerCallLog 側（relation filter）。 */
 export const CALL_DATE_FIELD_VALUES = [
+  // 既定は「すべて」= 下記すべての日時を横断して OR で絞り込む。
+  "all",
   "maekaku_preferred_at",
   "thank_you_preferred_at",
   "loan_completion_preferred_at",
@@ -80,7 +82,7 @@ export const CALL_DATE_FIELD_VALUES = [
   "last_called_at",
 ] as const;
 export type CallDateFieldValue = (typeof CALL_DATE_FIELD_VALUES)[number];
-export const DEFAULT_CALL_DATE_FIELD: CallDateFieldValue = "maekaku_preferred_at";
+export const DEFAULT_CALL_DATE_FIELD: CallDateFieldValue = "all";
 
 /** 日付対象 → Customer の列名（last_called_at は relation なのでここには含めない）。 */
 export const CALL_DATE_FIELD_COLUMN = {

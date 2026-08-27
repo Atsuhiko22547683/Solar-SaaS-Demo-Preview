@@ -2,11 +2,13 @@
 
 // 契約一覧テーブル。行クリック / Enter・Space で既存の契約詳細（/contracts/[id]）へ遷移する。
 // 列構成・行高・フォーカスリングは S-032 顧客一覧の customer-table.tsx と同型。
-// 施工 / 設置申請のバッジは顧客一覧と同じ配色関数を再利用し、両画面で色が食い違わないようにする。
+// 施工 / 設置申請は専用一覧（/constructions, /applications）へ集約したため列を持たない。
+// 代わりに入金状況（ContractPayment.paymentStatus）を一覧から直接変更できる。
 
 import { ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 
+import { InlineSelectInput } from "@/components/list/inline-select-input";
 import {
   LIST_ROW,
   LIST_TD,
@@ -18,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { labels } from "@/lib/i18n/labels";
 
 import { contractStatusVariant } from "./constants";
-import { constructionVariant, subsidyVariant } from "../customers/customer-table";
+import { saveProjectContractAction } from "../customers/actions";
 
 import type { ContractListItem } from "./data";
 
@@ -37,6 +39,12 @@ function formatAmount(value: string): string {
   return `¥${Math.round(n).toLocaleString("ja-JP")}`;
 }
 
+// 入金状況の選択肢（ContractPaymentStatus）。値域・表示名は顧客詳細の契約タブと共有する。
+const PAYMENT_STATUS_OPTIONS = (["UNPAID", "PARTIAL", "PAID"] as const).map((v) => ({
+  value: v,
+  label: labels.customer.detail.projectInfo.paymentStatusLabels[v] ?? v,
+}));
+
 interface ContractTableProps {
   contracts: ContractListItem[];
 }
@@ -44,10 +52,14 @@ interface ContractTableProps {
 export function ContractTable({ contracts }: ContractTableProps) {
   const t = labels.contract.list;
   const c = labels.customer;
+  // 入金状況の「未設定」表記は顧客詳細の案件情報編集と共有する。
+  const p = labels.customer.detail.projectInfo.edit;
   const router = useRouter();
 
-  function goToDetail(id: string) {
-    router.push(`/contracts/${id}`);
+  // 一覧は「横断して案件を探す場所」。詳細確認はその顧客の顧客詳細・契約タブへ寄せる
+  // （契約専用ページ /contracts/[id] は他導線から使うので残している）。
+  function goToDetail(customerId: string) {
+    router.push(`/customers/${customerId}?tab=contract`);
   }
 
   return (
@@ -60,8 +72,7 @@ export function ContractTable({ contracts }: ContractTableProps) {
             <th className={LIST_TH}>{t.columns.assignee}</th>
             <th className={LIST_TH}>{t.columns.status}</th>
             <th className={LIST_TH}>{t.columns.contractAmount}</th>
-            <th className={LIST_TH}>{t.columns.construction}</th>
-            <th className={LIST_TH}>{t.columns.subsidy}</th>
+            <th className={LIST_TH}>{t.columns.paymentStatus}</th>
             <th className="w-10 px-3 py-3" aria-hidden />
           </tr>
         </thead>
@@ -73,11 +84,11 @@ export function ContractTable({ contracts }: ContractTableProps) {
               role="button"
               aria-label={`${row.customerName}${c.honorific} ${formatDate(row.contractDate)}`}
               className={LIST_ROW}
-              onClick={() => goToDetail(row.id)}
+              onClick={() => goToDetail(row.customerId)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
-                  goToDetail(row.id);
+                  goToDetail(row.customerId);
                 }
               }}
             >
@@ -94,23 +105,21 @@ export function ContractTable({ contracts }: ContractTableProps) {
               <td className="text-ink whitespace-nowrap px-6 py-3 text-right tabular-nums">
                 {formatAmount(row.contractAmount)}
               </td>
+              {/* 入金状況 — 一覧から直接変更（保存先は ContractPayment.paymentStatus）。 */}
               <td className="whitespace-nowrap px-6 py-3">
-                {row.constructionStatus ? (
-                  <Badge variant={constructionVariant(row.constructionStatus)}>
-                    {c.constructionStatusLabels[row.constructionStatus]}
-                  </Badge>
-                ) : (
-                  <span className="text-mute-light text-xs">{t.noConstruction}</span>
-                )}
-              </td>
-              <td className="whitespace-nowrap px-6 py-3">
-                {row.subsidyStatus ? (
-                  <Badge variant={subsidyVariant(row.subsidyStatus)}>
-                    {c.subsidyStatusLabels[row.subsidyStatus]}
-                  </Badge>
-                ) : (
-                  <span className="text-mute-light text-xs">{t.noApplication}</span>
-                )}
+                <InlineSelectInput
+                  value={row.paymentStatus ?? ""}
+                  options={PAYMENT_STATUS_OPTIONS}
+                  unsetLabel={p.unset}
+                  ariaLabel={` `}
+                  onCommit={(next) =>
+                    saveProjectContractAction({
+                      customerId: row.customerId,
+                      contractId: row.id,
+                      paymentStatus: next as "UNPAID" | "PARTIAL" | "PAID",
+                    })
+                  }
+                />
               </td>
               <td className="px-3 py-3 text-right">
                 <ChevronRight className="text-mute-light inline size-4" />

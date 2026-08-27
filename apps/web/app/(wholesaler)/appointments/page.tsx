@@ -13,6 +13,8 @@ import {
   ListResultCount,
   ListTableCard,
 } from "@/components/list/list-shell";
+import { normalizeSortDirection, normalizeSortField } from "@/components/list/list-sort";
+import { ListSortSelect } from "@/components/list/list-sort-select";
 import { labels } from "@/lib/i18n/labels";
 
 import { AppointmentFilter } from "./appointment-filter";
@@ -20,9 +22,27 @@ import { AppointmentTable } from "./appointment-table";
 import { APPOINTMENT_STATUS_VALUES } from "./constants";
 import { listAppointments, listWholesalerUsers } from "./data";
 
+import type { ListSortOption } from "@/components/list/list-sort";
 import type { AppointmentStatus } from "@solar/db";
 
 export const dynamic = "force-dynamic";
+
+const BASE_PATH = "/appointments";
+
+// 並び替え項目（Appointment の実列）。既定は従来どおりアポ日時の降順。
+const SORT_OPTIONS: ListSortOption[] = [
+  {
+    value: "scheduled_at",
+    label: labels.appointment.list.sortFieldLabels.scheduled_at!,
+    defaultDirection: "desc",
+  },
+  {
+    value: "created_at",
+    label: labels.appointment.list.sortFieldLabels.created_at!,
+    defaultDirection: "desc",
+  },
+];
+const DEFAULT_SORT_FIELD = "scheduled_at";
 
 interface PageProps {
   searchParams: Promise<{
@@ -31,6 +51,8 @@ interface PageProps {
     status?: string;
     from?: string;
     to?: string;
+    sortField?: string;
+    sortDir?: string;
     page?: string;
   }>;
 }
@@ -50,14 +72,24 @@ export default async function AppointmentListPage({ searchParams }: PageProps) {
     : undefined;
   const from = normalizeDate(params.from);
   const to = normalizeDate(params.to);
+  const sortField = normalizeSortField(params.sortField, SORT_OPTIONS, DEFAULT_SORT_FIELD);
+  const sortDirection = normalizeSortDirection(params.sortDir, sortField, SORT_OPTIONS);
   const page = Math.max(1, parseInt(params.page ?? "1", 10) || 1);
 
   const [result, assignees] = await Promise.all([
-    listAppointments({ query, assigneeUserId, status, from, to, page }),
+    listAppointments({ query, assigneeUserId, status, from, to, sortField, sortDirection, page }),
     listWholesalerUsers(),
   ]);
 
   const t = labels.appointment.list;
+
+  // 検索パネルのバッジ／初期展開に使う有効条件数（期間はセットで 1 条件）。
+  const activeFilterCount = [
+    Boolean(query),
+    Boolean(assigneeUserId),
+    Boolean(status),
+    Boolean(from || to),
+  ].filter(Boolean).length;
 
   function pageUrl(p: number): string {
     const sp = new URLSearchParams();
@@ -66,8 +98,12 @@ export default async function AppointmentListPage({ searchParams }: PageProps) {
     if (status) sp.set("status", status);
     if (from) sp.set("from", from);
     if (to) sp.set("to", to);
+    if (sortField !== DEFAULT_SORT_FIELD) sp.set("sortField", sortField);
+    if (sortDirection !== SORT_OPTIONS.find((o) => o.value === sortField)?.defaultDirection) {
+      sp.set("sortDir", sortDirection);
+    }
     sp.set("page", String(p));
-    return `/appointments?${sp.toString()}`;
+    return `${BASE_PATH}?${sp.toString()}`;
   }
 
   return (
@@ -82,10 +118,22 @@ export default async function AppointmentListPage({ searchParams }: PageProps) {
           from={from ?? ""}
           to={to ?? ""}
           assignees={assignees}
+          activeCount={activeFilterCount}
+          defaultOpen={activeFilterCount > 0}
         />
       </ListFilterCard>
 
-      <ListResultCount total={result.total} template={t.filters.resultCount} />
+      {/* 表示件数（左）と並び替え（右）。並び替えは検索条件ではないのでここに置く。 */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <ListResultCount total={result.total} template={t.filters.resultCount} />
+        <ListSortSelect
+          basePath={BASE_PATH}
+          options={SORT_OPTIONS}
+          sortField={sortField}
+          sortDirection={sortDirection}
+          defaultField={DEFAULT_SORT_FIELD}
+        />
+      </div>
 
       <ListTableCard
         isEmpty={result.items.length === 0}

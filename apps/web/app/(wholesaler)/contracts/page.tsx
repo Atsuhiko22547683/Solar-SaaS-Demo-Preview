@@ -3,8 +3,8 @@
 // 顧客一覧（S-032）と同じ骨格:
 //   タイトル + 説明 → 白カードの検索/絞り込み → 表示件数 → テーブル → ページャ。
 // 行クリックで既存の契約詳細（/contracts/[id]）へ遷移する。
-// 「現在の後続工程」列は Contract に紐づく Construction / Application から
-// 顧客一覧と同じ導出関数で算出しており、独自の状態は持たない。
+// 施工 / 設置申請の状況は専用一覧（/constructions, /applications）へ集約したため
+// この一覧では扱わず、代わりに入金状況を表示・変更できる。
 
 import { ListPagination } from "@/components/list/list-pagination";
 import {
@@ -13,6 +13,8 @@ import {
   ListResultCount,
   ListTableCard,
 } from "@/components/list/list-shell";
+import { normalizeSortDirection, normalizeSortField } from "@/components/list/list-sort";
+import { ListSortSelect } from "@/components/list/list-sort-select";
 import { labels } from "@/lib/i18n/labels";
 
 import { CONTRACT_STATUS_ENUM_VALUES } from "./constants";
@@ -20,12 +22,37 @@ import { ContractFilter } from "./contract-filter";
 import { ContractTable } from "./contract-table";
 import { listContracts, listWholesalerUsers } from "./data";
 
+import type { ListSortOption } from "@/components/list/list-sort";
 import type { ContractStatus } from "@solar/db";
 
 export const dynamic = "force-dynamic";
 
+const BASE_PATH = "/contracts";
+
+// 並び替え項目（Contract の実列）。既定は従来どおり契約日の降順。
+const SORT_OPTIONS: ListSortOption[] = [
+  {
+    value: "contract_date",
+    label: labels.contract.list.sortFieldLabels.contract_date!,
+    defaultDirection: "desc",
+  },
+  {
+    value: "contract_amount",
+    label: labels.contract.list.sortFieldLabels.contract_amount!,
+    defaultDirection: "desc",
+  },
+  {
+    value: "created_at",
+    label: labels.contract.list.sortFieldLabels.created_at!,
+    defaultDirection: "desc",
+  },
+];
+const DEFAULT_SORT_FIELD = "contract_date";
+
 interface PageProps {
   searchParams: Promise<{
+    sortField?: string;
+    sortDir?: string;
     query?: string;
     assigneeUserId?: string;
     status?: string;
@@ -50,14 +77,24 @@ export default async function ContractListPage({ searchParams }: PageProps) {
     : undefined;
   const from = normalizeDate(params.from);
   const to = normalizeDate(params.to);
+  const sortField = normalizeSortField(params.sortField, SORT_OPTIONS, DEFAULT_SORT_FIELD);
+  const sortDirection = normalizeSortDirection(params.sortDir, sortField, SORT_OPTIONS);
   const page = Math.max(1, parseInt(params.page ?? "1", 10) || 1);
 
   const [result, assignees] = await Promise.all([
-    listContracts({ query, assigneeUserId, status, from, to, page }),
+    listContracts({ query, assigneeUserId, status, from, to, sortField, sortDirection, page }),
     listWholesalerUsers(),
   ]);
 
   const t = labels.contract.list;
+
+  // 検索パネルのバッジ／初期展開に使う有効条件数（期間はセットで 1 条件）。
+  const activeFilterCount = [
+    Boolean(query),
+    Boolean(assigneeUserId),
+    Boolean(status),
+    Boolean(from || to),
+  ].filter(Boolean).length;
 
   function pageUrl(p: number): string {
     const sp = new URLSearchParams();
@@ -66,8 +103,12 @@ export default async function ContractListPage({ searchParams }: PageProps) {
     if (status) sp.set("status", status);
     if (from) sp.set("from", from);
     if (to) sp.set("to", to);
+    if (sortField !== DEFAULT_SORT_FIELD) sp.set("sortField", sortField);
+    if (sortDirection !== SORT_OPTIONS.find((o) => o.value === sortField)?.defaultDirection) {
+      sp.set("sortDir", sortDirection);
+    }
     sp.set("page", String(p));
-    return `/contracts?${sp.toString()}`;
+    return `${BASE_PATH}?${sp.toString()}`;
   }
 
   return (
@@ -82,10 +123,22 @@ export default async function ContractListPage({ searchParams }: PageProps) {
           from={from ?? ""}
           to={to ?? ""}
           assignees={assignees}
+          activeCount={activeFilterCount}
+          defaultOpen={activeFilterCount > 0}
         />
       </ListFilterCard>
 
-      <ListResultCount total={result.total} template={t.filters.resultCount} />
+      {/* 表示件数（左）と並び替え（右）。並び替えは検索条件ではないのでここに置く。 */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <ListResultCount total={result.total} template={t.filters.resultCount} />
+        <ListSortSelect
+          basePath={BASE_PATH}
+          options={SORT_OPTIONS}
+          sortField={sortField}
+          sortDirection={sortDirection}
+          defaultField={DEFAULT_SORT_FIELD}
+        />
+      </div>
 
       <ListTableCard
         isEmpty={result.items.length === 0}

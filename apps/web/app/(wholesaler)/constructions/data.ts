@@ -34,15 +34,63 @@ export { listWholesalerUsers } from "../event-detail/data";
 
 export const PAGE_SIZE = 50;
 
+/**
+ * 並び替え項目 → Prisma orderBy。いずれも Construction の実列なので
+ * ページング件数と整合する。未設定は常に末尾（nulls: "last"）、第 2 キーは作成日時降順。
+ * 既定（未指定）は従来どおり「施工予定日が近い順」。
+ */
+function buildOrderBy(
+  sortField: string | undefined,
+  direction: "asc" | "desc" = "asc",
+): Prisma.ConstructionOrderByWithRelationInput[] {
+  const column =
+    sortField === "started_date"
+      ? "startedDate"
+      : sortField === "completed_date"
+        ? "completedDate"
+        : sortField === "survey_date"
+          ? "surveyDate"
+          : "plannedStartDate";
+  return [{ [column]: { sort: direction, nulls: "last" } }, { createdAt: "desc" }];
+}
+
+/** 期間検索の対象日。いずれも Construction の実列（存在しない日付は足さない）。 */
+export type ConstructionDateField = "all" | "planned" | "started" | "completed";
+
+/**
+ * 期間の対象日 → where 断片。
+ * 施工予定日は plannedStartDate 優先・legacy plannedDate フォールバックのため OR で両列に掛ける。
+ * 既定の "all" は 施工予定日 / 着工日 / 完工日 を横断（いずれかが期間に入れば該当）。
+ * 単一の where に畳んだ OR なので件数カウントもページングも通常どおり整合する。
+ */
+function buildDateWhere(
+  dateField: ConstructionDateField,
+  range: Prisma.DateTimeFilter,
+): Prisma.ConstructionWhereInput {
+  const planned: Prisma.ConstructionWhereInput[] = [
+    { plannedStartDate: range },
+    { plannedStartDate: null, plannedDate: range },
+  ];
+  if (dateField === "started") return { startedDate: range };
+  if (dateField === "completed") return { completedDate: range };
+  if (dateField === "planned") return { OR: planned };
+  return { OR: [...planned, { startedDate: range }, { completedDate: range }] };
+}
+
 export interface ConstructionListFilter {
   /** 顧客名の部分一致（大文字小文字を無視）。 */
   query?: string;
   /** 4 値の施工状態。enum 群へ展開して where に落とす。 */
   status?: ConstructionStatusValue;
   surveyStatus?: SurveyStatusValue;
-  /** 施工予定日（plannedStartDate、無い場合は legacy plannedDate）のレンジ。 */
+  /** 期間の対象日。既定は "all" で、施工予定日 / 着工日 / 完工日を横断して OR で絞る。 */
+  dateField?: ConstructionDateField;
+  /** 期間（"YYYY-MM-DD"、to は当日終端まで含む）。dateField が対象列を決める。 */
   from?: string;
   to?: string;
+  /** 並び替え（項目 × 昇順/降順）。既定は施工予定日の昇順。 */
+  sortField?: string;
+  sortDirection?: "asc" | "desc";
   page?: number;
 }
 
@@ -60,6 +108,8 @@ export interface ConstructionListItem {
   /** 施工予定日 — plannedStartDate を優先し、無ければ legacy plannedDate。 */
   plannedDate: string | null;
   plannedEndDate: string | null;
+  /** 着工日（Construction.startedDate）。一覧から直接編集できる。未設定は null。 */
+  startedDate: string | null;
   surveyDate: string | null;
   surveyStatus: SurveyStatusValue | null;
   /** 顧客一覧と同じ 4 値へ写像した施工状態。 */
@@ -149,21 +199,15 @@ export async function listConstructions(
       },
       ...(filter.status ? { status: { in: STATUS_VALUE_TO_ENUMS[filter.status] } } : {}),
       ...(filter.surveyStatus ? { surveyStatus: filter.surveyStatus } : {}),
-      ...(dateRange
-        ? {
-            OR: [
-              { plannedStartDate: dateRange },
-              { plannedStartDate: null, plannedDate: dateRange },
-            ],
-          }
-        : {}),
+      // 期間の対象日。いずれも Construction の実列なのでページング件数と整合する。
+      // 既定の "all" は 施工予定日 / 着工日 / 完工日 を OR で横断する。
+      ...(dateRange ? buildDateWhere(filter.dateField ?? "all", dateRange) : {}),
     };
 
     const [rows, total] = await Promise.all([
       tx.construction.findMany({
         where,
-        // 予定日が近い順（未設定は末尾）。Prisma の nulls last で安定させる。
-        orderBy: [{ plannedStartDate: { sort: "asc", nulls: "last" } }, { createdAt: "desc" }],
+        orderBy: buildOrderBy(filter.sortField, filter.sortDirection),
         skip,
         take: PAGE_SIZE,
         select: {
@@ -173,6 +217,7 @@ export async function listConstructions(
           plannedStartDate: true,
           plannedEndDate: true,
           surveyDate: true,
+          startedDate: true,
           surveyStatus: true,
           status: true,
           completedDate: true,
@@ -213,6 +258,7 @@ export async function listConstructions(
         installerName: r.installer?.name ?? r.vendorName,
         plannedDate: (r.plannedStartDate ?? r.plannedDate)?.toISOString() ?? null,
         plannedEndDate: r.plannedEndDate?.toISOString() ?? null,
+        startedDate: r.startedDate?.toISOString() ?? null,
         surveyDate: r.surveyDate?.toISOString() ?? null,
         surveyStatus: (r.surveyStatus as SurveyStatusValue | null) ?? null,
         status: constructionEnumToStatusValue(r.status),

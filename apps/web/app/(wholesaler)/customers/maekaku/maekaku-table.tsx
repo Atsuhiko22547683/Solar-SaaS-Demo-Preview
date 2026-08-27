@@ -14,15 +14,19 @@
 // 行高・罫線・フォーカスリング・バッジは S-032 顧客一覧（customer-table.tsx /
 // list-shell.tsx）と同じトークンを使う。新しいデザイン体系は作らない。
 
-import { ChevronDown } from "lucide-react";
+import { ArrowRight, ChevronDown } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState, useTransition } from "react";
+import { toast } from "sonner";
 
 import { LIST_ROW, LIST_TD, LIST_TH } from "@/components/list/list-shell";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { labels } from "@/lib/i18n/labels";
 
-import { callStatusVariant } from "./constants";
+import { saveProjectCallStatusAction } from "../actions";
+import { CALL_STATUS_VALUES, MAEKAKU_STATUS_VALUES, callStatusVariant } from "./constants";
 
 import type { CallListItem, CallSectionCell, NextTaskCell } from "./constants";
 import type { ReactNode } from "react";
@@ -163,23 +167,174 @@ function StackedField({
   );
 }
 
+/** ISO → <input type="datetime-local"> 用 YYYY-MM-DDTHH:mm（ローカル日時）。 */
+function toDateTimeInput(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// 各コール種別 → saveProjectCallStatusAction のペイロードキー。
+// 保存先・値域・validation は顧客詳細「コール」タブと完全に同じものを使う
+// （一覧のために別データを作らない）。
+const CALL_PAYLOAD_KEYS = {
+  maekaku: {
+    status: "maekakuStatus",
+    preferredAt: "maekakuPreferredAt",
+    note: "maekakuCallNote",
+  },
+  thank_you: {
+    status: "thankYouCallStatus",
+    preferredAt: "thankYouCallPreferredAt",
+    note: "thankYouCallNote",
+  },
+  loan_completion: {
+    status: "loanCompletionCallStatus",
+    preferredAt: "loanCompletionCallPreferredAt",
+    note: "loanCompletionCallNote",
+  },
+  post_completion: {
+    status: "postCompletionCallStatus",
+    preferredAt: "postCompletionCallPreferredAt",
+    note: "postCompletionCallNote",
+  },
+} as const;
+
+type CallKind = keyof typeof CALL_PAYLOAD_KEYS;
+
+const EDIT_FIELD =
+  "h-8 w-full rounded-sm border border-hairline-light bg-white px-2 text-sm text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-surface-soft";
+
 /**
- * 各コール 1 セクション分のブロック（コール名 → 希望日時 → メモ の縦読み）。
+ * 各コール 1 セクション分のブロック（コール名 → ステータス → 希望日時 → メモ の縦読み）。
+ * 展開したまま その場で編集・保存できる（保存先は顧客詳細コールタブと同じ Customer 列）。
  *
  * 空でも描画する: 4 ブロックの並び順を通常行のステータス列（マエカク / サンキュー /
  * ローン完了 / 施工完了）と一致させたいため。空ブロックを畳むと残りが左へ詰まって
  * 列位置がずれ、どのコールの情報かを読み違えやすくなる。
  */
-function CallDetailBlock({ title, cell }: { title: string; cell: CallSectionCell }) {
-  const f = labels.customer.calls.fields;
+function CallSectionEditor({
+  customerId,
+  customerName,
+  title,
+  kind,
+  cell,
+  statusValues,
+  statusLabels,
+}: {
+  customerId: string;
+  customerName: string;
+  title: string;
+  kind: CallKind;
+  cell: CallSectionCell;
+  statusValues: readonly string[];
+  statusLabels: Record<string, string>;
+}) {
+  const t = labels.customer.calls;
+  const f = t.fields;
+  const c = labels.common;
+  const unset = labels.customer.detail.projectInfo.edit.unset;
+  const router = useRouter();
+
+  const [status, setStatus] = useState(cell.status ?? "");
+  const [preferredAt, setPreferredAt] = useState(() => toDateTimeInput(cell.preferredAt));
+  const [note, setNote] = useState(cell.note ?? "");
+  const [isPending, startTransition] = useTransition();
+
+  // 一覧が再取得されたら（検索・並び替え・他行の保存）サーバ値へ追随する。
+  useEffect(() => {
+    setStatus(cell.status ?? "");
+    setPreferredAt(toDateTimeInput(cell.preferredAt));
+    setNote(cell.note ?? "");
+  }, [cell.status, cell.preferredAt, cell.note]);
+
+  const dirty =
+    status !== (cell.status ?? "") ||
+    preferredAt !== toDateTimeInput(cell.preferredAt) ||
+    note !== (cell.note ?? "");
+
+  function save() {
+    const keys = CALL_PAYLOAD_KEYS[kind];
+    startTransition(async () => {
+      try {
+        await saveProjectCallStatusAction({
+          customerId,
+          [keys.status]: status || null,
+          [keys.preferredAt]: preferredAt || null,
+          [keys.note]: note.length > 0 ? note : null,
+        } as Parameters<typeof saveProjectCallStatusAction>[0]);
+        toast.success(c.saved);
+        router.refresh();
+      } catch (err) {
+        toast.error(err instanceof Error && err.message ? err.message : c.unknownError);
+      }
+    });
+  }
+
+  const idBase = `call-edit-${kind}-${customerId}`;
   return (
     <DetailBlock title={title}>
-      <StackedField
-        label={f.preferredAt}
-        value={cell.preferredAt ? fmtDateTime(cell.preferredAt) : null}
-        strong
-      />
-      <StackedField label={f.note} value={cell.note} />
+      <div className="min-w-0">
+        <label htmlFor={`${idBase}-status`} className="text-mute-light text-[11px] leading-tight">
+          {f.statusLabel}
+        </label>
+        <select
+          id={`${idBase}-status`}
+          value={status}
+          disabled={isPending}
+          onChange={(e) => setStatus(e.target.value)}
+          aria-label={`${customerName} ${title} ${f.statusLabel}`}
+          className={EDIT_FIELD}
+        >
+          <option value="">{unset}</option>
+          {statusValues.map((v) => (
+            <option key={v} value={v}>
+              {statusLabels[v] ?? v}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="min-w-0">
+        <label
+          htmlFor={`${idBase}-preferred`}
+          className="text-mute-light text-[11px] leading-tight"
+        >
+          {f.preferredAt}
+        </label>
+        <input
+          id={`${idBase}-preferred`}
+          type="datetime-local"
+          value={preferredAt}
+          disabled={isPending}
+          onChange={(e) => setPreferredAt(e.target.value)}
+          aria-label={`${customerName} ${title} ${f.preferredAt}`}
+          className={`${EDIT_FIELD} tabular-nums`}
+        />
+      </div>
+
+      <div className="min-w-0">
+        <label htmlFor={`${idBase}-note`} className="text-mute-light text-[11px] leading-tight">
+          {f.note}
+        </label>
+        <textarea
+          id={`${idBase}-note`}
+          value={note}
+          disabled={isPending}
+          rows={2}
+          onChange={(e) => setNote(e.target.value)}
+          aria-label={`${customerName} ${title} ${f.note}`}
+          className="border-hairline-light text-ink focus:border-primary focus:ring-primary/20 w-full rounded-sm border bg-white px-2 py-1 text-sm focus:outline-none focus:ring-2 disabled:cursor-not-allowed"
+        />
+      </div>
+
+      <div className="flex justify-end pt-1">
+        <Button type="button" size="sm" onClick={save} disabled={isPending || !dirty}>
+          {isPending ? c.saving : c.save}
+        </Button>
+      </div>
     </DetailBlock>
   );
 }
@@ -197,6 +352,8 @@ function DetailBanner({ row }: { row: CallListItem }) {
   const t = labels.customer.calls;
   const s = t.sections;
   const f = t.fields;
+  // ステータスの値域ラベルは顧客詳細コールタブと共有する。
+  const p = labels.customer.detail.projectInfo;
 
   return (
     <div className="space-y-4">
@@ -208,10 +365,42 @@ function DetailBanner({ row }: { row: CallListItem }) {
 
       {/* 中段 — 4 種のコール。列の並びは通常行のステータス列と同じ順。 */}
       <div className="border-hairline-light grid grid-cols-2 gap-x-8 gap-y-4 border-t pt-4 lg:grid-cols-4">
-        <CallDetailBlock title={s.maekaku} cell={row.maekaku} />
-        <CallDetailBlock title={s.thankYouCall} cell={row.thankYouCall} />
-        <CallDetailBlock title={s.loanCompletionCall} cell={row.loanCompletionCall} />
-        <CallDetailBlock title={s.postCompletionCall} cell={row.postCompletionCall} />
+        <CallSectionEditor
+          customerId={row.id}
+          customerName={row.name}
+          title={s.maekaku}
+          kind="maekaku"
+          cell={row.maekaku}
+          statusValues={MAEKAKU_STATUS_VALUES}
+          statusLabels={p.maekakuStatusDisplayLabels}
+        />
+        <CallSectionEditor
+          customerId={row.id}
+          customerName={row.name}
+          title={s.thankYouCall}
+          kind="thank_you"
+          cell={row.thankYouCall}
+          statusValues={CALL_STATUS_VALUES}
+          statusLabels={p.callPhaseStatusLabels}
+        />
+        <CallSectionEditor
+          customerId={row.id}
+          customerName={row.name}
+          title={s.loanCompletionCall}
+          kind="loan_completion"
+          cell={row.loanCompletionCall}
+          statusValues={CALL_STATUS_VALUES}
+          statusLabels={p.callPhaseStatusLabels}
+        />
+        <CallSectionEditor
+          customerId={row.id}
+          customerName={row.name}
+          title={s.postCompletionCall}
+          kind="post_completion"
+          cell={row.postCompletionCall}
+          statusValues={CALL_STATUS_VALUES}
+          statusLabels={p.callPhaseStatusLabels}
+        />
       </div>
 
       {/* 下段 — 次回対応（広め）と直近コール履歴。 */}
@@ -239,13 +428,15 @@ function DetailBanner({ row }: { row: CallListItem }) {
         </DetailBlock>
       </div>
 
+      {/* 案件詳細へ — バナー内の主要操作なので primary ボタン + 矢印で明示する。
+          遷移先は従来どおり顧客詳細のコールタブ。 */}
       <div className="flex justify-end">
-        <Link
-          href={`/customers/${row.id}?tab=calls`}
-          className="text-primary focus-visible:ring-primary/40 rounded-md text-sm font-medium underline-offset-4 hover:underline focus:outline-none focus-visible:ring-2"
-        >
-          {t.expand.detailLink}
-        </Link>
+        <Button asChild size="default" className="px-5">
+          <Link href={`/customers/${row.id}?tab=calls`}>
+            {t.expand.detailLink}
+            <ArrowRight className="ml-1 size-4" aria-hidden />
+          </Link>
+        </Button>
       </div>
     </div>
   );

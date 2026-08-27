@@ -6,12 +6,12 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { ListDateRangeField, ListFilterPanel } from "@/components/list/list-filter-panel";
 import {
   FILTER_INPUT_CLASS,
   FILTER_LABEL_CLASS,
   FILTER_SELECT_CLASS,
 } from "@/components/list/list-shell";
-import { Button } from "@/components/ui/button";
 import { labels } from "@/lib/i18n/labels";
 
 import { CONTRACT_STATUS_ENUM_VALUES } from "./constants";
@@ -28,6 +28,8 @@ interface ContractFilterProps {
   from: string;
   to: string;
   assignees: AssigneeOption[];
+  activeCount: number;
+  defaultOpen: boolean;
 }
 
 export function ContractFilter({
@@ -37,6 +39,8 @@ export function ContractFilter({
   from,
   to,
   assignees,
+  activeCount,
+  defaultOpen,
 }: ContractFilterProps) {
   const router = useRouter();
   const t = labels.contract.list.filters;
@@ -70,97 +74,73 @@ export function ContractFilter({
   }
 
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        applyFilters();
-      }}
+    <ListFilterPanel
+      idPrefix="contract"
+      activeCount={activeCount}
+      defaultOpen={defaultOpen}
+      onSubmit={applyFilters}
+      onClear={clearFilters}
     >
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="space-y-1">
-          <label htmlFor="contract-query" className={FILTER_LABEL_CLASS}>
-            {t.customerName}
-          </label>
-          <input
-            id="contract-query"
-            type="search"
-            value={queryValue}
-            onChange={(e) => setQueryValue(e.target.value)}
-            placeholder={t.searchPlaceholder}
-            aria-label={t.searchPlaceholder}
-            className={`${FILTER_INPUT_CLASS} w-56`}
-          />
-        </div>
-
-        <div className="space-y-1">
-          <label htmlFor="contract-assignee" className={FILTER_LABEL_CLASS}>
-            {t.assignee}
-          </label>
-          <select
-            id="contract-assignee"
-            value={assigneeValue}
-            onChange={(e) => setAssigneeValue(e.target.value)}
-            className={FILTER_SELECT_CLASS}
-          >
-            <option value="">{t.all}</option>
-            {assignees.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="space-y-1">
-          <label htmlFor="contract-status" className={FILTER_LABEL_CLASS}>
-            {t.status}
-          </label>
-          <select
-            id="contract-status"
-            value={statusValue}
-            onChange={(e) => setStatusValue(e.target.value)}
-            className={FILTER_SELECT_CLASS}
-          >
-            <option value="">{t.all}</option>
-            {CONTRACT_STATUS_ENUM_VALUES.map((s) => (
-              <option key={s} value={s}>
-                {statusLabels[s]}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="space-y-1">
-          <label htmlFor="contract-from" className={FILTER_LABEL_CLASS}>
-            {t.from}
-          </label>
-          <input
-            id="contract-from"
-            type="date"
-            value={fromValue}
-            onChange={(e) => setFromValue(e.target.value)}
-            className={`${FILTER_INPUT_CLASS} w-40`}
-          />
-        </div>
-
-        <div className="space-y-1">
-          <label htmlFor="contract-to" className={FILTER_LABEL_CLASS}>
-            {t.to}
-          </label>
-          <input
-            id="contract-to"
-            type="date"
-            value={toValue}
-            onChange={(e) => setToValue(e.target.value)}
-            className={`${FILTER_INPUT_CLASS} w-40`}
-          />
-        </div>
-
-        <Button type="submit">{t.search}</Button>
-        <Button type="button" variant="outline" onClick={clearFilters}>
-          {t.clear}
-        </Button>
+      <div className="space-y-1">
+        <label htmlFor="contract-query" className={FILTER_LABEL_CLASS}>
+          {t.customerName}
+        </label>
+        <input
+          id="contract-query"
+          type="search"
+          value={queryValue}
+          onChange={(e) => setQueryValue(e.target.value)}
+          placeholder={t.searchPlaceholder}
+          aria-label={t.searchPlaceholder}
+          className={`${FILTER_INPUT_CLASS} w-56`}
+        />
       </div>
-    </form>
+
+      <div className="space-y-1">
+        <label htmlFor="contract-assignee" className={FILTER_LABEL_CLASS}>
+          {t.assignee}
+        </label>
+        <select
+          id="contract-assignee"
+          value={assigneeValue}
+          onChange={(e) => setAssigneeValue(e.target.value)}
+          className={FILTER_SELECT_CLASS}
+        >
+          <option value="">{t.all}</option>
+          {assignees.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="space-y-1">
+        <label htmlFor="contract-status" className={FILTER_LABEL_CLASS}>
+          {t.status}
+        </label>
+        <select
+          id="contract-status"
+          value={statusValue}
+          onChange={(e) => setStatusValue(e.target.value)}
+          className={FILTER_SELECT_CLASS}
+        >
+          <option value="">{t.all}</option>
+          {CONTRACT_STATUS_ENUM_VALUES.map((s) => (
+            <option key={s} value={s}>
+              {statusLabels[s]}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <ListDateRangeField
+        idPrefix="contract"
+        from={fromValue}
+        to={toValue}
+        onFromChange={setFromValue}
+        onToChange={setToValue}
+      />
+    </ListFilterPanel>
   );
 }

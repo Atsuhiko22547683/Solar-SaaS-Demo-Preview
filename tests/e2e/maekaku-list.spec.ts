@@ -6,7 +6,7 @@ import { expect, test, type Page } from "@playwright/test";
 // 横スクロールなしに 4 種のステータスを一目で比較できることを最優先にしている。
 // 電話番号・各コールの希望日時とメモ・次回アポイント詳細・直近コール履歴は、
 // 行を展開したときだけ行直下のバナーに出る（モーダルではない）。
-// 遷移は顧客名リンクとバナー右下の「詳細を見る」から顧客詳細のコールタブ（?tab=calls）へ。
+// 遷移は顧客名リンクとバナー右下の「案件詳細」から顧客詳細のコールタブ（?tab=calls）へ。
 // 表示名は「コール一覧」だが URL は互換性のため /customers/maekaku のまま。
 //
 // 認証は demo@solar-saas.demo / Demo1234!（WHOLESALER_ADMIN, 2FA off, seed 投入済）。
@@ -33,6 +33,8 @@ async function openCallList(page: Page): Promise<void> {
   await expect(page.getByRole("heading", { name: "コール一覧" })).toBeVisible({
     timeout: 90_000,
   });
+  // ハイドレーション前に操作すると React のハンドラが未装着で展開・保存が走らないため待つ。
+  await page.waitForLoadState("networkidle", { timeout: 90_000 });
 }
 
 /** 顧客名リンク（1 行 1 個）。行数のカウントと詳細遷移の起点を兼ねる。 */
@@ -294,13 +296,13 @@ test.describe("コール一覧", () => {
       "直近コール履歴",
     ]);
 
-    await expect(page.getByRole("link", { name: "詳細を見る" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "案件詳細" })).toBeVisible();
 
     // 同じボタンをもう一度押すと閉じる。
     await toggle.click();
     await expect(toggle).toHaveAttribute("aria-expanded", "false");
     await expect(page.getByText("固定電話", { exact: true })).toHaveCount(0);
-    await expect(page.getByRole("link", { name: "詳細を見る" })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "案件詳細" })).toHaveCount(0);
   });
 
   test("シナリオ6b: 展開バナーはラベルの上下にラベル→値が積まれる", async ({ page }) => {
@@ -314,14 +316,19 @@ test.describe("コール一覧", () => {
     const blockFields = (title: string) =>
       banner.locator(`xpath=.//h4[normalize-space()="${title}"]/following-sibling::dl`);
 
-    // 各コールブロックは「コール名 → 希望日時 → メモ」の縦読み。
+    // 各コールブロックは「コール名 → ステータス → 希望日時 → メモ」の縦読みで、
+    // その場で編集できる入力になっている（保存先は顧客詳細コールタブと同じ列）。
     for (const title of [
       "マエカク",
       "サンキューコール",
       "ローン審査完了コール",
       "施工完了コール",
     ]) {
-      await expect(blockFields(title).locator("dt"), title).toHaveText(["希望日時", "メモ"]);
+      const block = blockFields(title);
+      await expect(block.locator("label"), title).toHaveText(["ステータス", "希望日時", "メモ"]);
+      await expect(block.locator("select")).toHaveCount(1);
+      await expect(block.locator('input[type="datetime-local"]')).toHaveCount(1);
+      await expect(block.locator("textarea")).toHaveCount(1);
     }
 
     // 次回対応 / 直近コール履歴も縦読み。
@@ -372,7 +379,7 @@ test.describe("コール一覧", () => {
     await expect(toggles.nth(1)).toHaveAttribute("aria-expanded", "true");
     await expect(toggles.nth(0)).toHaveAttribute("aria-expanded", "false");
     // 開いているバナーは常に 1 つ。
-    await expect(page.getByRole("link", { name: "詳細を見る" })).toHaveCount(1);
+    await expect(page.getByRole("link", { name: "案件詳細" })).toHaveCount(1);
   });
 
   test("シナリオ8: 行クリックでは遷移せず展開する", async ({ page }) => {
@@ -384,7 +391,7 @@ test.describe("コール一覧", () => {
     await firstRow.locator("td").nth(1).click();
 
     await expect(page).toHaveURL(new RegExp(`${LIST_PATH}$`));
-    await expect(page.getByRole("link", { name: "詳細を見る" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "案件詳細" })).toBeVisible();
   });
 
   test("シナリオ9: 顧客名クリックで顧客詳細のコールタブが開く", async ({ page }) => {
@@ -400,7 +407,7 @@ test.describe("コール一覧", () => {
     await expect(page.getByRole("tabpanel").getByText("電話番号").first()).toBeVisible();
   });
 
-  test("シナリオ10: 展開バナーの「詳細を見る」からもコールタブへ遷移する", async ({ page }) => {
+  test("シナリオ10: 展開バナーの「案件詳細」からもコールタブへ遷移する", async ({ page }) => {
     await signInAsDemo(page);
     await openCallList(page);
 
@@ -408,7 +415,7 @@ test.describe("コール一覧", () => {
       .getByRole("button", { name: /詳細を開く$/ })
       .first()
       .click();
-    await page.getByRole("link", { name: "詳細を見る" }).click();
+    await page.getByRole("link", { name: "案件詳細" }).click();
 
     await page.waitForURL(/\/customers\/[^/]+\?tab=calls$/, { timeout: 90_000 });
     await expect(page.getByRole("tab", { name: "コール" })).toHaveAttribute("data-state", "active");
@@ -442,21 +449,31 @@ test.describe("コール一覧", () => {
     const before = await rowCount(page);
 
     // マエカクのステータス値域は 未設定 / pending / done / unnecessary（顧客詳細と同一）。
-    // seed の顧客は maekakuStatus が全て未設定なので、未設定 = 全件・実施済み = 0 件になる。
+    // 一覧から編集できるようになった以上「seed は全件未設定」には依存せず、
+    // 「絞り込んだ結果の行がすべてその値になっている」ことで検証する。
     await filterByCall(page, "maekaku", "unset");
     await expect(page).toHaveURL(/callType=maekaku/);
-    expect(await rowCount(page), "未設定は seed 全件が該当する").toBe(before);
+    const unsetRows = await rowCount(page);
+    expect(unsetRows, "未設定の顧客が 1 件以上いる").toBeGreaterThan(0);
+    expect(unsetRows, "全件以下").toBeLessThanOrEqual(before);
     // マエカク列（3 セル目）は全て未設定表示。
     for (const row of await page.getByRole("table").locator("tbody tr").all()) {
       await expect(row.locator("td").nth(2)).toHaveText("—");
     }
 
-    // 実施済み（done）は該当なし → 空状態が出る（マエカク列に対して絞り込めている証拠）。
+    // 実施済み（done）へ切り替えると、残る行はすべて「実施済み」になる（0 件なら空状態）。
     await page.getByLabel("ステータス", { exact: true }).selectOption("done");
     await page.getByRole("button", { name: "検索", exact: true }).click();
     await page.waitForURL(/callStatus=done/, { timeout: 90_000 });
-    await expect(page.getByText("該当する顧客がありません")).toBeVisible();
-    await expect(page.getByText("表示件数: 0件")).toBeVisible();
+    const doneRows = await rowCount(page);
+    expect(doneRows, "未設定と実施済みは同時に成り立たない").toBeLessThan(before);
+    if (doneRows === 0) {
+      await expect(page.getByText("該当する顧客がありません")).toBeVisible();
+    } else {
+      for (const row of await page.getByRole("table").locator("tbody tr").all()) {
+        await expect(row.locator("td").nth(2)).toHaveText("実施済み");
+      }
+    }
   });
 
   test("シナリオ13: 対象項目 = サンキューコール + ステータスで絞り込める", async ({ page }) => {
@@ -676,6 +693,95 @@ test.describe("コール一覧", () => {
       await expect(page.getByRole("table")).toBeVisible();
       expect(await rowCount(page)).toBeGreaterThan(0);
     }
+  });
+
+  test("シナリオ23: 日付対象の既定は「すべて」で、検索範囲の右側にある", async ({ page }) => {
+    await signInAsDemo(page);
+    await openCallList(page);
+    await openFilters(page);
+
+    const dateField = page.getByLabel("日付対象");
+    await expect(dateField).toHaveValue("all");
+    await expect(dateField.locator("option").first()).toHaveText("すべて");
+
+    // 検索範囲（開始日）より右に配置されている。
+    const rangeBox = await page.getByLabel("検索範囲 開始日").boundingBox();
+    const fieldBox = await dateField.boundingBox();
+    expect(rangeBox && fieldBox).toBeTruthy();
+    expect(fieldBox!.x, "日付対象は検索範囲の右").toBeGreaterThan(rangeBox!.x);
+
+    // 日付対象=すべてのまま期間だけ指定すると、横断検索が効いて一覧が壊れない。
+    await page.getByLabel("検索範囲 開始日").fill("2000-01-01");
+    await page.getByRole("button", { name: "検索", exact: true }).click();
+    await page.waitForURL(/dateFrom=2000-01-01/, { timeout: 90_000 });
+    // 既定値なので dateField は URL に載らない。
+    await expect(page).not.toHaveURL(/dateField=/);
+    await expect(page.getByText("表示件数:")).toBeVisible();
+    expect(await rowCount(page), "横断検索で 1 件以上ヒットする").toBeGreaterThan(0);
+  });
+
+  test("シナリオ24: 展開バナーから 4 コールのステータス/希望日時/メモを編集・保存できる", async ({
+    page,
+  }) => {
+    await signInAsDemo(page);
+    await openCallList(page);
+
+    // ハイドレーション前に触ると onChange が付いておらず保存が走らないので待つ。
+    await page.waitForLoadState("networkidle", { timeout: 90_000 });
+    const toggle = page.getByRole("table").locator("tbody tr").first().getByRole("button");
+    await toggle.click();
+    const banner = page.getByRole("table").locator("tbody tr").nth(1);
+    const block = banner.locator('xpath=.//h4[normalize-space()="マエカク"]/following-sibling::dl');
+
+    // 保存前は差分が無いので保存ボタンは無効。
+    const saveButton = block.getByRole("button", { name: "保存" });
+    await expect(saveButton).toBeDisabled();
+
+    await block.locator("select").selectOption("done");
+    await block.locator('input[type="datetime-local"]').fill("2026-09-10T14:30");
+    await block.locator("textarea").fill("一覧から編集したメモ");
+    await expect(saveButton).toBeEnabled();
+    // 保存後のトーストは自動で消えるため、成否は POST の応答と再読込での復元で確認する。
+    const [response] = await Promise.all([
+      page.waitForResponse(
+        (r) => r.request().method() === "POST" && r.url().includes("/customers/maekaku"),
+        { timeout: 60_000 },
+      ),
+      saveButton.click(),
+    ]);
+    expect(response.status()).toBe(200);
+
+    // リロードしても保存されている（= DB へ永続化されている）。
+    await page.reload({ timeout: 120_000 });
+    await expect(page.getByRole("table")).toBeVisible({ timeout: 90_000 });
+    await page.getByRole("table").locator("tbody tr").first().getByRole("button").click();
+    const reopened = page
+      .getByRole("table")
+      .locator("tbody tr")
+      .nth(1)
+      .locator('xpath=.//h4[normalize-space()="マエカク"]/following-sibling::dl');
+    await expect(reopened.locator("select")).toHaveValue("done");
+    await expect(reopened.locator('input[type="datetime-local"]')).toHaveValue("2026-09-10T14:30");
+    await expect(reopened.locator("textarea")).toHaveValue("一覧から編集したメモ");
+
+    // 通常行のマエカクステータス列（3 セル目）にも即時反映される。
+    await expect(
+      page.getByRole("table").locator("tbody tr").first().locator("td").nth(2),
+    ).toHaveText("実施済み");
+  });
+
+  test("シナリオ25: 並び替えを変えても検索条件が消えない", async ({ page }) => {
+    await signInAsDemo(page);
+    await openCallList(page);
+
+    await filterByCall(page, "thank_you", "done");
+    const filtered = await rowCount(page);
+
+    await page.getByLabel("並び替え").selectOption("name");
+    await page.waitForURL(/sortField=name/, { timeout: 90_000 });
+    await expect(page).toHaveURL(/callType=thank_you/);
+    await expect(page).toHaveURL(/callStatus=done/);
+    expect(await rowCount(page), "絞り込み結果の件数は変わらない").toBe(filtered);
   });
 
   test("シナリオ22: 既存の顧客一覧・顧客詳細が壊れていない", async ({ page }) => {

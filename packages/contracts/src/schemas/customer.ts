@@ -12,13 +12,7 @@
 
 import { z } from "zod";
 
-export const AcquisitionChannelEnum = z.enum([
-  "EVENT",
-  "WALK_IN",
-  "TELE",
-  "REFERRAL",
-  "OTHER",
-]);
+export const AcquisitionChannelEnum = z.enum(["EVENT", "WALK_IN", "TELE", "REFERRAL", "OTHER"]);
 
 export type AcquisitionChannel = z.infer<typeof AcquisitionChannelEnum>;
 
@@ -206,6 +200,11 @@ export const CustomerUpdateSchema = z.object({
   subsidyType: z.string().max(255).nullable().optional(),
   subsidySubmittedDate: z.string().nullable().optional(),
   subsidyGrantedDate: z.string().nullable().optional(),
+  // 売電状況タブ（顧客ごとの現在値）。開始日は `YYYY-MM-DD`（または ISO）文字列 / null。
+  // 備考は複数行の自由記述で、改行をそのまま保持する（申請 ID 等もここへ書く運用のため
+  // 独立項目は設けない）。どちらも null を渡せば未設定へ戻せる。
+  powerSaleStartDate: z.string().nullable().optional(),
+  powerSaleNote: z.string().max(5000).nullable().optional(),
 });
 
 export type CustomerUpdateInput = z.infer<typeof CustomerUpdateSchema>;
@@ -733,9 +732,10 @@ export interface DemoContractSeedValues {
 export function buildDemoContractSeed(input: DemoContractSeedInput = {}): DemoContractSeedValues {
   const now = input.now ?? new Date();
   const contractDate = new Date(now.getTime());
-  const days = input.cancelDeadlineDays != null && input.cancelDeadlineDays >= 0
-    ? input.cancelDeadlineDays
-    : 8;
+  const days =
+    input.cancelDeadlineDays != null && input.cancelDeadlineDays >= 0
+      ? input.cancelDeadlineDays
+      : 8;
   const cancelDeadline = new Date(contractDate.getTime() + days * 24 * 60 * 60 * 1000);
   const amount =
     input.contractAmount != null && input.contractAmount >= 0 ? input.contractAmount : 0;
@@ -801,6 +801,9 @@ export const ProjectApplicationEditSchema = z.object({
   applicationId: z.string().min(1),
   status: z.enum(["DRAFT", "SUBMITTED", "APPROVED", "REJECTED", "CANCELLED"]).optional(),
   type: z.string().max(255).nullable().optional(),
+  // 申請予定日（Application.plannedDate — 既存列）。申請一覧の展開バナーから編集する。
+  // DB 変更ではなく、既存 Action が受け付ける項目をこの実列まで広げただけ。
+  plannedDate: z.string().nullable().optional(),
   submittedDate: z.string().nullable().optional(),
   approvedDate: z.string().nullable().optional(),
   grantedAmount: z.number().int().nonnegative().nullable().optional(),

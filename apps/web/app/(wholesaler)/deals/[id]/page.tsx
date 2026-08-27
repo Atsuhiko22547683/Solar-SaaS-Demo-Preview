@@ -3,20 +3,20 @@
 // 商談の基本情報を表示し、有効なステータス遷移ボタンを表示する。
 // ステータス変更は changeStatusAction を呼ぶ form action で行う。
 
+import {
+  DEAL_ALLOWED_TRANSITIONS,
+  DEAL_TERMINAL_STATUSES,
+  type DealStatus,
+} from "@solar/contracts";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { labels } from "@/lib/i18n/labels";
-import { getDeal } from "../data";
-import { changeStatusAction } from "../actions";
 
-import {
-  DEAL_ALLOWED_TRANSITIONS,
-  DEAL_TERMINAL_STATUSES,
-  type DealStatus,
-} from "@solar/contracts";
+import { changeStatusAction } from "../actions";
+import { getDeal } from "../data";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -38,21 +38,24 @@ export default async function WholesalerDealDetailPage({ params }: PageProps) {
 
   return (
     <div className="space-y-6">
+      {/* 横断一覧としての「商談一覧」は廃止したため、戻り先はこの商談の顧客詳細
+          （商談履歴タブから辿ってきた導線をそのまま戻れるようにする）。 */}
       <Breadcrumb
         items={[
-          { label: bc.deals, href: "/deals" },
+          { label: bc.customers, href: "/customers" },
+          { label: deal.customerName, href: `/customers/${deal.customerId}?tab=history` },
           { label: bc.dealDetail },
         ]}
       />
       <div className="flex items-center gap-4">
         <Button asChild variant="outline" size="sm">
-          <Link href="/deals">{c.back}</Link>
+          <Link href={`/customers/${deal.customerId}?tab=history`}>{c.back}</Link>
         </Button>
         <h1 className="text-2xl font-semibold tracking-tight">{t.detailTitle}</h1>
       </div>
 
       {/* Basic info */}
-      <div className="border-border rounded-md border p-4 space-y-3">
+      <div className="border-border space-y-3 rounded-md border p-4">
         <h2 className="font-medium">{t.sections.basic}</h2>
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
           <dt className="text-muted-foreground">{t.fields.customer}</dt>
@@ -88,7 +91,9 @@ export default async function WholesalerDealDetailPage({ params }: PageProps) {
           {deal.proposedAmount && (
             <>
               <dt className="text-muted-foreground">{t.fields.proposedAmount}</dt>
-              <dd>{Number(deal.proposedAmount).toLocaleString("ja-JP")} {c.currencySuffix}</dd>
+              <dd>
+                {Number(deal.proposedAmount).toLocaleString("ja-JP")} {c.currencySuffix}
+              </dd>
             </>
           )}
 
@@ -127,7 +132,7 @@ export default async function WholesalerDealDetailPage({ params }: PageProps) {
 
       {/* Status transition */}
       {!isTerminal && allowedNext.length > 0 && (
-        <div className="border-border rounded-md border p-4 space-y-3">
+        <div className="border-border space-y-3 rounded-md border p-4">
           <h2 className="font-medium">{t.sections.statusChange}</h2>
           <div className="flex flex-wrap gap-2">
             {allowedNext.map((nextStatus) => (
@@ -151,9 +156,7 @@ export default async function WholesalerDealDetailPage({ params }: PageProps) {
         </div>
       )}
 
-      {isTerminal && (
-        <p className="text-muted-foreground text-sm">{t.terminalNotice}</p>
-      )}
+      {isTerminal && <p className="text-muted-foreground text-sm">{t.terminalNotice}</p>}
     </div>
   );
 }

@@ -7,28 +7,13 @@
 import { ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-import {
-  LIST_ROW,
-  LIST_TD,
-  LIST_TD_NUM,
-  LIST_TD_STRONG,
-  LIST_TH,
-} from "@/components/list/list-shell";
+import { LIST_ROW, LIST_TD, LIST_TD_STRONG, LIST_TH } from "@/components/list/list-shell";
 import { Badge } from "@/components/ui/badge";
 import { labels } from "@/lib/i18n/labels";
 
-import { defectVariant, loanResultVariant, loanStatusVariant } from "./constants";
+import { loanResultVariant, loanStatusVariant } from "./constants";
 
 import type { LoanReviewListItem } from "./data";
-
-function formatDate(iso: string | null): string | null {
-  if (!iso) return null;
-  return new Date(iso).toLocaleDateString("ja-JP", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-}
 
 interface LoanReviewTableProps {
   reviews: LoanReviewListItem[];
@@ -39,8 +24,9 @@ export function LoanReviewTable({ reviews }: LoanReviewTableProps) {
   const c = labels.customer;
   const router = useRouter();
 
+  // 詳細確認はその顧客の顧客詳細・ローン審査タブへ。
   function goToCustomer(customerId: string) {
-    router.push(`/customers/${customerId}`);
+    router.push(`/customers/${customerId}?tab=loan`);
   }
 
   return (
@@ -55,7 +41,6 @@ export function LoanReviewTable({ reviews }: LoanReviewTableProps) {
             <th className={LIST_TH}>{t.columns.defect}</th>
             <th className={LIST_TH}>{t.columns.defectAssignee}</th>
             <th className={LIST_TH}>{t.columns.latestResult}</th>
-            <th className={LIST_TH}>{t.columns.updatedAt}</th>
             <th className="w-10 px-3 py-3" aria-hidden />
           </tr>
         </thead>
@@ -86,8 +71,9 @@ export function LoanReviewTable({ reviews }: LoanReviewTableProps) {
                 </Badge>
               </td>
               <td className="whitespace-nowrap px-6 py-3">
-                <Badge variant={defectVariant(row.defectState)}>
-                  {t.defectLabels[row.defectState]}
+                {/* 一覧では不備の有無だけを出す（内容・解消状況は顧客詳細のローン審査タブ）。 */}
+                <Badge variant={row.defectState === "none" ? "secondary" : "warning"}>
+                  {t.defectPresenceLabels[row.defectState === "none" ? "no" : "yes"]}
                 </Badge>
               </td>
               <td className={LIST_TD}>{row.defectAssigneeName ?? c.none}</td>
@@ -101,7 +87,6 @@ export function LoanReviewTable({ reviews }: LoanReviewTableProps) {
                   <span className="text-mute-light text-xs">{t.noResult}</span>
                 )}
               </td>
-              <td className={LIST_TD_NUM}>{formatDate(row.updatedAt)}</td>
               <td className="px-3 py-3 text-right">
                 <ChevronRight className="text-mute-light inline size-4" />
               </td>

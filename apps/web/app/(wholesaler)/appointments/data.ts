@@ -38,7 +38,22 @@ export interface AppointmentListFilter {
   query?: string;
   from?: string;
   to?: string;
+  /** 並び替え（項目 × 昇順/降順）。未指定は従来どおりアポ日時の降順。 */
+  sortField?: string;
+  sortDirection?: "asc" | "desc";
   page?: number;
+}
+
+/**
+ * 並び替え項目 → Prisma orderBy。いずれも Appointment の実列なので
+ * ページング件数と整合する。既定（未指定）は従来どおり「アポ日時の新しい順」。
+ */
+function buildOrderBy(
+  sortField: string | undefined,
+  direction: "asc" | "desc" = "desc",
+): Prisma.AppointmentOrderByWithRelationInput[] {
+  if (sortField === "created_at") return [{ createdAt: direction }];
+  return [{ scheduledAt: direction }];
 }
 
 export interface AppointmentListItem {
@@ -138,7 +153,7 @@ export async function listAppointments(
     const [rows, total] = await Promise.all([
       tx.appointment.findMany({
         where,
-        orderBy: [{ scheduledAt: "desc" }],
+        orderBy: buildOrderBy(filter.sortField, filter.sortDirection),
         skip,
         take: PAGE_SIZE,
         select: {

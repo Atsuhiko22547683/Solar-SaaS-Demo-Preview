@@ -1,3 +1,6 @@
+import { execFileSync } from "node:child_process";
+import { resolve } from "node:path";
+
 import { expect, test } from "@playwright/test";
 
 import { signIn } from "./fixtures/auth";
@@ -25,12 +28,31 @@ let customerId = "";
 
 const RUN_ID = Date.now();
 
+/** この実行が画面から登録する顧客の氏名。RUN_ID を含むので実行ごとに一意。 */
+const CUSTOMER_NAME = `UC-02 花子 ${RUN_ID}`;
+
 // ---------------------------------------------------------------------------
 // UC-02 steps 1-5 — serial shared state
 // ---------------------------------------------------------------------------
 
 test.describe.serial("UC-02 — アポ → マエカク → 結果連絡", () => {
   test.describe.configure({ timeout: 180_000 });
+
+  // この spec は画面操作で実顧客を作るため、後始末しないと実行のたびに
+  // 「UC-02 花子 <数字>」が顧客一覧・コール一覧へ積み上がる。
+  // 途中のステップが落ちても顧客は残るので、afterAll で必ず消す
+  // （削除対象はこの実行が作った氏名の完全一致 1 件のみ）。
+  test.afterAll(() => {
+    const script = resolve(__dirname, "fixtures", "cleanup-uc02-customer.ts");
+    const dbDir = resolve(__dirname, "..", "..", "packages", "db");
+    // 引数は RUN_ID（数字のみ）。氏名は空白を含み Windows の shell 経由で分割されるため、
+    // 顧客名は cleanup 側で同じ規則から組み立てる。
+    execFileSync("pnpm", ["exec", "tsx", script, String(RUN_ID)], {
+      cwd: dbDir,
+      stdio: "inherit",
+      shell: process.platform === "win32",
+    });
+  });
 
   // -------------------------------------------------------------------------
   // Setup: 顧客登録 + アポ登録
@@ -48,7 +70,7 @@ test.describe.serial("UC-02 — アポ → マエカク → 結果連絡", () =>
       timeout: 30_000,
     });
 
-    await page.getByLabel("氏名").fill(`UC-02 花子 ${RUN_ID}`);
+    await page.getByLabel("氏名").fill(CUSTOMER_NAME);
     await page.getByLabel("電話番号").fill(`080${String(RUN_ID).slice(-8)}`);
     await page.getByLabel("獲得チャネル").selectOption("WALK_IN");
 
@@ -124,11 +146,14 @@ test.describe.serial("UC-02 — アポ → マエカク → 結果連絡", () =>
       timeout: 30_000,
     });
 
-    // data-appointment-id で対象行を特定し、マエカクリンクをクリック
+    // data-appointment-id で対象行を特定し、行を展開してマエカク入力リンクをクリック。
+    // （旧「操作」列は廃止し、実際の動作が分かる名前で展開バナーへ移した）
+    await page.waitForLoadState("networkidle", { timeout: 60_000 });
     const targetRow = page.locator(`table tbody tr[data-appointment-id="${appointmentId}"]`);
     await expect(targetRow).toBeVisible({ timeout: 20_000 });
+    await targetRow.getByRole("button", { name: /詳細を開く$/ }).click();
 
-    const preCallLink = targetRow.getByRole("link", { name: "マエカク" });
+    const preCallLink = page.getByRole("link", { name: "マエカクを入力" });
     await expect(preCallLink).toBeVisible({ timeout: 10_000 });
     await preCallLink.click();
 

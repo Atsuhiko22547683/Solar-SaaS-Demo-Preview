@@ -18,25 +18,20 @@
 
 import "server-only";
 
+import { maskName } from "@solar/contracts/services/masking";
+
 import { auth } from "@/auth";
 import { UnauthorizedError } from "@/lib/errors";
 import { assertCan } from "@/lib/permissions/can";
 import { getTenantContext } from "@/lib/tenancy/context";
 import { withTenant } from "@/lib/tenancy/with-tenant";
-import { maskName } from "@solar/contracts/services/masking";
-import type { ViewerContext } from "@solar/contracts/services/masking";
-
-import type { Prisma } from "@solar/db";
-
-// Reuse the wholesaler-user loader (ACTIVE users in tenant, sorted by name) for
-// the 担当者 dropdown; re-export so callers can import it from "./data" too.
-export { listWholesalerUsers } from "../event-detail/data";
 
 import {
   CONSTRUCTION_IN_PROGRESS_ENUMS,
   deriveConstructionStatusValue,
   normalizePageSize,
 } from "./constants";
+
 import type {
   ContractStatusValue,
   ConstructionStatusValue,
@@ -45,6 +40,12 @@ import type {
   PagedCustomerResult,
   SubsidyStatusValue,
 } from "./constants";
+import type { ViewerContext } from "@solar/contracts/services/masking";
+import type { Prisma } from "@solar/db";
+
+// Reuse the wholesaler-user loader (ACTIVE users in tenant, sorted by name) for
+// the 担当者 dropdown; re-export so callers can import it from "./data" too.
+export { listWholesalerUsers } from "../event-detail/data";
 
 // Re-export the shared constants/types so existing server-side importers of
 // "./data" (page.tsx, api/customers/route.ts, tests) keep working unchanged.
@@ -74,11 +75,11 @@ export {
 //   not_started = 施工はあるが進行中も完了も無い（REQUEST_PENDING のみ）
 // 施工 0 件の顧客のみ Customer.constructionStatus へフォールバックする。全て DB where 級で
 // 評価するためページネーション件数は正しく保たれる。RLS スコープ内で contracts→constructions を辿る。
-function buildConstructionStatusWhere(
-  value: ConstructionStatusValue,
-): Prisma.CustomerWhereInput {
+function buildConstructionStatusWhere(value: ConstructionStatusValue): Prisma.CustomerWhereInput {
   const hasInProgress: Prisma.CustomerWhereInput = {
-    contracts: { some: { constructions: { some: { status: { in: [...CONSTRUCTION_IN_PROGRESS_ENUMS] } } } } },
+    contracts: {
+      some: { constructions: { some: { status: { in: [...CONSTRUCTION_IN_PROGRESS_ENUMS] } } } },
+    },
   };
   const hasAnyConstruction: Prisma.CustomerWhereInput = {
     contracts: { some: { constructions: { some: {} } } },
@@ -115,12 +116,7 @@ function buildConstructionStatusWhere(
   return {
     OR: [
       {
-        AND: [
-          hasAnyConstruction,
-          { NOT: hasInProgress },
-          { NOT: hasDone },
-          { NOT: hasSurveyed },
-        ],
+        AND: [hasAnyConstruction, { NOT: hasInProgress }, { NOT: hasDone }, { NOT: hasSurveyed }],
       },
       noConstructionFallback,
     ],
@@ -153,9 +149,27 @@ function buildStatusWhere(filter: CustomerListFilter): Prisma.CustomerWhereInput
   return clauses;
 }
 
-export async function listCustomers(
-  filter: CustomerListFilter = {},
-): Promise<PagedCustomerResult> {
+/**
+ * 並び替え項目 → Prisma orderBy。いずれも Customer の実列なのでページング件数と整合する。
+ * 顧客名はフリガナ（kana）優先で、未設定は name にフォールバックする。
+ * 既定（未指定）は従来どおり「更新が新しい順」。
+ */
+function buildCustomerOrderBy(
+  sortField: string | undefined,
+  direction: "asc" | "desc" = "desc",
+): Prisma.CustomerOrderByWithRelationInput[] {
+  if (sortField === "name") {
+    return [
+      { kana: { sort: direction, nulls: "last" } },
+      { name: direction },
+      { updatedAt: "desc" },
+    ];
+  }
+  if (sortField === "created_at") return [{ createdAt: direction }];
+  return [{ updatedAt: direction }];
+}
+
+export async function listCustomers(filter: CustomerListFilter = {}): Promise<PagedCustomerResult> {
   const session = await auth();
   if (!session?.user) {
     throw new UnauthorizedError({
@@ -190,10 +204,7 @@ export async function listCustomers(
         })
       : null;
 
-    const piiMaskingMode = (settings?.piiMaskingMode ?? "MASKED") as
-      | "FULL"
-      | "PARTIAL"
-      | "MASKED";
+    const piiMaskingMode = (settings?.piiMaskingMode ?? "MASKED") as "FULL" | "PARTIAL" | "MASKED";
 
     const role = (session.user.roles[0] ?? "WHOLESALER_ADMIN") as ViewerContext["role"];
     const viewer: ViewerContext = {
@@ -221,7 +232,7 @@ export async function listCustomers(
     const [rows, total] = await Promise.all([
       tx.customer.findMany({
         where,
-        orderBy: [{ updatedAt: "desc" }],
+        orderBy: buildCustomerOrderBy(filter.sortField, filter.sortDirection),
         skip,
         take: pageSize,
         select: {

@@ -32,6 +32,18 @@ import type { Prisma } from "@solar/db";
 
 export const PAGE_SIZE = 50;
 
+/**
+ * 並び替え項目 → Prisma orderBy。いずれも Application の実列なのでページング件数と整合する。
+ * 既定（未指定）は従来どおり「申請予定日が近い順」。
+ */
+function buildOrderBy(
+  sortField: string | undefined,
+  direction: "asc" | "desc" = "asc",
+): Prisma.ApplicationOrderByWithRelationInput[] {
+  if (sortField === "created_at") return [{ createdAt: direction }];
+  return [{ plannedDate: { sort: direction, nulls: "last" } }, { createdAt: "desc" }];
+}
+
 export interface ApplicationListFilter {
   /** 顧客名の部分一致（大文字小文字を無視）。 */
   query?: string;
@@ -42,6 +54,9 @@ export interface ApplicationListFilter {
   /** 申請予定日（plannedDate）のレンジ。 */
   from?: string;
   to?: string;
+  /** 並び替え（項目 x 昇順/降順）。未指定は従来の既定並び順。 */
+  sortField?: string;
+  sortDirection?: "asc" | "desc";
   page?: number;
 }
 
@@ -145,7 +160,7 @@ export async function listApplications(
       tx.application.findMany({
         where,
         // 申請予定日が近い順（未設定は末尾）。
-        orderBy: [{ plannedDate: { sort: "asc", nulls: "last" } }, { createdAt: "desc" }],
+        orderBy: buildOrderBy(filter.sortField, filter.sortDirection),
         skip,
         take: PAGE_SIZE,
         select: {

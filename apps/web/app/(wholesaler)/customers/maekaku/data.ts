@@ -135,6 +135,16 @@ function buildDateWhere(
   if (dateField === "last_called_at") {
     return { callLogs: { some: { calledAt: range } } };
   }
+  // 既定の「すべて」— 検索できる日時すべてを横断し、いずれかが期間に入る顧客を出す。
+  // 単一の where に畳んだ OR なので、件数カウントもページングも通常どおり整合する。
+  if (dateField === "all") {
+    return {
+      OR: [
+        ...Object.values(CALL_DATE_FIELD_COLUMN).map((column) => ({ [column]: range })),
+        { callLogs: { some: { calledAt: range } } },
+      ],
+    };
+  }
   return { [CALL_DATE_FIELD_COLUMN[dateField]]: range };
 }
 

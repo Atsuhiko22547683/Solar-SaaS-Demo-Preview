@@ -19,12 +19,7 @@ export type ContractStatusValue =
   | "cancelled";
 // 施工状況（4 値）: 現地調査前 / 施工前 / 施工中 / 完工。
 export type ConstructionStatusValue = "not_started" | "surveyed" | "in_progress" | "done";
-export type SubsidyStatusValue =
-  | "not_applied"
-  | "preparing"
-  | "applied"
-  | "revising"
-  | "completed";
+export type SubsidyStatusValue = "not_applied" | "preparing" | "applied" | "revising" | "completed";
 export type SurveyStatusValue = "not_surveyed" | "scheduled" | "surveyed";
 export type MaekakuValue = "present" | "absent";
 
@@ -51,11 +46,7 @@ export const SUBSIDY_STATUS_VALUES: SubsidyStatusValue[] = [
   "revising",
   "completed",
 ];
-export const SURVEY_STATUS_VALUES: SurveyStatusValue[] = [
-  "not_surveyed",
-  "scheduled",
-  "surveyed",
-];
+export const SURVEY_STATUS_VALUES: SurveyStatusValue[] = ["not_surveyed", "scheduled", "surveyed"];
 
 // Construction.status (enum) の「施工中」相当集合。一覧の施工状況（4 値）導出に使う。
 export const CONSTRUCTION_IN_PROGRESS_ENUMS = ["CONSTRUCTING", "PAUSED"] as const;
@@ -104,9 +95,7 @@ export function applicationEnumToSubsidyValue(status: string): SubsidyStatusValu
 // 「完了(completed) > 申請済み(applied) > 修正対応中(revising) > 申請前(not_applied)」で
 // 分類する。申請が無ければ "not_applied"。この導出結果を Customer.subsidyStatus に
 // write-on-save で書き込み、一覧(data.ts)の read/filter と整合させる。
-export function deriveSubsidyStatusValue(
-  applications: { status: string }[],
-): SubsidyStatusValue {
+export function deriveSubsidyStatusValue(applications: { status: string }[]): SubsidyStatusValue {
   if (applications.length === 0) return "not_applied";
   const values = applications.map((a) => applicationEnumToSubsidyValue(a.status));
   if (values.includes("completed")) return "completed";
@@ -122,6 +111,9 @@ export interface CustomerListFilter {
   subsidyStatus?: SubsidyStatusValue;
   assigneeUserId?: string;
   maekaku?: MaekakuValue;
+  /** 並び替え（項目 × 昇順/降順）。未指定は従来どおり更新日時の降順。 */
+  sortField?: string;
+  sortDirection?: "asc" | "desc";
   page?: number;
   pageSize?: PageSize;
 }

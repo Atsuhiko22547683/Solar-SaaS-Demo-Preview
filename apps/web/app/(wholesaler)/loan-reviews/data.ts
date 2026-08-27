@@ -41,7 +41,22 @@ export interface LoanReviewListFilter {
   status?: string;
   /** 不備の有無。DB 列ではなくログからの導出のため、ここで where に落とす。 */
   defect?: DefectFilterValue;
+  /** 並び替え（項目 × 昇順/降順）。未指定は従来どおり更新日時の降順。 */
+  sortField?: string;
+  sortDirection?: "asc" | "desc";
   page?: number;
+}
+
+/**
+ * 並び替え項目 → Prisma orderBy。いずれも LoanReview の実列。
+ * 一覧から「最終更新」列は外したが、並び替えのキーとしては引き続き使える。
+ */
+function buildOrderBy(
+  sortField: string | undefined,
+  direction: "asc" | "desc" = "desc",
+): Prisma.LoanReviewOrderByWithRelationInput[] {
+  if (sortField === "created_at") return [{ createdAt: direction }];
+  return [{ updatedAt: direction }];
 }
 
 export interface LoanReviewListItem {
@@ -134,7 +149,7 @@ export async function listLoanReviews(
     const [rows, total] = await Promise.all([
       tx.loanReview.findMany({
         where,
-        orderBy: [{ updatedAt: "desc" }],
+        orderBy: buildOrderBy(filter.sortField, filter.sortDirection),
         skip,
         take: PAGE_SIZE,
         select: {

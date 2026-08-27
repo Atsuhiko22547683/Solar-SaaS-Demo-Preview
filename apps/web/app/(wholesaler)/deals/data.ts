@@ -1,9 +1,9 @@
-// Server-side data loader for the wholesaler deal list (T-05-03 / F-038 /
+// Server-side data loader for the wholesaler deal DETAIL (T-05-03 / F-038 /
 // docs/04 §1.3 S-037 / docs/05 §4.8).
 //
-// Wholesaler sees all deals linked to their `wholesalerId` tenant via the
-// Customer FK. Filters: status / ownerRelationshipId / date range.
-// Pagination: PAGE_SIZE rows per page.
+// 横断一覧としての「商談一覧」は廃止したため、ここに残るのは詳細取得のみ。
+// 商談データ自体は削除していない（顧客詳細の「商談履歴」タブから参照する）。
+//
 
 import "server-only";
 
@@ -14,118 +14,6 @@ import { getTenantContext } from "@/lib/tenancy/context";
 import { withTenant } from "@/lib/tenancy/with-tenant";
 
 import type { DealStatus } from "@solar/db";
-
-export const PAGE_SIZE = 50;
-
-export interface DealListFilter {
-  status?: DealStatus;
-  ownerRelationshipId?: string;
-  from?: string;
-  to?: string;
-  page?: number;
-}
-
-export interface DealListItem {
-  id: string;
-  customerId: string;
-  customerName: string;
-  status: DealStatus;
-  ownerType: "WHOLESALER" | "DEALER";
-  ownerRelationshipId: string | null;
-  expectedContractDate: string | null;
-  createdAt: string;
-}
-
-export interface PagedDealResult {
-  items: DealListItem[];
-  total: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
-}
-
-export async function listDeals(filter: DealListFilter = {}): Promise<PagedDealResult> {
-  const session = await auth();
-  if (!session?.user) {
-    throw new UnauthorizedError({
-      code: "INVALID_CREDENTIALS",
-      message: "Session missing — sign in is required",
-    });
-  }
-  const ctx = await getTenantContext();
-  assertCan({
-    user: {
-      userId: ctx.actorUserId,
-      roles: session.user.roles,
-      isSaasAdmin: ctx.isSaasAdmin,
-      tenantId: ctx.tenantId,
-      wholesalerId: ctx.wholesalerId,
-      dealerId: ctx.dealerId,
-      relationshipIds: ctx.relationshipIds,
-    },
-    action: "deal.read",
-  });
-
-  const page = Math.max(1, filter.page ?? 1);
-  const skip = (page - 1) * PAGE_SIZE;
-
-  return withTenant(ctx, async (tx) => {
-    const where = {
-      customer: { wholesalerId: ctx.wholesalerId! },
-      ...(filter.status ? { status: filter.status } : {}),
-      ...(filter.ownerRelationshipId
-        ? { ownerRelationshipId: filter.ownerRelationshipId }
-        : {}),
-      ...(filter.from || filter.to
-        ? {
-            createdAt: {
-              ...(filter.from ? { gte: new Date(filter.from) } : {}),
-              ...(filter.to ? { lte: new Date(filter.to) } : {}),
-            },
-          }
-        : {}),
-    };
-
-    const [rows, total] = await Promise.all([
-      tx.deal.findMany({
-        where,
-        orderBy: [{ createdAt: "desc" }],
-        skip,
-        take: PAGE_SIZE,
-        select: {
-          id: true,
-          customerId: true,
-          status: true,
-          ownerType: true,
-          ownerRelationshipId: true,
-          expectedContractDate: true,
-          createdAt: true,
-          customer: { select: { name: true } },
-        },
-      }),
-      tx.deal.count({ where }),
-    ]);
-
-    const totalPages = Math.ceil(total / PAGE_SIZE);
-
-    return {
-      items: rows.map((r) => ({
-        id: r.id,
-        customerId: r.customerId,
-        customerName: r.customer.name,
-        status: r.status,
-        ownerType: r.ownerType as "WHOLESALER" | "DEALER",
-        ownerRelationshipId: r.ownerRelationshipId,
-        expectedContractDate: r.expectedContractDate?.toISOString() ?? null,
-        createdAt: r.createdAt.toISOString(),
-      })),
-      total,
-      page,
-      pageSize: PAGE_SIZE,
-      totalPages,
-    };
-  });
-}
 
 export interface DealDetail {
   id: string;

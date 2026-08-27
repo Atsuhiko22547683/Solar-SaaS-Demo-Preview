@@ -1101,6 +1101,12 @@ model Customer {
   electricAccountNo          String?            // お客様番号（電力会社）
   supplyPointNo              String?            // 供給地点特定番号
   equipmentId                String?            // 設備ID（自由記述）
+  // 売電状況タブ（顧客ごとの現在値 1 セット・履歴は持たない）。
+  // 注: Construction.powerSaleStartDate は施工 1 件ごとの売電開始日で別概念。
+  // こちらは顧客単位の現況で、契約・施工が無い段階でも記録できる。
+  // 申請 ID 等の補足は独立列を作らず powerSaleNote へ自由記述する運用。
+  powerSaleStartDate         DateTime?          // 売電開始日（日付のみ・未設定可）
+  powerSaleNote              String?            // 売電備考（複数行・改行保持・未設定可）
   createdAt                  DateTime           @default(now())
   updatedAt                  DateTime           @updatedAt
 

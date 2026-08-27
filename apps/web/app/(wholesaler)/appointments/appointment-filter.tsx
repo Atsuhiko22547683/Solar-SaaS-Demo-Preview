@@ -7,12 +7,12 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { ListDateRangeField, ListFilterPanel } from "@/components/list/list-filter-panel";
 import {
   FILTER_INPUT_CLASS,
   FILTER_LABEL_CLASS,
   FILTER_SELECT_CLASS,
 } from "@/components/list/list-shell";
-import { Button } from "@/components/ui/button";
 import { labels } from "@/lib/i18n/labels";
 
 import { APPOINTMENT_STATUS_VALUES } from "./constants";
@@ -29,6 +29,8 @@ interface AppointmentFilterProps {
   from: string;
   to: string;
   assignees: AssigneeOption[];
+  activeCount: number;
+  defaultOpen: boolean;
 }
 
 export function AppointmentFilter({
@@ -38,6 +40,8 @@ export function AppointmentFilter({
   from,
   to,
   assignees,
+  activeCount,
+  defaultOpen,
 }: AppointmentFilterProps) {
   const router = useRouter();
   const t = labels.appointment.list.filters;
@@ -71,97 +75,73 @@ export function AppointmentFilter({
   }
 
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        applyFilters();
-      }}
+    <ListFilterPanel
+      idPrefix="appt"
+      activeCount={activeCount}
+      defaultOpen={defaultOpen}
+      onSubmit={applyFilters}
+      onClear={clearFilters}
     >
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="space-y-1">
-          <label htmlFor="appt-query" className={FILTER_LABEL_CLASS}>
-            {t.customerName}
-          </label>
-          <input
-            id="appt-query"
-            type="search"
-            value={queryValue}
-            onChange={(e) => setQueryValue(e.target.value)}
-            placeholder={t.searchPlaceholder}
-            aria-label={t.searchPlaceholder}
-            className={`${FILTER_INPUT_CLASS} w-56`}
-          />
-        </div>
-
-        <div className="space-y-1">
-          <label htmlFor="appt-assignee" className={FILTER_LABEL_CLASS}>
-            {t.assignee}
-          </label>
-          <select
-            id="appt-assignee"
-            value={assigneeValue}
-            onChange={(e) => setAssigneeValue(e.target.value)}
-            className={FILTER_SELECT_CLASS}
-          >
-            <option value="">{t.all}</option>
-            {assignees.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="space-y-1">
-          <label htmlFor="appt-status" className={FILTER_LABEL_CLASS}>
-            {t.status}
-          </label>
-          <select
-            id="appt-status"
-            value={statusValue}
-            onChange={(e) => setStatusValue(e.target.value)}
-            className={FILTER_SELECT_CLASS}
-          >
-            <option value="">{t.all}</option>
-            {APPOINTMENT_STATUS_VALUES.map((s) => (
-              <option key={s} value={s}>
-                {statusLabels[s]}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="space-y-1">
-          <label htmlFor="appt-from" className={FILTER_LABEL_CLASS}>
-            {t.from}
-          </label>
-          <input
-            id="appt-from"
-            type="date"
-            value={fromValue}
-            onChange={(e) => setFromValue(e.target.value)}
-            className={`${FILTER_INPUT_CLASS} w-40`}
-          />
-        </div>
-
-        <div className="space-y-1">
-          <label htmlFor="appt-to" className={FILTER_LABEL_CLASS}>
-            {t.to}
-          </label>
-          <input
-            id="appt-to"
-            type="date"
-            value={toValue}
-            onChange={(e) => setToValue(e.target.value)}
-            className={`${FILTER_INPUT_CLASS} w-40`}
-          />
-        </div>
-
-        <Button type="submit">{t.search}</Button>
-        <Button type="button" variant="outline" onClick={clearFilters}>
-          {t.clear}
-        </Button>
+      <div className="space-y-1">
+        <label htmlFor="appt-query" className={FILTER_LABEL_CLASS}>
+          {t.customerName}
+        </label>
+        <input
+          id="appt-query"
+          type="search"
+          value={queryValue}
+          onChange={(e) => setQueryValue(e.target.value)}
+          placeholder={t.searchPlaceholder}
+          aria-label={t.searchPlaceholder}
+          className={`${FILTER_INPUT_CLASS} w-56`}
+        />
       </div>
-    </form>
+
+      <div className="space-y-1">
+        <label htmlFor="appt-assignee" className={FILTER_LABEL_CLASS}>
+          {t.assignee}
+        </label>
+        <select
+          id="appt-assignee"
+          value={assigneeValue}
+          onChange={(e) => setAssigneeValue(e.target.value)}
+          className={FILTER_SELECT_CLASS}
+        >
+          <option value="">{t.all}</option>
+          {assignees.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="space-y-1">
+        <label htmlFor="appt-status" className={FILTER_LABEL_CLASS}>
+          {t.status}
+        </label>
+        <select
+          id="appt-status"
+          value={statusValue}
+          onChange={(e) => setStatusValue(e.target.value)}
+          className={FILTER_SELECT_CLASS}
+        >
+          <option value="">{t.all}</option>
+          {APPOINTMENT_STATUS_VALUES.map((s) => (
+            <option key={s} value={s}>
+              {statusLabels[s]}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <ListDateRangeField
+        idPrefix="appt"
+        from={fromValue}
+        to={toValue}
+        onFromChange={setFromValue}
+        onToChange={setToValue}
+      />
+    </ListFilterPanel>
   );
 }

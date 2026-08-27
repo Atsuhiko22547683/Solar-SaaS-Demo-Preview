@@ -18,12 +18,13 @@ import {
   ListResultCount,
   ListTableCard,
 } from "@/components/list/list-shell";
+import { ListSortSelect } from "@/components/list/list-sort-select";
 import { labels } from "@/lib/i18n/labels";
 
 import { DEFAULT_PAGE_SIZE, normalizePageSize } from "../constants";
 import { PageSizeSelect } from "../page-size-select";
-import { CallSortSelect } from "./call-sort-select";
 import {
+  CALL_SORT_FIELD_VALUES,
   DEFAULT_CALL_DATE_FIELD,
   DEFAULT_CALL_SORT_FIELD,
   DEFAULT_CALL_TYPE,
@@ -39,7 +40,17 @@ import { listCallCustomers, listWholesalerUsers } from "./data";
 import { CallFilter } from "./maekaku-filter";
 import { CallTable } from "./maekaku-table";
 
+import type { ListSortOption } from "@/components/list/list-sort";
+
 export const dynamic = "force-dynamic";
+
+// 並び替え項目（Customer の実列）。既定は「更新が新しい順」。
+// 値域・既定方向は constants.ts と共有し、共通 ListSortSelect の形へ写す。
+const SORT_OPTIONS: ListSortOption[] = CALL_SORT_FIELD_VALUES.map((v) => ({
+  value: v,
+  label: labels.customer.calls.sortFieldLabels[v] ?? v,
+  defaultDirection: defaultDirectionFor(v),
+}));
 
 const BASE_PATH = "/customers/maekaku";
 
@@ -149,7 +160,13 @@ export default async function CallListPage({ searchParams }: PageProps) {
       {/* 表示件数（左）と並び替え（右）。並び替えは検索条件ではないのでここに置く。 */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <ListResultCount total={result.total} template={t.filters.resultCount} />
-        <CallSortSelect sortField={sortField} sortDirection={sortDirection} />
+        <ListSortSelect
+          basePath={BASE_PATH}
+          options={SORT_OPTIONS}
+          sortField={sortField}
+          sortDirection={sortDirection}
+          defaultField={DEFAULT_CALL_SORT_FIELD}
+        />
       </div>
 
       <ListTableCard

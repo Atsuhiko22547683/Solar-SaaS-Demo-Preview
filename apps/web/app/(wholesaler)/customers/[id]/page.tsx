@@ -42,6 +42,7 @@ import { getCustomerDetail } from "./data";
 import { EditAssigneeDialog } from "./edit-assignee-dialog";
 import { NegotiationStatusPanel } from "./negotiation-status-panel";
 import { NewActivityDialog } from "./new-activity-dialog";
+import { PowerSaleSection } from "./power-sale-section";
 import { ProjectProfitEditor } from "./project-info-edit";
 import { QuoteFiles } from "./quote-files";
 
@@ -71,6 +72,7 @@ const TAB_VALUES = [
   "loan",
   "construction",
   "subsidy",
+  "powerSale",
   "calls",
   "files",
   "todo",
@@ -226,6 +228,8 @@ async function getCustomerEditableValues(id: string): Promise<
       tossUpRelationshipId: string | null;
       closingUserId: string | null;
       closingRelationshipId: string | null;
+      powerSaleStartDate: string | null;
+      powerSaleNote: string | null;
     })
   | null
 > {
@@ -279,6 +283,8 @@ async function getCustomerEditableValues(id: string): Promise<
         closingUserId: true,
         closingRelationshipId: true,
         note: true,
+        powerSaleStartDate: true,
+        powerSaleNote: true,
       },
     }),
   );
@@ -289,6 +295,7 @@ async function getCustomerEditableValues(id: string): Promise<
     inflowRoute: (row.inflowRoute as InflowRoute | null) ?? null,
     birthDate: row.birthDate ? row.birthDate.toISOString() : null,
     buildYear: row.buildYear ? row.buildYear.toISOString() : null,
+    powerSaleStartDate: row.powerSaleStartDate ? row.powerSaleStartDate.toISOString() : null,
   };
 }
 
@@ -402,6 +409,7 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
           <TabsTrigger value="loan">{d.tabs.loan}</TabsTrigger>
           <TabsTrigger value="construction">{d.tabs.construction}</TabsTrigger>
           <TabsTrigger value="subsidy">{d.tabs.subsidy}</TabsTrigger>
+          <TabsTrigger value="powerSale">{d.tabs.powerSale}</TabsTrigger>
           <TabsTrigger value="calls">{d.tabs.calls}</TabsTrigger>
           {showProfitTab ? <TabsTrigger value="profit">{d.tabs.profit}</TabsTrigger> : null}
           <TabsTrigger value="files">{d.tabs.files}</TabsTrigger>
@@ -643,6 +651,21 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
           <Card className="p-5">
             <h2 className="text-ink mb-4 text-sm font-semibold">{d.cards.subsidy}</h2>
             <ProjectApplicationList data={projectInfo} editable={projectInfoEditable} />
+          </Card>
+        </TabsContent>
+
+        {/* 売電状況 — 顧客ごとの現在値（売電開始日 + 備考）。値は editable（customer.update
+            権限 + withTenant で取得した raw 値）から初期化する。 */}
+        <TabsContent value="powerSale" className="space-y-4">
+          <Card className="p-5">
+            <h2 className="text-ink mb-4 text-sm font-semibold">{d.powerSaleTab.title}</h2>
+            <PowerSaleSection
+              initial={{
+                customerId: detail.id,
+                powerSaleStartDate: editable.powerSaleStartDate,
+                powerSaleNote: editable.powerSaleNote,
+              }}
+            />
           </Card>
         </TabsContent>
 

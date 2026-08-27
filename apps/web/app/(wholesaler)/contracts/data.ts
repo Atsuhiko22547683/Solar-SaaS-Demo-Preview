@@ -19,12 +19,9 @@ import { assertCan } from "@/lib/permissions/can";
 import { getTenantContext } from "@/lib/tenancy/context";
 import { withTenant } from "@/lib/tenancy/with-tenant";
 
-import { deriveConstructionStatusValue, deriveSubsidyStatusValue } from "../customers/constants";
-
-import type { ConstructionStatusValue, SubsidyStatusValue } from "../customers/constants";
 import type { ContractItemForWholesalerDto } from "@solar/contracts";
 import type { ViewerContext } from "@solar/contracts/services/masking";
-import type { ContractStatus, Prisma } from "@solar/db";
+import type { ContractPaymentStatus, ContractStatus, Prisma } from "@solar/db";
 
 // 担当者ドロップダウン用（テナント内 ACTIVE ユーザー）。顧客一覧と同じ loader を再利用。
 export { listWholesalerUsers } from "../event-detail/data";
@@ -39,7 +36,23 @@ export interface ContractListFilter {
   query?: string;
   from?: string;
   to?: string;
+  /** 並び替え（項目 × 昇順/降順）。未指定は従来どおり契約日の降順。 */
+  sortField?: string;
+  sortDirection?: "asc" | "desc";
   page?: number;
+}
+
+/**
+ * 並び替え項目 → Prisma orderBy。いずれも Contract の実列なのでページング件数と整合する。
+ * 既定（未指定）は従来どおり「契約日の新しい順」。
+ */
+function buildOrderBy(
+  sortField: string | undefined,
+  direction: "asc" | "desc" = "desc",
+): Prisma.ContractOrderByWithRelationInput[] {
+  if (sortField === "contract_amount") return [{ contractAmount: direction }];
+  if (sortField === "created_at") return [{ createdAt: direction }];
+  return [{ contractDate: direction }];
 }
 
 export interface ContractListItem {
@@ -52,10 +65,12 @@ export interface ContractListItem {
   contractDate: string;
   contractAmount: string;
   status: ContractStatus;
-  /** 後続工程 — 紐づく Construction 群から導出した代表施工状況。 */
-  constructionStatus: ConstructionStatusValue | null;
-  /** 後続工程 — 紐づく Application 群から導出した代表設置申請状況。 */
-  subsidyStatus: SubsidyStatusValue | null;
+  /**
+   * 入金状況（ContractPayment.paymentStatus）。1:1 の行がまだ無ければ null＝未設定。
+   * 施工 / 設置申請の状況は専用一覧（/constructions, /applications）に集約したため
+   * 契約一覧では扱わない。
+   */
+  paymentStatus: ContractPaymentStatus | null;
   cancelDeadline: string;
   ownerRelationshipId: string | null;
   createdAt: string;
@@ -130,7 +145,7 @@ export async function listContracts(filter: ContractListFilter = {}): Promise<Pa
     const [rows, total] = await Promise.all([
       tx.contract.findMany({
         where,
-        orderBy: [{ contractDate: "desc" }],
+        orderBy: buildOrderBy(filter.sortField, filter.sortDirection),
         skip,
         take: PAGE_SIZE,
         select: {
@@ -144,9 +159,8 @@ export async function listContracts(filter: ContractListFilter = {}): Promise<Pa
           createdBy: true,
           createdAt: true,
           customer: { select: { name: true } },
-          // 後続工程（施工 / 設置申請）の代表状況を導出するための最小 select。
-          constructions: { select: { status: true } },
-          applications: { select: { status: true } },
+          // 入金状況（1:1。未作成なら null）。施工・設置申請は専用一覧があるのでここでは扱わない。
+          payment: { select: { paymentStatus: true } },
         },
       }),
       tx.contract.count({ where }),
@@ -174,12 +188,7 @@ export async function listContracts(filter: ContractListFilter = {}): Promise<Pa
         contractDate: r.contractDate.toISOString(),
         contractAmount: r.contractAmount.toString(),
         status: r.status,
-        // 顧客一覧と同一の導出関数を使い、両画面の表示が食い違わないようにする。
-        constructionStatus:
-          r.constructions.length > 0
-            ? deriveConstructionStatusValue(r.constructions, "not_started")
-            : null,
-        subsidyStatus: r.applications.length > 0 ? deriveSubsidyStatusValue(r.applications) : null,
+        paymentStatus: r.payment?.paymentStatus ?? null,
         cancelDeadline: r.cancelDeadline.toISOString(),
         ownerRelationshipId: r.ownerRelationshipId,
         createdAt: r.createdAt.toISOString(),

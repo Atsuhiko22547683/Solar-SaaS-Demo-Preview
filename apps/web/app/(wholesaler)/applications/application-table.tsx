@@ -1,13 +1,25 @@
 "use client";
 
-// 設置申請一覧テーブル。行クリック / Enter・Space で既存の契約配下 設置申請画面
-// （/contracts/[id]/application）へ遷移する。
-// 列構成・行高・フォーカスリングは S-032 顧客一覧の customer-table.tsx と同型。
+// 設置申請一覧テーブル。
+//
+// 通常行は「情報確認」に徹し、日付は read-only の文字として並べる（date input を
+// 並べると列幅を使いすぎて横スクロールが必要になるため）。申請日程の編集は行を
+// 展開したときだけ出す（コール一覧・施工一覧と同じ操作感）。
+//
+// 操作の切り分け:
+//   行のどこか / 右端のシェブロン → 展開・折りたたみ（アコーディオン: 1 行ずつ）
+//   顧客名リンク / バナーの「案件詳細」 → 顧客詳細の設置申請タブ（?tab=subsidy）
+//
+// 保存は既存の saveProjectApplicationAction（customer.update 権限 + テナント境界）。
 // 申請状態バッジは顧客一覧の subsidyVariant を再利用し、色が食い違わないようにする。
 
-import { ChevronRight } from "lucide-react";
+import { ArrowRight, ChevronDown } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useEffect, useState, useTransition } from "react";
+import { toast } from "sonner";
 
+import { toDateInputValue } from "@/components/list/inline-date-input";
 import {
   LIST_ROW,
   LIST_TD,
@@ -16,8 +28,10 @@ import {
   LIST_TH,
 } from "@/components/list/list-shell";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { labels } from "@/lib/i18n/labels";
 
+import { saveProjectApplicationAction } from "../customers/actions";
 import { subsidyVariant } from "../customers/customer-table";
 
 import type { ApplicationListItem } from "./data";
@@ -31,6 +45,116 @@ function formatDate(iso: string | null): string | null {
   });
 }
 
+/** 顧客詳細の設置申請タブ。 */
+function customerHref(customerId: string): string {
+  return `/customers/${customerId}?tab=subsidy`;
+}
+
+const EDIT_FIELD =
+  "h-8 w-full rounded-sm border border-hairline-light bg-white px-2 text-sm text-ink tabular-nums focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-surface-soft";
+
+/**
+ * 展開バナー — 申請日程（申請予定日 / 提出日 / 承認日）の編集。
+ * いずれも Application の既存列で、保存は既存 saveProjectApplicationAction を使う。
+ */
+function ApplicationDetail({ row }: { row: ApplicationListItem }) {
+  const t = labels.applicationList;
+  const c = labels.common;
+  const router = useRouter();
+
+  const [plannedDate, setPlannedDate] = useState(() => toDateInputValue(row.plannedDate));
+  const [submittedDate, setSubmittedDate] = useState(() => toDateInputValue(row.submittedDate));
+  const [approvedDate, setApprovedDate] = useState(() => toDateInputValue(row.approvedDate));
+  const [isPending, startTransition] = useTransition();
+
+  // 一覧が再取得されたら（検索・並び替え・他行の保存）サーバ値へ追随する。
+  useEffect(() => {
+    setPlannedDate(toDateInputValue(row.plannedDate));
+    setSubmittedDate(toDateInputValue(row.submittedDate));
+    setApprovedDate(toDateInputValue(row.approvedDate));
+  }, [row.plannedDate, row.submittedDate, row.approvedDate]);
+
+  const dirty =
+    plannedDate !== toDateInputValue(row.plannedDate) ||
+    submittedDate !== toDateInputValue(row.submittedDate) ||
+    approvedDate !== toDateInputValue(row.approvedDate);
+
+  function save() {
+    startTransition(async () => {
+      try {
+        await saveProjectApplicationAction({
+          customerId: row.customerId,
+          contractId: row.contractId,
+          applicationId: row.id,
+          // 空欄は null で送る = 入力済みの値を消して未設定へ戻せる。
+          plannedDate: plannedDate || null,
+          submittedDate: submittedDate || null,
+          approvedDate: approvedDate || null,
+        });
+        toast.success(c.saved);
+        router.refresh();
+      } catch (err) {
+        toast.error(err instanceof Error && err.message ? err.message : c.unknownError);
+      }
+    });
+  }
+
+  const idBase = `application-edit-${row.id}`;
+  const fields = [
+    { key: "planned", label: t.columns.plannedDate, value: plannedDate, set: setPlannedDate },
+    {
+      key: "submitted",
+      label: t.columns.submittedDate,
+      value: submittedDate,
+      set: setSubmittedDate,
+    },
+    { key: "approved", label: t.columns.approvedDate, value: approvedDate, set: setApprovedDate },
+  ] as const;
+
+  return (
+    <div className="space-y-4">
+      <div className="min-w-0 space-y-2">
+        <h4 className="border-hairline-light text-mute-light border-b pb-1 text-xs font-semibold uppercase tracking-wider">
+          {t.editSection.title}
+        </h4>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 lg:max-w-2xl">
+          {fields.map((f) => (
+            <div key={f.key} className="min-w-0">
+              <label
+                htmlFor={`${idBase}-${f.key}`}
+                className="text-mute-light text-[11px] leading-tight"
+              >
+                {f.label}
+              </label>
+              <input
+                id={`${idBase}-${f.key}`}
+                type="date"
+                value={f.value}
+                disabled={isPending}
+                onChange={(e) => f.set(e.target.value)}
+                aria-label={`${row.customerName} ${f.label}`}
+                className={EDIT_FIELD}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        <Button type="button" variant="outline" onClick={save} disabled={isPending || !dirty}>
+          {isPending ? c.saving : c.save}
+        </Button>
+        <Button asChild size="default" className="px-5">
+          <Link href={customerHref(row.customerId)}>
+            {t.expand.detailLink}
+            <ArrowRight className="ml-1 size-4" aria-hidden />
+          </Link>
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 interface ApplicationTableProps {
   applications: ApplicationListItem[];
 }
@@ -38,11 +162,9 @@ interface ApplicationTableProps {
 export function ApplicationTable({ applications }: ApplicationTableProps) {
   const t = labels.applicationList;
   const c = labels.customer;
-  const router = useRouter();
 
-  function goToDetail(contractId: string) {
-    router.push(`/contracts/${contractId}/application`);
-  }
+  // 展開状態は画面上の一時的な UI 状態（保存しない / リロードで閉じる）。
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   return (
     <div className="overflow-x-auto">
@@ -61,59 +183,86 @@ export function ApplicationTable({ applications }: ApplicationTableProps) {
           </tr>
         </thead>
         <tbody className="divide-hairline-light divide-y">
-          {applications.map((row) => (
-            <tr
-              key={row.id}
-              tabIndex={0}
-              role="button"
-              aria-label={`${row.customerName}${c.honorific} ${row.type}`}
-              className={LIST_ROW}
-              onClick={() => goToDetail(row.contractId)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  goToDetail(row.contractId);
-                }
-              }}
-            >
-              <td className={LIST_TD_NUM}>{formatDate(row.plannedDate) ?? c.none}</td>
-              <td className={LIST_TD_STRONG}>
-                {row.customerName} {c.honorific}
-              </td>
-              <td className={LIST_TD}>{row.assigneeName ?? c.none}</td>
-              <td className={LIST_TD}>
-                {row.type || t.noType}
-                {row.agency ? (
-                  <span className="text-mute-light ml-2 text-xs">{row.agency}</span>
-                ) : null}
-              </td>
-              <td className="whitespace-nowrap px-6 py-3">
-                <Badge variant={subsidyVariant(row.status)}>
-                  {c.subsidyStatusLabels[row.status]}
-                </Badge>
-              </td>
-              <td className={LIST_TD_NUM}>
-                {formatDate(row.submittedDate) ?? (
-                  <span className="text-mute-light text-xs">{t.notSubmitted}</span>
-                )}
-              </td>
-              <td className={LIST_TD_NUM}>
-                {formatDate(row.approvedDate) ?? (
-                  <span className="text-mute-light text-xs">{t.notApproved}</span>
-                )}
-              </td>
-              <td className={LIST_TD_NUM}>
-                {row.fileCount > 0 ? (
-                  t.fileCount.replace("{n}", String(row.fileCount))
-                ) : (
-                  <span className="text-mute-light text-xs">{t.noFiles}</span>
-                )}
-              </td>
-              <td className="px-3 py-3 text-right">
-                <ChevronRight className="text-mute-light inline size-4" />
-              </td>
-            </tr>
-          ))}
+          {applications.map((row) => {
+            const isExpanded = expandedId === row.id;
+            const bannerId = `application-row-detail-${row.id}`;
+            const toggle = () => setExpandedId(isExpanded ? null : row.id);
+
+            return [
+              <tr
+                key={row.id}
+                className={`group ${LIST_ROW} ${isExpanded ? "bg-mist-light" : ""}`}
+                onClick={toggle}
+              >
+                {/* 日付は read-only。編集は展開バナー側（列幅を使いすぎないため）。 */}
+                <td className={LIST_TD_NUM}>{formatDate(row.plannedDate) ?? c.none}</td>
+                {/* 顧客名だけは遷移リンク。行クリック（= 展開）と取り違えないよう伝播を止める。 */}
+                <td className={LIST_TD_STRONG}>
+                  <Link
+                    href={customerHref(row.customerId)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="focus-visible:ring-primary/40 rounded-sm underline-offset-4 hover:underline focus:outline-none focus-visible:ring-2"
+                  >
+                    {row.customerName} {c.honorific}
+                  </Link>
+                </td>
+                <td className={LIST_TD}>{row.assigneeName ?? c.none}</td>
+                <td className={LIST_TD}>
+                  {row.type || t.noType}
+                  {row.agency ? (
+                    <span className="text-mute-light ml-2 text-xs">{row.agency}</span>
+                  ) : null}
+                </td>
+                <td className="whitespace-nowrap px-6 py-3">
+                  <Badge variant={subsidyVariant(row.status)}>
+                    {c.subsidyStatusLabels[row.status]}
+                  </Badge>
+                </td>
+                <td className={LIST_TD_NUM}>
+                  {formatDate(row.submittedDate) ?? (
+                    <span className="text-mute-light text-xs">{t.notSubmitted}</span>
+                  )}
+                </td>
+                <td className={LIST_TD_NUM}>
+                  {formatDate(row.approvedDate) ?? (
+                    <span className="text-mute-light text-xs">{t.notApproved}</span>
+                  )}
+                </td>
+                <td className={LIST_TD_NUM}>
+                  {row.fileCount > 0 ? (
+                    t.fileCount.replace("{n}", String(row.fileCount))
+                  ) : (
+                    <span className="text-mute-light text-xs">{t.noFiles}</span>
+                  )}
+                </td>
+                <td className="px-3 py-3 text-right">
+                  <button
+                    type="button"
+                    aria-expanded={isExpanded}
+                    aria-controls={bannerId}
+                    aria-label={`${row.customerName}${c.honorific} ${isExpanded ? t.expand.close : t.expand.open}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggle();
+                    }}
+                    className="text-mute-light hover:bg-surface-soft hover:text-ink focus-visible:ring-primary/40 rounded-md p-1 transition-colors focus:outline-none focus-visible:ring-2"
+                  >
+                    <ChevronDown
+                      className={`size-4 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                    />
+                  </button>
+                </td>
+              </tr>,
+
+              isExpanded ? (
+                <tr key={`${row.id}-detail`} className="bg-surface-soft/40">
+                  <td id={bannerId} colSpan={9} className="px-6 py-4">
+                    <ApplicationDetail row={row} />
+                  </td>
+                </tr>
+              ) : null,
+            ];
+          })}
         </tbody>
       </table>
     </div>

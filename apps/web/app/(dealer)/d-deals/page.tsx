@@ -9,9 +9,9 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { labels } from "@/lib/i18n/labels";
 
-import type { DealStatus } from "@solar/db";
-
 import { listDealerDeals } from "./data";
+
+import type { DealStatus } from "@solar/db";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +49,7 @@ export default async function DealerDealListPage({ searchParams }: PageProps) {
     const sp = new URLSearchParams();
     if (status) sp.set("status", status);
     sp.set("page", String(p));
-    return `/deals?${sp.toString()}`;
+    return `/d-deals?${sp.toString()}`;
   }
 
   return (

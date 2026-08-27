@@ -32,7 +32,6 @@ const wholesalerNav: NavEntry[] = [
       // URL は互換性維持のため /customers/maekaku のまま（表示名のみ「コール一覧」へ変更）。
       { label: "コール一覧", href: "/customers/maekaku" },
       { label: "アポイント一覧", href: "/appointments" },
-      { label: "商談一覧", href: "/deals" },
       { label: "契約一覧", href: "/contracts" },
       { label: "ローン審査一覧", href: "/loan-reviews" },
       { label: "施工一覧", href: "/constructions" },

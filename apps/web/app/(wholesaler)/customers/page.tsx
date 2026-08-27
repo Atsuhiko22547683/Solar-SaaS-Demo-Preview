@@ -8,13 +8,15 @@
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import Link from "next/link";
 
+import { normalizeSortDirection, normalizeSortField } from "@/components/list/list-sort";
+import { ListSortSelect } from "@/components/list/list-sort-select";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { labels } from "@/lib/i18n/labels";
 
+import { CONTRACT_STATUS_VALUES } from "./constants";
 import { CustomerFilter } from "./customer-filter";
 import { CustomerTable } from "./customer-table";
-import { CONTRACT_STATUS_VALUES } from "./constants";
 import {
   listCustomers,
   listWholesalerUsers,
@@ -23,13 +25,35 @@ import {
 } from "./data";
 import { PageSizeSelect } from "./page-size-select";
 
+import type { ListSortOption } from "@/components/list/list-sort";
+
 export const dynamic = "force-dynamic";
+
+const BASE_PATH = "/customers";
+
+// 並び替え項目（Customer の実列）。既定は従来どおり更新日時の降順。
+const SORT_OPTIONS: ListSortOption[] = [
+  {
+    value: "updated_at",
+    label: labels.customer.sortFieldLabels.updated_at!,
+    defaultDirection: "desc",
+  },
+  { value: "name", label: labels.customer.sortFieldLabels.name!, defaultDirection: "asc" },
+  {
+    value: "created_at",
+    label: labels.customer.sortFieldLabels.created_at!,
+    defaultDirection: "desc",
+  },
+];
+const DEFAULT_SORT_FIELD = "updated_at";
 
 interface PageProps {
   searchParams: Promise<{
     query?: string;
     assigneeUserId?: string;
     contractStatus?: string;
+    sortField?: string;
+    sortDir?: string;
     page?: string;
     pageSize?: string;
   }>;
@@ -53,6 +77,8 @@ export default async function WholesalerCustomerListPage({ searchParams }: PageP
     ? (params.contractStatus as ContractStatusValue)
     : undefined;
   const assigneeUserId = params.assigneeUserId?.trim() || undefined;
+  const sortField = normalizeSortField(params.sortField, SORT_OPTIONS, DEFAULT_SORT_FIELD);
+  const sortDirection = normalizeSortDirection(params.sortDir, sortField, SORT_OPTIONS);
   const page = Math.max(1, parseInt(params.page ?? "1", 10) || 1);
   const pageSize = normalizePageSize(parseInt(params.pageSize ?? "", 10) || undefined);
 
@@ -61,6 +87,8 @@ export default async function WholesalerCustomerListPage({ searchParams }: PageP
       query,
       assigneeUserId,
       contractStatus,
+      sortField,
+      sortDirection,
       page,
       pageSize,
     }),
@@ -69,15 +97,26 @@ export default async function WholesalerCustomerListPage({ searchParams }: PageP
 
   const t = labels.customer;
 
+  // 検索パネルのバッジ／初期展開に使う有効条件数。
+  const activeFilterCount = [
+    Boolean(query),
+    Boolean(assigneeUserId),
+    Boolean(contractStatus),
+  ].filter(Boolean).length;
+
   // Build pagination URL preserving other query params.
   function pageUrl(p: number): string {
     const sp = new URLSearchParams();
     if (query) sp.set("query", query);
     if (assigneeUserId) sp.set("assigneeUserId", assigneeUserId);
     if (contractStatus) sp.set("contractStatus", contractStatus);
+    if (sortField !== DEFAULT_SORT_FIELD) sp.set("sortField", sortField);
+    if (sortDirection !== SORT_OPTIONS.find((o) => o.value === sortField)?.defaultDirection) {
+      sp.set("sortDir", sortDirection);
+    }
     if (pageSize !== 20) sp.set("pageSize", String(pageSize));
     sp.set("page", String(p));
-    return `/customers?${sp.toString()}`;
+    return `${BASE_PATH}?${sp.toString()}`;
   }
 
   const pageText = t.pagination.pageOf
@@ -88,8 +127,8 @@ export default async function WholesalerCustomerListPage({ searchParams }: PageP
     <div className="space-y-6">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-ink">{t.listTitle}</h1>
-          <p className="mt-1 text-sm text-mute-light">{t.subtitle}</p>
+          <h1 className="text-ink text-2xl font-bold">{t.listTitle}</h1>
+          <p className="text-mute-light mt-1 text-sm">{t.subtitle}</p>
         </div>
         <Button asChild>
           <Link href="/customers/new">{t.newShort}</Link>
@@ -102,18 +141,30 @@ export default async function WholesalerCustomerListPage({ searchParams }: PageP
           assigneeUserId={assigneeUserId ?? ""}
           contractStatus={contractStatus ?? ""}
           assignees={assignees}
+          activeCount={activeFilterCount}
+          defaultOpen={activeFilterCount > 0}
         />
       </Card>
 
-      <p className="text-sm text-mute-light">
-        {t.filters.resultCount.replace("{total}", String(result.total))}
-      </p>
+      {/* 表示件数（左）と並び替え（右）。並び替えは検索条件ではないのでここに置く。 */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-mute-light text-sm">
+          {t.filters.resultCount.replace("{total}", String(result.total))}
+        </p>
+        <ListSortSelect
+          basePath={BASE_PATH}
+          options={SORT_OPTIONS}
+          sortField={sortField}
+          sortDirection={sortDirection}
+          defaultField={DEFAULT_SORT_FIELD}
+        />
+      </div>
 
       <Card className="overflow-hidden p-0">
         {result.items.length === 0 ? (
           <div className="p-12 text-center">
-            <p className="font-medium text-ink">{t.empty}</p>
-            <p className="mt-2 text-sm text-mute-light">{t.emptyCta}</p>
+            <p className="text-ink font-medium">{t.empty}</p>
+            <p className="text-mute-light mt-2 text-sm">{t.emptyCta}</p>
             <Button asChild className="mt-4">
               <Link href="/customers/new">{t.new}</Link>
             </Button>
@@ -126,7 +177,7 @@ export default async function WholesalerCustomerListPage({ searchParams }: PageP
       {result.items.length > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span className="text-sm text-mute-light">{t.pageSize.displayCount}</span>
+            <span className="text-mute-light text-sm">{t.pageSize.displayCount}</span>
             <PageSizeSelect pageSize={result.pageSize} />
           </div>
 
@@ -212,7 +263,7 @@ export default async function WholesalerCustomerListPage({ searchParams }: PageP
             </Button>
           </div>
 
-          <span className="text-sm tabular-nums text-mute-light">{pageText}</span>
+          <span className="text-mute-light text-sm tabular-nums">{pageText}</span>
         </div>
       )}
     </div>

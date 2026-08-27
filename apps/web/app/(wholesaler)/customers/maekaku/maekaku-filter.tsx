@@ -9,23 +9,21 @@
 //
 // 絞り込みは 2 つのペアで構成する:
 //   【対象項目】×【ステータス】 … 対象項目を変えるとステータスの選択肢が入れ替わる
-//   【日付対象】×【検索範囲（開始日 〜 終了日）】
-// 並び替えはここではなく一覧直前（表示件数の横）の CallSortSelect が持つ。
+//   【検索範囲（開始日 〜 終了日）】×【日付対象】… 日付対象の既定は「すべて」
+// 並び替えはここではなく一覧直前（表示件数の横）の共通 ListSortSelect が持つ。
 //
 // 入力の反映方法・URL クエリ名は従来どおり（ローカル state → 「検索」で URL へ反映、
 // 「クリア」で全解除）。検索ロジックには一切手を入れていない。
 
-import { ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { ListDateRangeField, ListFilterPanel } from "@/components/list/list-filter-panel";
 import {
   FILTER_INPUT_CLASS,
   FILTER_LABEL_CLASS,
   FILTER_SELECT_CLASS,
 } from "@/components/list/list-shell";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { labels } from "@/lib/i18n/labels";
 
 import {
@@ -40,8 +38,6 @@ import {
 import type { CallTypeValue } from "./constants";
 
 const BASE_PATH = "/customers/maekaku";
-
-const PANEL_ID = "call-filter-panel";
 
 interface AssigneeOption {
   id: string;
@@ -85,8 +81,6 @@ export function CallFilter({
   const c = labels.customer.calls;
   // ステータスの表示ラベルは顧客詳細コールタブと共有（新しい値域を作らない）。
   const p = labels.customer.detail.projectInfo;
-
-  const [open, setOpen] = useState(defaultOpen);
 
   const [queryValue, setQueryValue] = useState(query);
   const [assigneeValue, setAssigneeValue] = useState(assigneeUserId);
@@ -146,160 +140,115 @@ export function CallFilter({
   }
 
   return (
-    <div>
-      {/* ヘッダ — 閉じているときはこの 1 行だけが見える。 */}
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-controls={PANEL_ID}
-        onClick={() => setOpen((v) => !v)}
-        className="focus-visible:ring-primary/40 flex w-full items-center justify-between rounded-md text-left focus:outline-none focus-visible:ring-2"
-      >
-        <span className="text-ink flex items-center gap-2 text-sm font-medium">
-          {t.panelTitle}
-          {activeCount > 0 && (
-            <Badge variant="secondary">{t.activeCount.replace("{n}", String(activeCount))}</Badge>
-          )}
-        </span>
-        <ChevronDown
-          className={`text-mute-light size-4 transition-transform ${open ? "rotate-180" : ""}`}
+    <ListFilterPanel
+      idPrefix="call"
+      activeCount={activeCount}
+      defaultOpen={defaultOpen}
+      onSubmit={applyFilters}
+      onClear={clearFilters}
+    >
+      <div className="space-y-1">
+        <label htmlFor="call-query" className={FILTER_LABEL_CLASS}>
+          {t.customerName}
+        </label>
+        <input
+          id="call-query"
+          type="search"
+          value={queryValue}
+          onChange={(e) => setQueryValue(e.target.value)}
+          placeholder={t.searchPlaceholder}
+          aria-label={t.searchPlaceholder}
+          className={`${FILTER_INPUT_CLASS} w-56`}
         />
-      </button>
+      </div>
 
-      {open && (
-        <form
-          id={PANEL_ID}
-          className="border-hairline-light mt-4 border-t pt-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            applyFilters();
-          }}
+      <div className="space-y-1">
+        <label htmlFor="call-assignee" className={FILTER_LABEL_CLASS}>
+          {t.assignee}
+        </label>
+        <select
+          id="call-assignee"
+          value={assigneeValue}
+          onChange={(e) => setAssigneeValue(e.target.value)}
+          className={FILTER_SELECT_CLASS}
         >
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="space-y-1">
-              <label htmlFor="call-query" className={FILTER_LABEL_CLASS}>
-                {t.customerName}
-              </label>
-              <input
-                id="call-query"
-                type="search"
-                value={queryValue}
-                onChange={(e) => setQueryValue(e.target.value)}
-                placeholder={t.searchPlaceholder}
-                aria-label={t.searchPlaceholder}
-                className={`${FILTER_INPUT_CLASS} w-56`}
-              />
-            </div>
+          <option value="">{t.all}</option>
+          {assignees.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.name}
+            </option>
+          ))}
+        </select>
+      </div>
 
-            <div className="space-y-1">
-              <label htmlFor="call-assignee" className={FILTER_LABEL_CLASS}>
-                {t.assignee}
-              </label>
-              <select
-                id="call-assignee"
-                value={assigneeValue}
-                onChange={(e) => setAssigneeValue(e.target.value)}
-                className={FILTER_SELECT_CLASS}
-              >
-                <option value="">{t.all}</option>
-                {assignees.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+      {/* 【対象項目】×【ステータス】— 対象項目に応じてステータスの選択肢が入れ替わる。 */}
+      <div className="space-y-1">
+        <label htmlFor="call-type" className={FILTER_LABEL_CLASS}>
+          {t.callType}
+        </label>
+        <select
+          id="call-type"
+          value={callTypeValue}
+          onChange={(e) => onCallTypeChange(e.target.value as CallTypeValue)}
+          className={FILTER_SELECT_CLASS}
+        >
+          {CALL_TYPE_VALUES.map((v) => (
+            <option key={v} value={v}>
+              {c.callTypeLabels[v] ?? v}
+            </option>
+          ))}
+        </select>
+      </div>
 
-            {/* 【対象項目】×【ステータス】— 対象項目に応じてステータスの選択肢が入れ替わる。 */}
-            <div className="space-y-1">
-              <label htmlFor="call-type" className={FILTER_LABEL_CLASS}>
-                {t.callType}
-              </label>
-              <select
-                id="call-type"
-                value={callTypeValue}
-                onChange={(e) => onCallTypeChange(e.target.value as CallTypeValue)}
-                className={FILTER_SELECT_CLASS}
-              >
-                {CALL_TYPE_VALUES.map((v) => (
-                  <option key={v} value={v}>
-                    {c.callTypeLabels[v] ?? v}
-                  </option>
-                ))}
-              </select>
-            </div>
+      <div className="space-y-1">
+        <label htmlFor="call-status" className={FILTER_LABEL_CLASS}>
+          {t.callStatus}
+        </label>
+        <select
+          id="call-status"
+          value={statusValue}
+          onChange={(e) => setStatusValue(e.target.value)}
+          className={FILTER_SELECT_CLASS}
+        >
+          <option value="">{t.all}</option>
+          {STATUS_OPTIONS_BY_CALL_TYPE[callTypeValue].map((code) => (
+            <option key={code} value={code}>
+              {statusLabel(code)}
+            </option>
+          ))}
+        </select>
+      </div>
 
-            <div className="space-y-1">
-              <label htmlFor="call-status" className={FILTER_LABEL_CLASS}>
-                {t.callStatus}
-              </label>
-              <select
-                id="call-status"
-                value={statusValue}
-                onChange={(e) => setStatusValue(e.target.value)}
-                className={FILTER_SELECT_CLASS}
-              >
-                <option value="">{t.all}</option>
-                {STATUS_OPTIONS_BY_CALL_TYPE[callTypeValue].map((code) => (
-                  <option key={code} value={code}>
-                    {statusLabel(code)}
-                  </option>
-                ))}
-              </select>
-            </div>
+      {/* 【検索範囲】→【日付対象】の順に置く。日付対象は「どの日時に期間を掛けるか」の
+                補足なので、期間の右側に添える。既定は「すべて」= 検索できる日時を横断。
+                折り返しで左右が入れ替わらないよう、この 2 つは同じコンテナに入れる。 */}
+      <div className="flex flex-wrap items-end gap-3">
+        <ListDateRangeField
+          idPrefix="call"
+          from={fromValue}
+          to={toValue}
+          onFromChange={setFromValue}
+          onToChange={setToValue}
+        />
 
-            {/* 【日付対象】×【検索範囲】— 2 つの日付は 1 つの見出しの下にまとめる
-                （「開始日」「終了日」単独だと何の日付か分からないため）。 */}
-            <div className="space-y-1">
-              <label htmlFor="call-date-field" className={FILTER_LABEL_CLASS}>
-                {t.dateField}
-              </label>
-              <select
-                id="call-date-field"
-                value={dateFieldValue}
-                onChange={(e) => setDateFieldValue(e.target.value)}
-                className={FILTER_SELECT_CLASS}
-              >
-                {CALL_DATE_FIELD_VALUES.map((v) => (
-                  <option key={v} value={v}>
-                    {c.dateFieldLabels[v] ?? v}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              {/* 2 つの input をまとめる見出しなので htmlFor は持たせず、
-                  各 input 側に aria-label（検索範囲 開始日 / 終了日）を付ける。 */}
-              <span className={FILTER_LABEL_CLASS}>{t.dateRange}</span>
-              <div className="flex items-center gap-2">
-                <input
-                  type="date"
-                  value={fromValue}
-                  onChange={(e) => setFromValue(e.target.value)}
-                  aria-label={t.dateRangeFrom}
-                  className={`${FILTER_INPUT_CLASS} w-40`}
-                />
-                <span aria-hidden className="text-mute-light text-sm">
-                  {t.rangeSeparator}
-                </span>
-                <input
-                  type="date"
-                  value={toValue}
-                  onChange={(e) => setToValue(e.target.value)}
-                  aria-label={t.dateRangeTo}
-                  className={`${FILTER_INPUT_CLASS} w-40`}
-                />
-              </div>
-            </div>
-
-            <Button type="submit">{t.search}</Button>
-            <Button type="button" variant="outline" onClick={clearFilters}>
-              {t.clear}
-            </Button>
-          </div>
-        </form>
-      )}
-    </div>
+        <div className="space-y-1">
+          <label htmlFor="call-date-field" className={FILTER_LABEL_CLASS}>
+            {t.dateField}
+          </label>
+          <select
+            id="call-date-field"
+            value={dateFieldValue}
+            onChange={(e) => setDateFieldValue(e.target.value)}
+            className={FILTER_SELECT_CLASS}
+          >
+            {CALL_DATE_FIELD_VALUES.map((v) => (
+              <option key={v} value={v}>
+                {c.dateFieldLabels[v] ?? v}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+    </ListFilterPanel>
   );
 }
