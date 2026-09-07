@@ -37,7 +37,7 @@ export default async function NewTenantPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">{t.new}</h1>
+      <h1 className="text-ink text-xl font-bold">{t.new}</h1>
       <TenantCreateForm />
     </div>
   );

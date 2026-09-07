@@ -5,10 +5,10 @@
 // opening a nested interactive transaction, which would deadlock.
 
 import { computeGrossProfit } from "@solar/contracts";
-import type { IncentiveTargetType } from "@solar/db";
-import type { TxClient } from "@solar/db";
 
 import { NotFoundError } from "@/lib/errors";
+
+import type { IncentiveTargetType, TxClient } from "@solar/db";
 
 export interface RecalcParams {
   contractId: string;
@@ -20,10 +20,7 @@ export interface RecalcParams {
   manualValue?: string;
 }
 
-export async function recalcGrossProfitInternal(
-  tx: TxClient,
-  params: RecalcParams,
-): Promise<void> {
+export async function recalcGrossProfitInternal(tx: TxClient, params: RecalcParams): Promise<void> {
   const items = await tx.contractItem.findMany({
     where: { contractId: params.contractId },
     select: {
@@ -35,9 +32,7 @@ export async function recalcGrossProfitInternal(
   });
 
   if (items.length === 0) {
-    throw new NotFoundError(
-      "契約明細が登録されていません。先に明細を登録してください",
-    );
+    throw new NotFoundError("契約明細が登録されていません。先に明細を登録してください");
   }
 
   const contract = await tx.contract.findUnique({
@@ -58,8 +53,7 @@ export async function recalcGrossProfitInternal(
     otherCost: Number(params.otherCost),
     discount: Number(params.discount),
     incentiveTargetType: params.incentiveTargetType,
-    manualValue:
-      params.manualValue !== undefined ? Number(params.manualValue) : undefined,
+    manualValue: params.manualValue !== undefined ? Number(params.manualValue) : undefined,
   });
 
   await tx.grossProfit.upsert({

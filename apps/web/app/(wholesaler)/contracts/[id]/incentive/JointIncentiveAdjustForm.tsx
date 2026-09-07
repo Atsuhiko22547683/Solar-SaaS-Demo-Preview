@@ -17,8 +17,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { labels } from "@/lib/i18n/labels";
 
-import type { IncentiveRow } from "./page";
 import { adjustJointIncentiveAction } from "./actions";
+
+import type { IncentiveRow } from "./page";
 
 interface Props {
   contractId: string;
@@ -93,7 +94,7 @@ export function JointIncentiveAdjustForm({ contractId, incentives }: Props) {
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* DRAFT rows — editable */}
       {draftIncentives.length > 0 && (
-        <div className="border-border rounded-md border p-4 space-y-4">
+        <div className="border-border space-y-4 rounded-md border p-4">
           <h2 className="font-medium">{t.sections.distributions}</h2>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -114,9 +115,7 @@ export function JointIncentiveAdjustForm({ contractId, incentives }: Props) {
                       {Number(inc.amount).toLocaleString("ja-JP")} {c.currencySuffix}
                     </td>
                     <td className="px-3 py-2">
-                      <span className="text-amber-600 text-xs">
-                        {t.statuses.DRAFT}
-                      </span>
+                      <span className="text-xs text-amber-600">{t.statuses.DRAFT}</span>
                     </td>
                     <td className="px-3 py-2">
                       <div className="space-y-1">
@@ -167,7 +166,7 @@ export function JointIncentiveAdjustForm({ contractId, incentives }: Props) {
 
       {/* FINALIZED / other status rows — read-only */}
       {finalizedIncentives.length > 0 && (
-        <div className="border-border rounded-md border p-4 space-y-4">
+        <div className="border-border space-y-4 rounded-md border p-4">
           <h2 className="font-medium">{t.sections.history}</h2>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -186,7 +185,7 @@ export function JointIncentiveAdjustForm({ contractId, incentives }: Props) {
                       {Number(inc.amount).toLocaleString("ja-JP")} {c.currencySuffix}
                     </td>
                     <td className="px-3 py-2">
-                      <span className="text-green-700 text-xs">
+                      <span className="text-xs text-green-700">
                         {t.statuses[inc.status as keyof typeof t.statuses] ?? inc.status}
                       </span>
                     </td>
@@ -199,7 +198,7 @@ export function JointIncentiveAdjustForm({ contractId, incentives }: Props) {
       )}
 
       {draftIncentives.length === 0 && (
-        <p className="text-sm text-muted-foreground">{t.allFinalized}</p>
+        <p className="text-muted-foreground text-sm">{t.allFinalized}</p>
       )}
     </form>
   );

@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { formatDate, formatDateTime } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
 import { listEventCandidates } from "./data";
@@ -51,7 +52,7 @@ export default async function EventCandidatesListPage({ searchParams }: PageProp
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
+          <h1 className="text-ink text-xl font-bold">{t.title}</h1>
           <p className="text-muted-foreground text-sm">{t.listTitle}</p>
         </div>
         <Button asChild>
@@ -116,15 +117,15 @@ export default async function EventCandidatesListPage({ searchParams }: PageProp
                       href={`/event-detail/${r.id}`}
                       className="text-primary underline-offset-4 hover:underline"
                     >
-                      {new Date(r.scheduledDate).toLocaleDateString("ja-JP")}
+                      {formatDate(r.scheduledDate)}
                     </Link>
                   </td>
                   <td className="px-3 py-2">{r.storeName}</td>
                   <td className="px-3 py-2">{r.area ?? "—"}</td>
-                  <td className="px-3 py-2">{new Date(r.deadlineAt).toLocaleString("ja-JP")}</td>
+                  <td className="px-3 py-2">{formatDateTime(r.deadlineAt)}</td>
                   <td className="px-3 py-2">{t.statuses[r.status]}</td>
                   <td className="text-muted-foreground px-3 py-2 text-xs">
-                    {new Date(r.updatedAt).toLocaleString("ja-JP")}
+                    {formatDateTime(r.updatedAt)}
                   </td>
                 </tr>
               ))}

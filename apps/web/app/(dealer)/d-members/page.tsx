@@ -2,6 +2,7 @@
 // ユーザー一覧 + 招待ダイアログ。assertCan は data.ts の listDealerMembers 内で実施。
 
 import { Badge } from "@/components/ui/badge";
+import { formatDateTime } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
 import { listDealerMembers } from "./data";
@@ -17,7 +18,7 @@ export default async function DealerMembersPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t.dealerTitle}</h1>
+          <h1 className="text-ink text-xl font-bold">{t.dealerTitle}</h1>
           <p className="text-muted-foreground text-sm">{t.subtitle}</p>
         </div>
         <InviteDealerMemberDialog />
@@ -73,9 +74,7 @@ export default async function DealerMembersPage() {
                     </Badge>
                   </td>
                   <td className="text-muted-foreground px-3 py-2 text-xs tabular-nums">
-                    {m.lastLoginAt
-                      ? new Date(m.lastLoginAt).toLocaleString("ja-JP")
-                      : t.neverLoggedIn}
+                    {m.lastLoginAt ? formatDateTime(m.lastLoginAt) : t.neverLoggedIn}
                   </td>
                 </tr>
               ))}

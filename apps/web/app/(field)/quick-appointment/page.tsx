@@ -10,7 +10,6 @@ import "server-only";
 import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
-import { UnauthorizedError } from "@/lib/errors";
 import { labels } from "@/lib/i18n/labels";
 import { getTenantContext } from "@/lib/tenancy/context";
 import { withTenant } from "@/lib/tenancy/with-tenant";
@@ -22,7 +21,10 @@ interface PageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-async function resolveEventId(userId: string, eventParam: string | undefined): Promise<string | null> {
+async function resolveEventId(
+  userId: string,
+  eventParam: string | undefined,
+): Promise<string | null> {
   if (eventParam && typeof eventParam === "string" && eventParam.trim()) {
     return eventParam.trim();
   }
@@ -70,7 +72,7 @@ export default async function QuickAppointmentPage({ searchParams }: PageProps) 
   if (!eventId) {
     return (
       <div className="space-y-4">
-        <h1 className="text-lg font-bold">{l.sheetTitle}</h1>
+        <h1 className="text-ink text-xl font-bold">{l.sheetTitle}</h1>
         <p className="text-muted-foreground text-sm">{l.noEventToday}</p>
       </div>
     );
@@ -78,11 +80,8 @@ export default async function QuickAppointmentPage({ searchParams }: PageProps) 
 
   return (
     <div className="space-y-4">
-      <h1 className="text-lg font-bold">{l.sheetTitle}</h1>
-      <QuickAppointmentForm
-        sourceEventId={eventId}
-        onSubmitAction={quickAppointmentAction}
-      />
+      <h1 className="text-ink text-xl font-bold">{l.sheetTitle}</h1>
+      <QuickAppointmentForm sourceEventId={eventId} onSubmitAction={quickAppointmentAction} />
     </div>
   );
 }

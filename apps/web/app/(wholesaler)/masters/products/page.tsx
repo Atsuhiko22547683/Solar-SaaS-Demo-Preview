@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { formatDate } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
 import { listProducts } from "./data";
@@ -51,7 +52,7 @@ export default async function ProductsListPage({ searchParams }: PageProps) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
+          <h1 className="text-ink text-xl font-bold">{t.title}</h1>
           <p className="text-muted-foreground text-sm">{t.listTitle}</p>
         </div>
         <Button asChild>
@@ -127,7 +128,7 @@ export default async function ProductsListPage({ searchParams }: PageProps) {
                   <td className="px-3 py-2 text-right tabular-nums">{r.dealerPrice}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{r.listPrice}</td>
                   <td className="text-muted-foreground px-3 py-2 text-xs">
-                    {new Date(r.effectiveFrom).toLocaleDateString("ja-JP")}
+                    {formatDate(r.effectiveFrom)}
                   </td>
                   <td className="px-3 py-2">{r.isActive ? c.active : c.inactive}</td>
                 </tr>

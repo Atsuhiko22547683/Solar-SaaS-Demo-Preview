@@ -4,7 +4,6 @@
 // S-063 S-076).
 
 import { useState } from "react";
-
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -95,9 +94,7 @@ export function DealerResultReportForm({ eventId, hasDealerResult }: DealerResul
       setForm(EMPTY);
     } catch (err) {
       const msg =
-        err instanceof Error && err.message.includes("すでに")
-          ? t.conflictError
-          : t.unknownError;
+        err instanceof Error && err.message.includes("すでに") ? t.conflictError : t.unknownError;
       toast.error(msg);
     } finally {
       setSubmitting(false);
@@ -105,9 +102,7 @@ export function DealerResultReportForm({ eventId, hasDealerResult }: DealerResul
   }
 
   if (hasDealerResult) {
-    return (
-      <p className="text-muted-foreground text-sm">{t.resultAlreadySubmitted}</p>
-    );
+    return <p className="text-muted-foreground text-sm">{t.resultAlreadySubmitted}</p>;
   }
 
   return (

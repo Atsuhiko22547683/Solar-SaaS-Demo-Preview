@@ -15,22 +15,22 @@
 //   - Status transitions are validated via isValidStatusTransition before any
 //     DB write. InvalidStateTransitionError is thrown on illegal moves.
 
-import { revalidatePath } from "next/cache";
-
 import {
   AppointmentCreateSchema,
   AppointmentUpdateSchema,
   AppointmentCancelSchema,
   isValidStatusTransition,
 } from "@solar/contracts";
+import { revalidatePath } from "next/cache";
+
+import { NotFoundError, InvalidStateTransitionError } from "@/lib/errors";
+import { withServerActionContext } from "@/lib/tenancy/server-action";
+
 import type {
   AppointmentCreateInput,
   AppointmentUpdateInput,
   AppointmentCancelInput,
 } from "@solar/contracts";
-
-import { NotFoundError, InvalidStateTransitionError } from "@/lib/errors";
-import { withServerActionContext } from "@/lib/tenancy/server-action";
 
 const LIST_PATH = "/appointments";
 
@@ -41,120 +41,106 @@ export interface AppointmentResult {
 export const createAppointmentAction = withServerActionContext<
   AppointmentCreateInput,
   AppointmentResult
->(
-  { action: "appointment.create" },
-  async ({ tx, ctx, input }) => {
-    const parsed = AppointmentCreateSchema.parse(input);
+>({ action: "appointment.create" }, async ({ tx, ctx, input }) => {
+  const parsed = AppointmentCreateSchema.parse(input);
 
-    const acquiredOrgType = ctx.dealerId ? "DEALER" : "WHOLESALER";
-    const acquiredRelationshipId =
-      parsed.acquiredRelationshipId ?? ctx.relationshipIds[0] ?? null;
+  const acquiredOrgType = ctx.dealerId ? "DEALER" : "WHOLESALER";
+  const acquiredRelationshipId = parsed.acquiredRelationshipId ?? ctx.relationshipIds[0] ?? null;
 
-    const created = await tx.appointment.create({
-      data: {
-        customerId: parsed.customerId,
-        eventId: parsed.eventId ?? null,
-        scheduledAt: new Date(parsed.scheduledAt),
-        location: parsed.location ?? null,
-        acquiredByUserId: ctx.actorUserId,
-        acquiredOrgType,
-        acquiredRelationshipId,
-        appointmentType: parsed.appointmentType ?? null,
-        status: parsed.status ?? "UNCONFIRMED",
-        note: parsed.note ?? null,
-      },
-      select: { id: true },
-    });
+  const created = await tx.appointment.create({
+    data: {
+      customerId: parsed.customerId,
+      eventId: parsed.eventId ?? null,
+      scheduledAt: new Date(parsed.scheduledAt),
+      location: parsed.location ?? null,
+      acquiredByUserId: ctx.actorUserId,
+      acquiredOrgType,
+      acquiredRelationshipId,
+      appointmentType: parsed.appointmentType ?? null,
+      status: parsed.status ?? "UNCONFIRMED",
+      note: parsed.note ?? null,
+    },
+    select: { id: true },
+  });
 
-    revalidatePath(LIST_PATH);
-    return { id: created.id };
-  },
-);
+  revalidatePath(LIST_PATH);
+  return { id: created.id };
+});
 
 export const updateAppointmentAction = withServerActionContext<
   AppointmentUpdateInput,
   AppointmentResult
->(
-  { action: "appointment.update" },
-  async ({ tx, input }) => {
-    const parsed = AppointmentUpdateSchema.parse(input);
+>({ action: "appointment.update" }, async ({ tx, input }) => {
+  const parsed = AppointmentUpdateSchema.parse(input);
 
-    const existing = await tx.appointment.findUnique({
-      where: { id: parsed.id },
-      select: { id: true, status: true },
-    });
-    if (!existing) {
-      throw new NotFoundError("アポが見つかりません");
+  const existing = await tx.appointment.findUnique({
+    where: { id: parsed.id },
+    select: { id: true, status: true },
+  });
+  if (!existing) {
+    throw new NotFoundError("アポが見つかりません");
+  }
+
+  // Validate status transition when status is changing.
+  if (parsed.status !== undefined && parsed.status !== existing.status) {
+    if (!isValidStatusTransition(existing.status, parsed.status)) {
+      throw new InvalidStateTransitionError(
+        `${existing.status} から ${parsed.status} への遷移はできません`,
+        { from: existing.status, to: parsed.status },
+      );
     }
+  }
 
-    // Validate status transition when status is changing.
-    if (parsed.status !== undefined && parsed.status !== existing.status) {
-      if (!isValidStatusTransition(existing.status, parsed.status)) {
-        throw new InvalidStateTransitionError(
-          `${existing.status} から ${parsed.status} への遷移はできません`,
-          { from: existing.status, to: parsed.status },
-        );
-      }
-    }
+  const updated = await tx.appointment.update({
+    where: { id: parsed.id },
+    data: {
+      ...(parsed.scheduledAt !== undefined ? { scheduledAt: new Date(parsed.scheduledAt) } : {}),
+      ...(parsed.location !== undefined ? { location: parsed.location } : {}),
+      ...(parsed.appointmentType !== undefined ? { appointmentType: parsed.appointmentType } : {}),
+      ...(parsed.status !== undefined ? { status: parsed.status } : {}),
+      ...(parsed.note !== undefined ? { note: parsed.note } : {}),
+    },
+    select: { id: true },
+  });
 
-    const updated = await tx.appointment.update({
-      where: { id: parsed.id },
-      data: {
-        ...(parsed.scheduledAt !== undefined
-          ? { scheduledAt: new Date(parsed.scheduledAt) }
-          : {}),
-        ...(parsed.location !== undefined ? { location: parsed.location } : {}),
-        ...(parsed.appointmentType !== undefined
-          ? { appointmentType: parsed.appointmentType }
-          : {}),
-        ...(parsed.status !== undefined ? { status: parsed.status } : {}),
-        ...(parsed.note !== undefined ? { note: parsed.note } : {}),
-      },
-      select: { id: true },
-    });
-
-    revalidatePath(LIST_PATH);
-    revalidatePath(`${LIST_PATH}/${parsed.id}`);
-    return { id: updated.id };
-  },
-);
+  revalidatePath(LIST_PATH);
+  revalidatePath(`${LIST_PATH}/${parsed.id}`);
+  return { id: updated.id };
+});
 
 export const cancelAppointmentAction = withServerActionContext<
   AppointmentCancelInput,
   AppointmentResult
->(
-  { action: "appointment.cancel" },
-  async ({ tx, input }) => {
-    const parsed = AppointmentCancelSchema.parse(input);
+>({ action: "appointment.cancel" }, async ({ tx, input }) => {
+  const parsed = AppointmentCancelSchema.parse(input);
 
-    const existing = await tx.appointment.findUnique({
-      where: { id: parsed.id },
-      select: { id: true, status: true, note: true },
+  const existing = await tx.appointment.findUnique({
+    where: { id: parsed.id },
+    select: { id: true, status: true, note: true },
+  });
+  if (!existing) {
+    throw new NotFoundError("アポが見つかりません");
+  }
+
+  if (!isValidStatusTransition(existing.status, "CANCELLED")) {
+    throw new InvalidStateTransitionError(`${existing.status} からキャンセルへの遷移はできません`, {
+      from: existing.status,
+      to: "CANCELLED",
     });
-    if (!existing) {
-      throw new NotFoundError("アポが見つかりません");
-    }
+  }
 
-    if (!isValidStatusTransition(existing.status, "CANCELLED")) {
-      throw new InvalidStateTransitionError(
-        `${existing.status} からキャンセルへの遷移はできません`,
-        { from: existing.status, to: "CANCELLED" },
-      );
-    }
+  const mergedNote = [parsed.reason, existing.note].filter(Boolean).join("\n---\n") || null;
 
-    const mergedNote = [parsed.reason, existing.note].filter(Boolean).join("\n---\n") || null;
+  const updated = await tx.appointment.update({
+    where: { id: parsed.id },
+    data: {
+      status: "CANCELLED",
+      note: mergedNote,
+    },
+    select: { id: true },
+  });
 
-    const updated = await tx.appointment.update({
-      where: { id: parsed.id },
-      data: {
-        status: "CANCELLED",
-        note: mergedNote,
-      },
-      select: { id: true },
-    });
-
-    revalidatePath(LIST_PATH);
-    revalidatePath(`${LIST_PATH}/${parsed.id}`);
-    return { id: updated.id };
-  },
-);
+  revalidatePath(LIST_PATH);
+  revalidatePath(`${LIST_PATH}/${parsed.id}`);
+  return { id: updated.id };
+});

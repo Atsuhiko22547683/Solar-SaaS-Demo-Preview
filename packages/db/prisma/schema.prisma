@@ -57,10 +57,24 @@ enum UserStatus {
   ACTIVE
   INVITED
   SUSPENDED
+  // 削除済み（論理削除）。ユーザー操作の「削除」はこの状態への遷移で表現し、
+  // 行は残す。SUSPENDED は「一時停止（後で戻す）」の意味なので流用しない。
+  // 監査ログ・担当履歴からの参照を切らないため、物理削除はしない。
+  DELETED
 }
 
 enum AppRole {
   SAAS_ADMIN
+  // --- システムユーザーのロール（正式仕様。新規ユーザーはこの 3 つから選ぶ） ---
+  // OWNER        : 通常機能 + 設定 + 決済管理
+  // SYSTEM_ADMIN : 通常機能 + 設定（決済管理は不可）
+  // GENERAL_USER : 通常機能 + 決済管理（設定は不可）
+  // 単純な上下関係ではないので、can.ts の capability で個別に判定する。
+  OWNER
+  SYSTEM_ADMIN
+  GENERAL_USER
+  // --- 以下は旧ロール。既存 UserRole 行が参照しているため残す。
+  //     新規付与はしない（システムユーザー管理画面の選択肢からも外した）。
   WHOLESALER_ADMIN
   WHOLESALER_EVENT_TEAM
   WHOLESALER_CALL_TEAM
@@ -73,6 +87,10 @@ enum AppRole {
 enum RelationshipStatus {
   ACTIVE
   SUSPENDED
+  // 取引終了（論理削除）。ユーザー操作の「削除」はこの状態への遷移で表現し、
+  // 行そのものは残す。過去の Customer / Salesperson / Incentive 等からの参照が
+  // 切れないようにするため、物理削除はしない。
+  TERMINATED
 }
 
 enum DealerScope {
@@ -182,6 +200,7 @@ model User {
   passwordResetTokens PasswordResetToken[]
   notifications       Notification[]
   notificationPrefs   NotificationPreference[]
+  salesperson         Salesperson?
 
   @@index([tenantId, status])
   @@index([email])
@@ -222,6 +241,7 @@ model Relationship {
   incentives                 Incentive[]
   monthlyReports             MonthlyReport[]
   commissionRate             DealerCommissionRate?
+  salespeople                Salesperson[]
 
   @@unique([wholesalerId, dealerId])
   @@index([wholesalerId, status])
@@ -630,6 +650,141 @@ model Installer {
   @@index([wholesalerId, isActive])
 }
 
+// 販売員マスタ（イベント管理配下「販売員一覧」）。
+//
+// 認証 User（自社社員）とは別概念。販売員はシステムにログインせず、催事に立つ
+// 人員としてイベントへアサインされるだけなので User を増やさず専用モデルにする
+// （Dealer / Relationship とも別。加盟店番号は文字列として本人に紐づく）。
+// テナント分離は他のマスタ（Installer / VenueProvider）と同じ wholesalerId。
+//
+// PII: 生年月日・電話番号・メール・現住所・住民票住所を持つため、一覧では
+// マスキングして返す（既存 maskName / maskPhone / maskAddress を再利用）。
+/// スタッフ（販売員）マスタ。認証 User とは別概念で、ログインしない催事販売員も扱う。
+///
+/// 所属の表し方:
+///   relationshipId == null → 自社スタッフ（wholesalerId のテナントに属する）
+///   relationshipId != null → 二次店スタッフ（所属会社は relationship.dealer.name から導出）
+/// 会社名は文字列で複製せず、常に Tenant / Relationship 側から引く。
+///
+/// userId は「この人物が自社のログイン User でもある」場合の任意リンク。
+/// 卸業者は RLS で二次店の User を参照できないため、二次店スタッフでは常に null。
+model Salesperson {
+  id             String            @id @default(cuid())
+  wholesalerId   String
+  /// 所属二次店（Relationship = 卸業者×二次店）。null なら自社スタッフ。
+  relationshipId String?
+  /// 同一人物の自社ログイン User への任意リンク。1 User につき最大 1 スタッフ。
+  userId         String?           @unique
+  /** 加盟店番号（自由記述。Dealer/Relationship とは別に本人へ紐づく業務番号）。
+      UI では所属会社名（Relationship 由来）を表示するため使用しない。 */
+  franchiseNo    String?
+  name           String
+  kana           String?
+  gender         Gender?
+  birthDate      DateTime?
+  phone          String?
+  email          String?
+  /** 現住所（居住地）。 */
+  address        String?
+  /** 住民票住所（現住所と異なる場合に記録）。 */
+  residentAddress String?
+  employmentType EmploymentType?
+  /** 営業経験歴（自由記述: 「3年」「未経験」など）。 */
+  salesExperience String?
+  note           String?
+  isActive       Boolean           @default(true)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  eventAssignments EventSalesperson[]
+  relationship     Relationship?     @relation(fields: [relationshipId], references: [id])
+  user             User?             @relation(fields: [userId], references: [id])
+  // 担当実績。既存の tossUpUserId / closingUserId 経由の実績とは別に、
+  // 明示リンクされた顧客をここから辿れる（集計時は二重カウントしない）。
+  tossUpCustomers  Customer[]        @relation("CustomerTossUpSalesperson")
+  closingCustomers Customer[]        @relation("CustomerClosingSalesperson")
+
+  @@index([wholesalerId, isActive])
+  @@index([wholesalerId, franchiseNo])
+  @@index([wholesalerId, relationshipId])
+}
+
+/**
+ * 催事種別（チェーン）。resultReport.channelLabels の カインズ-W / カインズ-V / 島忠 を
+ * 値域として持ち上げ、要望のあった コメリ を追加したもの。
+ */
+enum VenueChain {
+  CAINZ_W
+  CAINZ_V
+  SHIMACHU
+  KOMERI
+  OTHER
+}
+
+/** 催事ブース場所（施設内エリア）。OTHER のときだけ自由記述を併記する。 */
+enum BoothArea {
+  ENTRANCE
+  REFORM_CORNER
+  OTHER
+}
+
+/**
+ * 催事の商材種別。resultReport.categoryLabels（住宅設備 / 不動産）と同じ値域。
+ * 太陽光部材の ProductCategory（PANEL/BATTERY/…）とは別概念のため名前を分ける。
+ */
+enum EventProductCategory {
+  HOUSING_EQUIPMENT
+  REAL_ESTATE
+}
+
+/**
+ * 販売チャネル（案件の獲得経路）。
+ *
+ * 既存の AcquisitionChannel（EVENT/WALK_IN/TELE/REFERRAL/OTHER）とは意味が異なるため
+ * 流用しない — WALK_IN「飛び込み」は訪問販売と同義ではなく、TELE「テレアポ」は
+ * 反響（インバウンド）と逆向きの概念。既存 enum のラベルを付け替えると既存画面全体の
+ * 意味が変わってしまうので、専用 enum として分離する。
+ */
+enum SalesChannel {
+  VISIT_SALES
+  INBOUND
+  EVENT
+  REFERRAL
+  OTHER
+}
+
+/** 販売員の性別。未回答を許すため列自体を nullable にする（UNKNOWN 値は作らない）。 */
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+/** 販売員の雇用形態。 */
+enum EmploymentType {
+  EMPLOYEE
+  CONTRACT
+  PART_TIME
+  SUBCONTRACT
+  OTHER
+}
+
+// イベント × 販売員のアサイン。EventShift は認証 User（自社社員）の勤務シフトで
+// 別概念のため、販売員は専用の中間テーブルで紐づける。
+model EventSalesperson {
+  id            String   @id @default(cuid())
+  eventId       String
+  salespersonId String
+  note          String?
+  createdAt     DateTime @default(now())
+
+  event       Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  salesperson Salesperson @relation(fields: [salespersonId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, salespersonId])
+  @@index([salespersonId])
+}
+
 model IncentiveRate {
   id             String              @id @default(cuid())
   relationshipId String
@@ -803,6 +958,14 @@ model EventCandidate {
   performanceRate    Decimal?             @db.Decimal(5, 2)
   // 契約条件のメモ（固定費/成果報酬それぞれの補足）。
   contractNote       String?
+  // 催事の基本情報（成果報告の「基本情報」セクションと同じ値域を持つ）。
+  // storeName（店舗名の自由記述）とは別に、チェーン単位の種別を選べるようにする。
+  venueChain         VenueChain?
+  // 催事ブース場所（施設内エリア）。OTHER のときだけ boothAreaNote に自由記述を持つ。
+  boothArea          BoothArea?
+  boothAreaNote      String?
+  // 商材種別（住設設備 / 不動産）。
+  productCategory    EventProductCategory?
   // 卸業者内部メモ。二次店向け DTO では絶対に返さない（docs/05 §4.5）。
   internalNote       String?
   status             EventCandidateStatus @default(DRAFT)
@@ -870,6 +1033,7 @@ model Event {
   eventCandidate EventCandidate @relation(fields: [eventCandidateId], references: [id])
   dealers        EventDealer[]
   shifts         EventShift[]
+  salespeople    EventSalesperson[]
   reports        EventReport[]
   changes        EventChange[]
   appointments   Appointment[]
@@ -989,16 +1153,40 @@ enum PreCallNotificationStatus {
 
 model EventReport {
   id              String          @id @default(cuid())
-  eventId         String
   type            EventReportType
+  eventId         String
   reporterUserId  String
   reporterOrgType TenantType
   payload         Json
   createdAt       DateTime        @default(now())
 
-  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event   Event                @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  metrics EventReportMetric[]
 
   @@index([eventId, type])
+}
+
+// 成果報告の任意集計項目（項目名 + 数値）。
+//
+// 固定項目（声かけ数 / アンケート数 / アポ取得数 …）は EventReport.payload に
+// 従来どおり入れたまま変えない。ここは「カインズPay対応数」のようにイベントごとに
+// 増える数え物だけを 1 行 1 項目で持つ最小の関連モデルで、汎用カスタムフィールド
+// 機能（型・選択肢・バリデーション定義）は作らない。
+model EventReportMetric {
+  id       String   @id @default(cuid())
+  reportId String
+  /** 項目名（例: カインズPay対応数）。同一報告内で重複させない。 */
+  name     String
+  /** 数値のみ。0 以上をアプリ層で検証する。 */
+  value    Int
+  sortOrder Int     @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  report EventReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@unique([reportId, name])
+  @@index([reportId])
 }
 
 model Customer {
@@ -1027,6 +1215,10 @@ model Customer {
   household                  String?
   channel                    AcquisitionChannel
   // 流入経路（顧客情報で手動選択）: "EVENT" | "OUTBOUND_CALL" | "DIRECT_VISIT"。
+  // 販売チャネル（案件の獲得経路）。既存の channel: AcquisitionChannel とは別概念で、
+  // 訪問販売 / 反響 / 催事 / 紹介 / その他 を表す。未設定は null。
+  // イベント経由で作成した顧客には EVENT を自動設定する。
+  salesChannel               SalesChannel?
   // 既存の channel（獲得チャネル、登録時確定・不変）とは別に、顧客情報セクションで
   // 編集できる手動値として保持する。
   inflowRoute                String?
@@ -1041,6 +1233,12 @@ model Customer {
   tossUpRelationshipId       String?
   closingUserId              String?
   closingRelationshipId      String?
+  // 担当者を「個人スタッフ」まで特定するための参照。既存 4 列は互換のため残し、
+  // 保存時に Salesperson から userId / relationshipId を導出して整合させる。
+  // 二次店担当は従来 Relationship（会社）までしか記録がないため、既存行はここが
+  // null のまま =「所属二次店は判るが個人スタッフは未登録」を意味する。
+  tossUpSalespersonId        String?
+  closingSalespersonId       String?
   status                     CustomerStatus     @default(NEW)
   note                       String?
   // 特記事項（契約タブ・自由記述フリーテキストメモ）。基本情報タブの note とは別概念・別列。
@@ -1114,6 +1312,8 @@ model Customer {
   deals        Deal[]
   contracts    Contract[]
   sourceEvent  Event?        @relation(fields: [sourceEventId], references: [id])
+  tossUpSalesperson  Salesperson? @relation("CustomerTossUpSalesperson", fields: [tossUpSalespersonId], references: [id])
+  closingSalesperson Salesperson? @relation("CustomerClosingSalesperson", fields: [closingSalespersonId], references: [id])
   activities   CustomerActivity[]
   tasks        CustomerTask[]
   files        CustomerFile[]
@@ -1126,6 +1326,9 @@ model Customer {
   @@index([wholesalerId, phone])
   @@index([wholesalerId, status, createdAt])
   @@index([ownerRelationshipId])
+  // スタッフ詳細の担当実績集計用。
+  @@index([tossUpSalespersonId])
+  @@index([closingSalespersonId])
 }
 
 // F-063 住環境・家族属性ヒアリング（docs/05 §17）。

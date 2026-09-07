@@ -10,11 +10,11 @@
 import { NextResponse } from "next/server";
 
 import { auth } from "@/auth";
+import { redactPii } from "@/lib/audit/audit-service";
 import { ForbiddenError, UnauthorizedError } from "@/lib/errors";
 import { assertCan } from "@/lib/permissions/can";
 import { getTenantContext } from "@/lib/tenancy/context";
 import { withTenant } from "@/lib/tenancy/with-tenant";
-import { redactPii } from "@/lib/audit/audit-service";
 
 import type { AuditAction } from "@solar/db";
 
@@ -41,9 +41,7 @@ const VALID_AUDIT_ACTIONS: AuditAction[] = [
   "RELATION_RESUME",
 ];
 
-function maskJsonField(
-  value: unknown,
-): Record<string, unknown> | null {
+function maskJsonField(value: unknown): Record<string, unknown> | null {
   if (value === null || value === undefined) return null;
   if (typeof value !== "object" || Array.isArray(value)) return null;
   return redactPii(value as Record<string, unknown>);
@@ -105,9 +103,7 @@ export async function GET(request: Request): Promise<NextResponse> {
   const { items, total } = await withTenant(ctx, async (tx) => {
     const where = {
       // Wholesaler-admin: scope to own tenantId. SaaS-admin: no tenant filter.
-      ...(ctx.isSaasAdmin
-        ? {}
-        : { tenantId: ctx.tenantId ?? ctx.wholesalerId ?? "" }),
+      ...(ctx.isSaasAdmin ? {} : { tenantId: ctx.tenantId ?? ctx.wholesalerId ?? "" }),
       ...(actorFilter ? { actorUserId: actorFilter } : {}),
       ...(actionFilter ? { action: actionFilter } : {}),
       ...(fromDate || toDate

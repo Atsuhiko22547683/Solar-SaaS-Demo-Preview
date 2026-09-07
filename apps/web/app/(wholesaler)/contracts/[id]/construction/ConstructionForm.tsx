@@ -9,13 +9,13 @@
 // Fee change automatically triggers gross-profit recalc on the server side
 // (handled inside updateConstructionAction — docs/02 §F-044 受入基準).
 
+import { VALID_CONSTRUCTION_TRANSITIONS } from "@solar/contracts";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { formatDateTime } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
-import type { ConstructionStatus } from "@solar/db";
-import { VALID_CONSTRUCTION_TRANSITIONS } from "@solar/contracts";
 
 import {
   createConstructionAction,
@@ -23,6 +23,8 @@ import {
   changeConstructionStatusAction,
   type ConstructionResult,
 } from "./actions";
+
+import type { ConstructionStatus } from "@solar/db";
 
 interface InstallerOption {
   id: string;
@@ -68,8 +70,7 @@ export function ConstructionForm({ contractId, constructions: initial, installer
       const idx = prev.findIndex((c) => c.id === result.id);
       const row: ConstructionRow = {
         ...result,
-        installerName:
-          installers.find((i) => i.id === result.installerId)?.name ?? null,
+        installerName: installers.find((i) => i.id === result.installerId)?.name ?? null,
       };
       if (idx >= 0) {
         const next = [...prev];
@@ -125,14 +126,14 @@ export function ConstructionForm({ contractId, constructions: initial, installer
       ))}
 
       {/* ---- Create new construction ---- */}
-      <div className="border-border rounded-md border p-4 space-y-4">
+      <div className="border-border space-y-4 rounded-md border p-4">
         <h2 className="font-medium">{t.new}</h2>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-1">
-            <label className="text-sm text-muted-foreground">{t.fields.installer}</label>
+            <label className="text-muted-foreground text-sm">{t.fields.installer}</label>
             <select
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
               value={createInstallerId}
               onChange={(e) => setCreateInstallerId(e.target.value)}
               disabled={isPending}
@@ -147,11 +148,11 @@ export function ConstructionForm({ contractId, constructions: initial, installer
           </div>
 
           <div className="space-y-1">
-            <label className="text-sm text-muted-foreground">{t.fields.fee}</label>
+            <label className="text-muted-foreground text-sm">{t.fields.fee}</label>
             <input
               type="text"
               inputMode="numeric"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
               value={createFee}
               onChange={(e) => setCreateFee(e.target.value)}
               disabled={isPending}
@@ -160,10 +161,10 @@ export function ConstructionForm({ contractId, constructions: initial, installer
           </div>
 
           <div className="space-y-1">
-            <label className="text-sm text-muted-foreground">{t.fields.surveyDate}</label>
+            <label className="text-muted-foreground text-sm">{t.fields.surveyDate}</label>
             <input
               type="date"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
               value={createSurveyDate}
               onChange={(e) => setCreateSurveyDate(e.target.value)}
               disabled={isPending}
@@ -171,10 +172,10 @@ export function ConstructionForm({ contractId, constructions: initial, installer
           </div>
 
           <div className="space-y-1">
-            <label className="text-sm text-muted-foreground">{t.fields.plannedDate}</label>
+            <label className="text-muted-foreground text-sm">{t.fields.plannedDate}</label>
             <input
               type="date"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
               value={createPlannedDate}
               onChange={(e) => setCreatePlannedDate(e.target.value)}
               disabled={isPending}
@@ -182,9 +183,9 @@ export function ConstructionForm({ contractId, constructions: initial, installer
           </div>
 
           <div className="space-y-1 sm:col-span-2">
-            <label className="text-sm text-muted-foreground">{t.fields.note}</label>
+            <label className="text-muted-foreground text-sm">{t.fields.note}</label>
             <textarea
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
               rows={3}
               value={createNote}
               onChange={(e) => setCreateNote(e.target.value)}
@@ -236,8 +237,7 @@ function ConstructionEditPanel({
   const [editPending, startEdit] = useTransition();
   const [statusPending, startStatus] = useTransition();
 
-  const allowedTransitions =
-    VALID_CONSTRUCTION_TRANSITIONS[construction.status] ?? [];
+  const allowedTransitions = VALID_CONSTRUCTION_TRANSITIONS[construction.status] ?? [];
 
   function handleUpdate() {
     startEdit(async () => {
@@ -275,22 +275,21 @@ function ConstructionEditPanel({
   const isDisabled = editPending || statusPending || isPending;
 
   return (
-    <div className="border-border rounded-md border p-4 space-y-4">
+    <div className="border-border space-y-4 rounded-md border p-4">
       <div className="flex items-center justify-between">
-        <span className="font-medium text-sm">
+        <span className="text-sm font-medium">
           {t.statuses[construction.status as keyof typeof t.statuses]}
         </span>
-        <span className="text-xs text-muted-foreground">
-          {t.fields.updatedAt}:{" "}
-          {new Date(construction.updatedAt).toLocaleString("ja-JP")}
+        <span className="text-muted-foreground text-xs">
+          {t.fields.updatedAt}: {formatDateTime(construction.updatedAt)}
         </span>
       </div>
 
       {/* Status transitions */}
       {allowedTransitions.length > 0 && (
         <div className="space-y-1">
-          <p className="text-sm text-muted-foreground">{t.sections.statusChange}</p>
-          <div className="flex gap-2 flex-wrap">
+          <p className="text-muted-foreground text-sm">{t.sections.statusChange}</p>
+          <div className="flex flex-wrap gap-2">
             {allowedTransitions.map((next) => (
               <Button
                 key={next}
@@ -311,9 +310,9 @@ function ConstructionEditPanel({
       {/* Edit fields */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="space-y-1">
-          <label className="text-sm text-muted-foreground">{t.fields.installer}</label>
+          <label className="text-muted-foreground text-sm">{t.fields.installer}</label>
           <select
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
             value={installerId}
             onChange={(e) => setInstallerId(e.target.value)}
             disabled={isDisabled}
@@ -328,11 +327,11 @@ function ConstructionEditPanel({
         </div>
 
         <div className="space-y-1">
-          <label className="text-sm text-muted-foreground">{t.fields.fee}</label>
+          <label className="text-muted-foreground text-sm">{t.fields.fee}</label>
           <input
             type="text"
             inputMode="numeric"
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
             value={fee}
             onChange={(e) => setFee(e.target.value)}
             disabled={isDisabled}
@@ -340,10 +339,10 @@ function ConstructionEditPanel({
         </div>
 
         <div className="space-y-1">
-          <label className="text-sm text-muted-foreground">{t.fields.surveyDate}</label>
+          <label className="text-muted-foreground text-sm">{t.fields.surveyDate}</label>
           <input
             type="date"
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
             value={surveyDate}
             onChange={(e) => setSurveyDate(e.target.value)}
             disabled={isDisabled}
@@ -351,10 +350,10 @@ function ConstructionEditPanel({
         </div>
 
         <div className="space-y-1">
-          <label className="text-sm text-muted-foreground">{t.fields.plannedDate}</label>
+          <label className="text-muted-foreground text-sm">{t.fields.plannedDate}</label>
           <input
             type="date"
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
             value={plannedDate}
             onChange={(e) => setPlannedDate(e.target.value)}
             disabled={isDisabled}
@@ -362,10 +361,10 @@ function ConstructionEditPanel({
         </div>
 
         <div className="space-y-1">
-          <label className="text-sm text-muted-foreground">{t.fields.completedDate}</label>
+          <label className="text-muted-foreground text-sm">{t.fields.completedDate}</label>
           <input
             type="date"
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
             value={completedDate}
             onChange={(e) => setCompletedDate(e.target.value)}
             disabled={isDisabled}
@@ -373,9 +372,9 @@ function ConstructionEditPanel({
         </div>
 
         <div className="space-y-1 sm:col-span-2">
-          <label className="text-sm text-muted-foreground">{t.fields.note}</label>
+          <label className="text-muted-foreground text-sm">{t.fields.note}</label>
           <textarea
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
             rows={3}
             value={note}
             onChange={(e) => setNote(e.target.value)}

@@ -11,8 +11,6 @@
 // the EventDealer membership check below will throw NotFoundError (404) before
 // reaching the create call.
 
-import { revalidatePath } from "next/cache";
-
 import {
   EventReportEndSchema,
   EventReportResultSchema,
@@ -21,6 +19,7 @@ import {
   type EventReportResultInput,
   type EventReportStartInput,
 } from "@solar/contracts";
+import { revalidatePath } from "next/cache";
 
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
 import { withServerActionContext } from "@/lib/tenancy/server-action";

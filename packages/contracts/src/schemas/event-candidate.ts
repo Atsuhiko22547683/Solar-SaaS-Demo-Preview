@@ -66,6 +66,22 @@ const targetMonth = z
   .string()
   .regex(/^\d{4}-(0[1-9]|1[0-2])$/, "対象年月は YYYY-MM 形式で入力してください");
 
+// 催事の基本情報の値域（Prisma enum と 1:1）。
+/** 催事種別（店舗チェーン）。 */
+export const VENUE_CHAIN_VALUES = ["CAINZ_W", "CAINZ_V", "SHIMACHU", "KOMERI", "OTHER"] as const;
+export const VenueChainSchema = z.enum(VENUE_CHAIN_VALUES);
+export type VenueChainValue = z.infer<typeof VenueChainSchema>;
+
+/** 催事ブース場所（施設内エリア）。OTHER のときだけ自由記述を併記する。 */
+export const BOOTH_AREA_VALUES = ["ENTRANCE", "REFORM_CORNER", "OTHER"] as const;
+export const BoothAreaSchema = z.enum(BOOTH_AREA_VALUES);
+export type BoothAreaValue = z.infer<typeof BoothAreaSchema>;
+
+/** 商材種別（住設設備 / 不動産）。太陽光部材の ProductCategory とは別概念。 */
+export const EVENT_PRODUCT_CATEGORY_VALUES = ["HOUSING_EQUIPMENT", "REAL_ESTATE"] as const;
+export const EventProductCategorySchema = z.enum(EVENT_PRODUCT_CATEGORY_VALUES);
+export type EventProductCategoryValue = z.infer<typeof EventProductCategorySchema>;
+
 const performanceRate = decimalString
   .refine((v) => {
     const n = Number(v);
@@ -89,6 +105,14 @@ const baseShape = {
   // 契約条件メモ — 契約形態に依らず任意で残す自由記述。internalNote とは別欄
   // （internalNote は廃止方向の旧フィールド、contractNote はフォーム新仕様）。
   contractNote: z.string().trim().max(2000).optional(),
+  // 催事の基本情報。いずれも未設定を許すので null 可。
+  // venueChain は店舗チェーン（storeName の自由記述とは別に種別を持つ）。
+  venueChain: VenueChainSchema.nullable().optional(),
+  // boothArea は「催事ブース場所（施設内エリア）」。地域を表す area とは別概念。
+  // OTHER のときだけ boothAreaNote に自由記述を添える。
+  boothArea: BoothAreaSchema.nullable().optional(),
+  boothAreaNote: z.string().trim().max(255).nullable().optional(),
+  productCategory: EventProductCategorySchema.nullable().optional(),
   // 作成時の初期ステータス指定。未指定なら Server Action 側で DRAFT。
   // OPEN/CLOSED は publish/close フローを経るべき中間状態なので、ここで来ても
   // Server Action 側で DRAFT にフォールバックする（Zod は値の検証のみ）。
@@ -116,6 +140,10 @@ export const EventCandidateUpdateSchema = z.object({
   performanceRate: baseShape.performanceRate,
   internalNote: baseShape.internalNote,
   contractNote: baseShape.contractNote,
+  venueChain: baseShape.venueChain,
+  boothArea: baseShape.boothArea,
+  boothAreaNote: baseShape.boothAreaNote,
+  productCategory: baseShape.productCategory,
 });
 export type EventCandidateUpdate = z.infer<typeof EventCandidateUpdateSchema>;
 

@@ -54,7 +54,7 @@ export default function MfaChallengePage() {
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">{labels.mfa.title}</h1>
+        <h1 className="text-ink text-xl font-bold">{labels.mfa.title}</h1>
         <p className="text-muted-foreground text-sm">{labels.mfa.subtitle}</p>
       </div>
 

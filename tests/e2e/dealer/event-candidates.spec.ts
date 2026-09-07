@@ -1,4 +1,5 @@
 import { expect, request, test, type APIRequestContext } from "@playwright/test";
+
 import { signIn } from "../fixtures/auth";
 
 // E2E spec for T-03-05 — dealer-facing event candidate listing
@@ -32,7 +33,7 @@ test("dealer_admin can open /visible-event-candidates and the wholesaler-interna
   // ページ見出しが表示されている。
   await expect(page.getByRole("heading", { name: "公開中のイベント候補" })).toBeVisible();
 
-  // 卸業者内部ラベル（固定費 / 成果報酬率 / 内部メモ）は二次店画面では
+  // 卸業者内部ラベル（固定費 / 成果報酬率 / 内部メモ）は取引先画面では
   // 一切露出してはならない。labels.eventCandidate.fields.* の wholesaler-only
   // 文言が DOM に含まれないことを確認する。
   const forbiddenLabels = [

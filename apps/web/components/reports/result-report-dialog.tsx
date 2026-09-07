@@ -21,8 +21,9 @@ import {
 } from "@/components/ui/dialog";
 import { labels } from "@/lib/i18n/labels";
 
-import { CustomerReportDialog } from "./customer-report-dialog";
 import { buildDemoCustomerReport } from "./customer-report-data";
+import { CustomerReportDialog } from "./customer-report-dialog";
+
 import type {
   AcquiredCustomer,
   EventBasicReport,
@@ -45,8 +46,8 @@ function formatEventDate(iso: string): string {
 function MetaItem({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="min-w-0">
-      <dt className="text-[11px] text-mute-light">{label}</dt>
-      <dd className="mt-0.5 text-sm font-medium text-ink">{value}</dd>
+      <dt className="text-mute-light text-[11px]">{label}</dt>
+      <dd className="text-ink mt-0.5 text-sm font-medium">{value}</dd>
     </div>
   );
 }
@@ -65,17 +66,17 @@ function StatTile({
 }) {
   const m = labels.resultReport.metrics;
   return (
-    <div className="rounded-lg border border-hairline-light bg-surface-soft/40 px-4 py-3">
-      <p className="text-xs font-medium text-mute-light">{label}</p>
-      <p className="mt-1 text-[28px] font-bold leading-none tabular-nums text-ink">
+    <div className="border-hairline-light bg-surface-soft/40 rounded-lg border px-4 py-3">
+      <p className="text-mute-light text-xs font-semibold">{label}</p>
+      <p className="text-ink mt-1 text-[28px] font-bold tabular-nums leading-none">
         {total.toLocaleString("ja-JP")}
       </p>
-      <p className="mt-2 text-[11px] tabular-nums text-mute-light">
+      <p className="text-mute-light mt-2 text-[11px] tabular-nums">
         {m.both}
-        <span className="ml-1 font-medium text-body-light">{both}</span>
-        <span className="mx-1.5 text-cloud-gray">/</span>
+        <span className="text-body-light ml-1 font-medium">{both}</span>
+        <span className="text-hairline-light mx-1.5">/</span>
         {m.single}
-        <span className="ml-1 font-medium text-body-light">{single}</span>
+        <span className="text-body-light ml-1 font-medium">{single}</span>
       </p>
     </div>
   );
@@ -117,7 +118,7 @@ export function ResultReportView({ data }: { data: ResultReportData }) {
       </div>
 
       {/* 基本情報 — コンパクトなメタ情報グリッド（数値の補足コンテキスト） */}
-      <dl className="grid grid-cols-2 gap-x-6 gap-y-3 rounded-md border border-hairline-light p-4 sm:grid-cols-3">
+      <dl className="border-hairline-light grid grid-cols-2 gap-x-6 gap-y-3 rounded-md border p-4 sm:grid-cols-3">
         <MetaItem label={r.fields.eventDate} value={formatEventDate(data.eventDate)} />
         <MetaItem label={r.fields.venuePlace} value={data.venuePlace} />
         <MetaItem label={r.fields.franchiseNo} value={data.franchiseNo} />
@@ -132,8 +133,8 @@ export function ResultReportView({ data }: { data: ResultReportData }) {
 
       {/* 所感 */}
       <div>
-        <h3 className="mb-1.5 text-xs font-medium text-mute-light">{r.sections.impression}</h3>
-        <p className="whitespace-pre-wrap rounded-md bg-surface-soft/50 p-3 text-sm leading-relaxed text-body-light">
+        <h3 className="text-mute-light mb-1.5 text-xs font-semibold">{r.sections.impression}</h3>
+        <p className="bg-surface-soft/50 text-body-light whitespace-pre-wrap rounded-md p-3 text-sm leading-relaxed">
           {data.impression && data.impression.length > 0 ? data.impression : r.emptyImpression}
         </p>
       </div>
@@ -144,15 +145,15 @@ export function ResultReportView({ data }: { data: ResultReportData }) {
 // 開始 / 終了報告の小カード（提出者・時刻・コメント）。
 function ReportNote({ label, report }: { label: string; report: EventBasicReport }) {
   return (
-    <div className="rounded-md border border-hairline-light p-3">
+    <div className="border-hairline-light rounded-md border p-3">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-semibold text-ink">{label}</p>
+        <p className="text-ink text-sm font-semibold">{label}</p>
         <Badge variant="success">{labels.resultReport.submitted}</Badge>
       </div>
-      <p className="mt-1 text-xs tabular-nums text-mute-light">
+      <p className="text-mute-light mt-1 text-xs tabular-nums">
         {report.submitter}・{report.submittedAt}
       </p>
-      <p className="mt-1.5 text-sm leading-relaxed text-body-light">{report.comment}</p>
+      <p className="text-body-light mt-1.5 text-sm leading-relaxed">{report.comment}</p>
     </div>
   );
 }
@@ -170,7 +171,7 @@ export function EventReportsView({ reports }: { reports: EventReportsBundle }) {
       </div>
       {/* 成果報告（日報） */}
       <div>
-        <h3 className="mb-2 text-sm font-semibold text-ink">{r.title}</h3>
+        <h3 className="text-ink mb-2 text-sm font-semibold">{r.title}</h3>
         <ResultReportView data={reports.result} />
       </div>
     </div>
@@ -181,7 +182,7 @@ export function EventReportsView({ reports }: { reports: EventReportsBundle }) {
 // 行クリックで「初訪アポフォーム」ポップアップを開く。
 export function AcquiredAppointmentsTable({ customers }: { customers: AcquiredCustomer[] }) {
   const a = labels.eventList.appointmentColumns;
-  const TH = "px-3 py-2 text-left text-xs font-medium text-mute-light";
+  const TH = "px-3 py-2 text-left text-xs font-semibold text-mute-light";
 
   const [selected, setSelected] = useState<AcquiredCustomer | null>(null);
   const reportData = useMemo(
@@ -197,28 +198,28 @@ export function AcquiredAppointmentsTable({ customers }: { customers: AcquiredCu
   );
 
   if (customers.length === 0) {
-    return <p className="text-sm text-mute-light">{labels.eventList.appointmentPlaceholder}</p>;
+    return <p className="text-mute-light text-sm">{labels.eventList.appointmentPlaceholder}</p>;
   }
   return (
     <>
-      <div className="overflow-x-auto rounded-md border border-hairline-light">
+      <div className="border-hairline-light overflow-x-auto rounded-md border">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-hairline-light bg-surface-soft/50">
+            <tr className="border-hairline-light bg-surface-soft/50 border-b">
               <th className={TH}>{a.customerName}</th>
               <th className={TH}>{a.dateTime}</th>
               <th className={TH}>{a.address}</th>
               <th className={TH}>{a.memo}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-hairline-light">
+          <tbody className="divide-hairline-light divide-y">
             {customers.map((c, i) => (
               <tr
                 key={i}
                 tabIndex={0}
                 role="button"
                 aria-label={`${c.name}${labels.customer.honorific}`}
-                className="cursor-pointer transition-colors hover:bg-mist-light active:bg-surface-soft focus:outline-none focus-visible:bg-mist-light focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40"
+                className="hover:bg-page active:bg-surface-soft focus-visible:bg-page focus-visible:ring-primary/40 cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset"
                 onClick={() => setSelected(c)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
@@ -227,15 +228,15 @@ export function AcquiredAppointmentsTable({ customers }: { customers: AcquiredCu
                   }
                 }}
               >
-                <td className="whitespace-nowrap px-3 py-2.5 font-medium text-ink">
+                <td className="text-ink whitespace-nowrap px-3 py-2.5 font-medium">
                   {c.name}
                   {labels.customer.honorific}
                 </td>
-                <td className="whitespace-nowrap px-3 py-2.5 tabular-nums text-body-light">
+                <td className="text-body-light whitespace-nowrap px-3 py-2.5 tabular-nums">
                   {c.dateTime}
                 </td>
-                <td className="px-3 py-2.5 text-body-light">{c.address}</td>
-                <td className="px-3 py-2.5 text-body-light">{c.memo}</td>
+                <td className="text-body-light px-3 py-2.5">{c.address}</td>
+                <td className="text-body-light px-3 py-2.5">{c.memo}</td>
               </tr>
             ))}
           </tbody>
@@ -290,7 +291,7 @@ export function ResultReportTrigger({ data, children, className }: ResultReportT
           type="button"
           className={
             className ??
-            "rounded-sm font-medium text-primary underline-offset-2 outline-none transition-colors hover:underline focus-visible:ring-2 focus-visible:ring-primary/40"
+            "text-primary focus-visible:ring-primary/40 rounded-sm font-medium underline-offset-2 outline-none transition-colors hover:underline focus-visible:ring-2"
           }
         >
           {children ?? r.view}

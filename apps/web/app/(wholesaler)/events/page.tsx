@@ -5,11 +5,11 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { labels } from "@/lib/i18n/labels";
 
-import { listActiveAreas, listActiveStores, listActiveVenueProviders } from "../event-detail/data";
 import { EventView } from "./event-view";
 import { MonthlyView } from "./monthly-view";
 import { NewEventDialog } from "./new-event-dialog";
 import { listUnifiedEvents, listUnifiedEventsMonthly } from "./unified-data";
+import { listActiveAreas, listActiveStores, listActiveVenueProviders } from "../event-detail/data";
 
 import type { HoldingStatus, AssignStatus } from "./unified-data";
 
@@ -52,8 +52,8 @@ export default async function UnifiedEventsPage({ searchParams }: PageProps) {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-ink">{t.title}</h1>
-            <p className="text-body-light text-sm mt-1">{t.subtitleMonthly}</p>
+            <h1 className="text-ink text-xl font-bold">{t.title}</h1>
+            <p className="text-body-light mt-1 text-sm">{t.subtitleMonthly}</p>
           </div>
           <div className="flex items-center gap-2">
             <Button asChild variant="outline">
@@ -77,7 +77,8 @@ export default async function UnifiedEventsPage({ searchParams }: PageProps) {
   }
 
   // Weekly view (default)
-  const weekParam = params.week && /^\d{4}-\d{2}-\d{2}$/.test(params.week) ? params.week : undefined;
+  const weekParam =
+    params.week && /^\d{4}-\d{2}-\d{2}$/.test(params.week) ? params.week : undefined;
   const [result, venueProviders, areas, stores] = await Promise.all([
     listUnifiedEvents(weekParam),
     listActiveVenueProviders(),
@@ -89,8 +90,8 @@ export default async function UnifiedEventsPage({ searchParams }: PageProps) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-ink">{t.title}</h1>
-          <p className="text-body-light text-sm mt-1">{t.subtitleWeekly}</p>
+          <h1 className="text-ink text-xl font-bold">{t.title}</h1>
+          <p className="text-body-light mt-1 text-sm">{t.subtitleWeekly}</p>
         </div>
         <div className="flex items-center gap-2">
           <Button asChild variant="outline">

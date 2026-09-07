@@ -3,18 +3,15 @@
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 
+import { formatEventDateTime } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
 import type { HistoryCategory, HistoryEntry } from "./data";
 
-const WEEKDAYS = labels.customer.weekdays;
 const INITIAL_VISIBLE = 5;
 
 function formatDate(iso: string): string {
-  const d = new Date(iso);
-  const date = `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`;
-  const time = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-  return `${date} (${WEEKDAYS[d.getDay()]}) ${time}`;
+  return formatEventDateTime(iso);
 }
 
 function chipClass(category: HistoryCategory): string {
@@ -68,7 +65,7 @@ export function CustomerHistory({ entries }: CustomerHistoryProps) {
   const h = labels.customer.detail.history;
 
   if (entries.length === 0) {
-    return <p className="text-sm text-mute-light">{h.empty}</p>;
+    return <p className="text-mute-light text-sm">{h.empty}</p>;
   }
 
   const visible = expanded ? entries : entries.slice(0, INITIAL_VISIBLE);
@@ -78,7 +75,7 @@ export function CustomerHistory({ entries }: CustomerHistoryProps) {
     <div>
       <ol className="relative space-y-6">
         {/* thread spine */}
-        <span className="absolute left-[5px] top-2 bottom-2 w-px bg-hairline-light" aria-hidden />
+        <span className="bg-hairline-light absolute bottom-2 left-[5px] top-2 w-px" aria-hidden />
         {visible.map((e) => (
           <li key={e.id} className="relative pl-7">
             <span
@@ -90,7 +87,7 @@ export function CustomerHistory({ entries }: CustomerHistoryProps) {
             />
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
               <div className="flex items-center gap-2">
-                <span className="text-xs tabular-nums text-mute-light">{formatDate(e.date)}</span>
+                <span className="text-mute-light text-xs tabular-nums">{formatDate(e.date)}</span>
                 <span
                   className={[
                     "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
@@ -100,7 +97,7 @@ export function CustomerHistory({ entries }: CustomerHistoryProps) {
                   {h.kinds[e.category]}
                 </span>
               </div>
-              <span className="text-xs text-mute-light">
+              <span className="text-mute-light text-xs">
                 {h.assignee}：{e.assignee}
               </span>
             </div>
@@ -110,7 +107,7 @@ export function CustomerHistory({ entries }: CustomerHistoryProps) {
               </p>
             ) : null}
             {e.body ? (
-              <p className="mt-1 whitespace-pre-wrap text-sm text-body-light">{e.body}</p>
+              <p className="text-body-light mt-1 whitespace-pre-wrap text-sm">{e.body}</p>
             ) : null}
           </li>
         ))}
@@ -121,7 +118,7 @@ export function CustomerHistory({ entries }: CustomerHistoryProps) {
           <button
             type="button"
             onClick={() => setExpanded(true)}
-            className="inline-flex items-center gap-1 text-sm text-link-light underline-offset-4 hover:underline"
+            className="text-link-light inline-flex items-center gap-1 text-sm underline-offset-4 hover:underline"
           >
             {h.showAll}
             <ChevronDown size={14} />

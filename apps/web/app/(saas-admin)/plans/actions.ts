@@ -17,9 +17,9 @@
 import { UpdatePlanSchema, type UpdatePlanInput } from "@solar/contracts";
 import { revalidatePath } from "next/cache";
 
+import { recordAudit } from "@/lib/audit/audit-service";
 import { NotFoundError } from "@/lib/errors";
 import { withServerActionContext } from "@/lib/tenancy/server-action";
-import { recordAudit } from "@/lib/audit/audit-service";
 
 const PLANS_LIST_PATH = "/plans";
 const BILLING_PATH = "/billing";

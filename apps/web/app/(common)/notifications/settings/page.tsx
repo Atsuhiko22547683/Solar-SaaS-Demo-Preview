@@ -17,9 +17,7 @@ export default async function NotificationSettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">
-          {labels.notificationSettings.pageTitle}
-        </h1>
+        <h1 className="text-ink text-xl font-bold">{labels.notificationSettings.pageTitle}</h1>
         <p className="text-muted-foreground mt-1 text-sm">
           {labels.notificationSettings.pageSubtitle}
         </p>

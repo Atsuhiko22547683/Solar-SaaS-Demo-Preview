@@ -8,21 +8,25 @@
 //   5. Cancelled contract → amount=0, status=FINALIZED.
 //   6. Rate unset (incentiveRateSnapshot=null) → amount=0, status=FINALIZED, warning logged.
 
+import * as solarContracts from "@solar/contracts/logger";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { finalizeForContract } from "../incentive.js";
+
+import type * as SolarContractsLogger from "@solar/contracts/logger";
+import type { TxClient } from "@solar/db";
 
 // Mock @solar/contracts/logger so we can spy on getLogger's warn calls.
 // (logger was split out of the main contracts index to keep node:async_hooks
 // out of client bundles.)
+// vi.mock は vitest が import より前へ巻き上げるので、この位置で問題ない。
 vi.mock("@solar/contracts/logger", async (importOriginal) => {
-  const real = await importOriginal<typeof import("@solar/contracts/logger")>();
+  const real = await importOriginal<typeof SolarContractsLogger>();
   return {
     ...real,
     getLogger: vi.fn(() => ({ warn: vi.fn(), info: vi.fn(), error: vi.fn(), debug: vi.fn() })),
   };
 });
-
-import * as solarContracts from "@solar/contracts/logger";
-import { finalizeForContract } from "../incentive.js";
 
 // ---------------------------------------------------------------------------
 // tx mock helpers
@@ -36,17 +40,19 @@ const tx = {
   contract: { findUnique: (...args: unknown[]) => contractFindUniqueMock(...args) },
   grossProfit: { findUnique: (...args: unknown[]) => grossProfitFindUniqueMock(...args) },
   incentive: { upsert: (...args: unknown[]) => incentiveUpsertMock(...args) },
-} as unknown as import("@solar/db").TxClient;
+} as unknown as TxClient;
 
 // Minimal upsert result that satisfies the return type mapping.
-function makeUpsertResult(overrides?: Partial<{
-  id: string;
-  contractId: string;
-  relationshipId: string;
-  amount: { toString(): string };
-  status: string;
-  settledMonth: string;
-}>) {
+function makeUpsertResult(
+  overrides?: Partial<{
+    id: string;
+    contractId: string;
+    relationshipId: string;
+    amount: { toString(): string };
+    status: string;
+    settledMonth: string;
+  }>,
+) {
   return {
     id: "inc_1",
     contractId: "contract_1",
@@ -62,14 +68,16 @@ function makeUpsertResult(overrides?: Partial<{
 // Contract fixture builder
 // ---------------------------------------------------------------------------
 
-function makeContract(overrides?: Partial<{
-  isSelfHosted: boolean;
-  status: string;
-  ownerRelationshipId: string | null;
-  incentiveRateSnapshot: number | null;
-  eventModeAtContract: string | null;
-  contractDate: Date;
-}>) {
+function makeContract(
+  overrides?: Partial<{
+    isSelfHosted: boolean;
+    status: string;
+    ownerRelationshipId: string | null;
+    incentiveRateSnapshot: number | null;
+    eventModeAtContract: string | null;
+    contractDate: Date;
+  }>,
+) {
   return {
     id: "contract_1",
     isSelfHosted: false,
@@ -115,12 +123,12 @@ describe("finalizeForContract", () => {
   // ---------------------------------------------------------------------------
 
   it("2. dealer event → amount = rate × targetProfit, status = FINALIZED", async () => {
-    contractFindUniqueMock.mockResolvedValue(
-      makeContract({ eventModeAtContract: "DEALER" }),
-    );
+    contractFindUniqueMock.mockResolvedValue(makeContract({ eventModeAtContract: "DEALER" }));
     // incentiveTargetProfit = 50_000 → amount = 50000 × 10% = 5000
     grossProfitFindUniqueMock.mockResolvedValue({ incentiveTargetProfit: 50_000 });
-    incentiveUpsertMock.mockResolvedValue(makeUpsertResult({ amount: "5000.00", status: "FINALIZED" }));
+    incentiveUpsertMock.mockResolvedValue(
+      makeUpsertResult({ amount: "5000.00", status: "FINALIZED" }),
+    );
 
     const result = await finalizeForContract(tx, "contract_1", "actor_1");
 
@@ -139,11 +147,11 @@ describe("finalizeForContract", () => {
   // ---------------------------------------------------------------------------
 
   it("3. joint event → amount calculated, status = DRAFT", async () => {
-    contractFindUniqueMock.mockResolvedValue(
-      makeContract({ eventModeAtContract: "JOINT" }),
-    );
+    contractFindUniqueMock.mockResolvedValue(makeContract({ eventModeAtContract: "JOINT" }));
     grossProfitFindUniqueMock.mockResolvedValue({ incentiveTargetProfit: 100_000 });
-    incentiveUpsertMock.mockResolvedValue(makeUpsertResult({ amount: "10000.00", status: "DRAFT" }));
+    incentiveUpsertMock.mockResolvedValue(
+      makeUpsertResult({ amount: "10000.00", status: "DRAFT" }),
+    );
 
     await finalizeForContract(tx, "contract_1", "actor_1");
 
@@ -162,7 +170,9 @@ describe("finalizeForContract", () => {
     contractFindUniqueMock.mockResolvedValue(makeContract());
     // incentiveTargetProfit = 0 → shouldSkipIncentive = true
     grossProfitFindUniqueMock.mockResolvedValue({ incentiveTargetProfit: 0 });
-    incentiveUpsertMock.mockResolvedValue(makeUpsertResult({ amount: "0.00", status: "FINALIZED" }));
+    incentiveUpsertMock.mockResolvedValue(
+      makeUpsertResult({ amount: "0.00", status: "FINALIZED" }),
+    );
 
     await finalizeForContract(tx, "contract_1", "actor_1");
 
@@ -180,7 +190,9 @@ describe("finalizeForContract", () => {
   it("5. cancelled contract → amount=0, status=FINALIZED", async () => {
     contractFindUniqueMock.mockResolvedValue(makeContract({ status: "CANCELLED" }));
     grossProfitFindUniqueMock.mockResolvedValue({ incentiveTargetProfit: 80_000 });
-    incentiveUpsertMock.mockResolvedValue(makeUpsertResult({ amount: "0.00", status: "FINALIZED" }));
+    incentiveUpsertMock.mockResolvedValue(
+      makeUpsertResult({ amount: "0.00", status: "FINALIZED" }),
+    );
 
     await finalizeForContract(tx, "contract_1", "actor_1");
 
@@ -208,7 +220,9 @@ describe("finalizeForContract", () => {
       makeContract({ incentiveRateSnapshot: null, eventModeAtContract: "DEALER" }),
     );
     grossProfitFindUniqueMock.mockResolvedValue({ incentiveTargetProfit: 50_000 });
-    incentiveUpsertMock.mockResolvedValue(makeUpsertResult({ amount: "0.00", status: "FINALIZED" }));
+    incentiveUpsertMock.mockResolvedValue(
+      makeUpsertResult({ amount: "0.00", status: "FINALIZED" }),
+    );
 
     await finalizeForContract(tx, "contract_1", "actor_1");
 

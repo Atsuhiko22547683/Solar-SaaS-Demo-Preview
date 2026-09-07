@@ -117,18 +117,22 @@ test.describe("顧客詳細『契約』タブ 4 改修（架電削除 / 金額�
 
     // 契約メタはカード内インライン編集（#ct-date / #ct-serial）が描画される。
     await expect(panel.locator("#ct-date").first(), "契約日のインライン編集は残存").toBeVisible();
-    await expect(panel.locator("#ct-serial").first(), "シリアルのインライン編集は残存").toBeVisible();
+    await expect(
+      panel.locator("#ct-serial").first(),
+      "シリアルのインライン編集は残存",
+    ).toBeVisible();
 
     // (改修#1) 架電関連・契約金額手動入力は一切無い。
-    await expect(panel.locator("#ct-call"), "コールステータス入力が削除されていること").toHaveCount(0);
+    await expect(panel.locator("#ct-call"), "コールステータス入力が削除されていること").toHaveCount(
+      0,
+    );
     await expect(
       panel.locator("#ct-loancall"),
       "ローン審査架電日時入力が削除されていること",
     ).toHaveCount(0);
-    await expect(
-      panel.locator("#ct-amount"),
-      "契約金額の手動入力が削除されていること",
-    ).toHaveCount(0);
+    await expect(panel.locator("#ct-amount"), "契約金額の手動入力が削除されていること").toHaveCount(
+      0,
+    );
 
     // ローン情報入力（会社/審査ステータス/頭金/団信/備考）は契約タブのインライン編集から
     // 完全に消滅している（独立 LoanReview のローン審査タブへ移行）。
@@ -159,7 +163,9 @@ test.describe("顧客詳細『契約』タブ 4 改修（架電削除 / 金額�
     // per-contract に「契約金額（商材ライン合計）」（自動・read-only）が描画される。
     await expect(panel.getByText("契約金額（商材ライン合計）").first()).toBeVisible();
     // 契約・金額サマリ見出し（全契約合計）。
-    await expect(panel.getByRole("heading", { name: "契約・金額", exact: true }).first()).toBeVisible();
+    await expect(
+      panel.getByRole("heading", { name: "契約・金額", exact: true }).first(),
+    ).toBeVisible();
 
     // 編集前の契約金額（= PV + BT + CONSTRUCTION 等の合計）と現在の PV 金額を読む。
     // PV 以外の商材金額（BT/施工…）は本テストで変えないので、合計 = PV + others が成り立つ。
@@ -178,7 +184,9 @@ test.describe("顧客詳細『契約』タブ 4 改修（架電削除 / 金額�
     await expect(pvInput).toHaveValue(yen(newPv), { timeout: 30_000 });
 
     // 契約金額（商材ライン合計）は PV 変更後に newPv + others へ再計算される。
-    await expect.poll(async () => contractAmountTotal(panel), { timeout: 30_000 }).toBe(newPv + others);
+    await expect
+      .poll(async () => contractAmountTotal(panel), { timeout: 30_000 })
+      .toBe(newPv + others);
 
     // さらに PV を +111,000 した値へ変えると合計も同額だけ追従する（再計算が毎回走る）。
     const newPv2 = newPv + 111_000;
@@ -186,7 +194,9 @@ test.describe("顧客詳細『契約』タブ 4 改修（架電削除 / 金額�
     await pvCard2.locator("#eq-amount-PV").fill(String(newPv2));
     await pvCard2.getByRole("button", { name: "保存" }).click();
     await expect(pvInput).toHaveValue(yen(newPv2), { timeout: 30_000 });
-    await expect.poll(async () => contractAmountTotal(panel), { timeout: 30_000 }).toBe(newPv2 + others);
+    await expect
+      .poll(async () => contractAmountTotal(panel), { timeout: 30_000 })
+      .toBe(newPv2 + others);
   });
 
   test("改修#3: 付帯商材(ACCESSORY)を2件追加→複数行表示。amount 入力で契約金額が増え、1件削除で再計算", async ({
@@ -224,9 +234,9 @@ test.describe("顧客詳細『契約』タブ 4 改修（架電削除 / 金額�
     await lastAccCard.locator('input[id^="acc-amount-"]').fill(String(accAmount));
     await lastAccCard.getByRole("button", { name: "保存" }).click();
 
-    await expect.poll(async () => contractAmountTotal(panel), { timeout: 30_000 }).toBe(
-      beforeTotal + accAmount,
-    );
+    await expect
+      .poll(async () => contractAmountTotal(panel), { timeout: 30_000 })
+      .toBe(beforeTotal + accAmount);
 
     // 1 件削除 → 行が 1 減り、契約金額から accAmount が引かれる（再計算）。
     page.once("dialog", (d) => d.accept());
@@ -234,7 +244,9 @@ test.describe("顧客詳細『契約』タブ 4 改修（架電削除 / 金額�
     await expect(panel.locator('input[id^="acc-amount-"]')).toHaveCount(before + 1, {
       timeout: 30_000,
     });
-    await expect.poll(async () => contractAmountTotal(panel), { timeout: 30_000 }).toBe(beforeTotal);
+    await expect
+      .poll(async () => contractAmountTotal(panel), { timeout: 30_000 })
+      .toBe(beforeTotal);
   });
 
   test("改修#4: 「契約を追加」で契約#2 サブタブが出現し、サブタブを切替できる。認定・契約ファイルは共有", async ({
@@ -267,7 +279,7 @@ test.describe("顧客詳細『契約』タブ 4 改修（架電削除 / 金額�
     await expect(panel.getByRole("heading", { name: "契約関連ファイル" })).toBeVisible();
   });
 
-  test("回帰: 二次店物理除外/損益タブ非表示が壊れていない（卸業者には損益タブ・契約金額が見える）", async ({
+  test("回帰: 取引先物理除外/損益タブ非表示が壊れていない（卸業者には損益タブ・契約金額が見える）", async ({
     page,
   }) => {
     await signInAsDemo(page);
@@ -285,7 +297,7 @@ test.describe("顧客詳細『契約』タブ 4 改修（架電削除 / 金額�
     const profitPanel = page.getByRole("tabpanel").first();
     await expect(profitPanel).toBeVisible();
     await expect(profitPanel.getByRole("heading", { name: "損益計算" })).toBeVisible();
-    // 契約があれば原価系列（施工代）ヘッダが描画される（二次店 DTO では物理除外。
+    // 契約があれば原価系列（施工代）ヘッダが描画される（取引先 DTO では物理除外。
     // 卸業者ではキー存在）。0 契約のときは空状態のためヘッダ非描画。
     const constructionFeeHeader = profitPanel.getByText("施工代").first();
     if ((await constructionFeeHeader.count()) > 0) {

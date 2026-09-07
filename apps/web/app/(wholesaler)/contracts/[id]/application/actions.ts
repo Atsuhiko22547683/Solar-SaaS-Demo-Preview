@@ -9,8 +9,6 @@
 //
 // wholesalerId never comes from input — always from ctx (RLS enforced).
 
-import { revalidatePath } from "next/cache";
-
 import {
   ApplicationChangeStatusSchema,
   ApplicationCreateSchema,
@@ -20,10 +18,12 @@ import {
   type ApplicationCreateInput,
   type ApplicationUpdateInput,
 } from "@solar/contracts";
-import type { ApplicationStatus } from "@solar/db";
+import { revalidatePath } from "next/cache";
 
 import { InvalidStateTransitionError, NotFoundError } from "@/lib/errors";
 import { withServerActionContext } from "@/lib/tenancy/server-action";
+
+import type { ApplicationStatus } from "@solar/db";
 
 // ---------------------------------------------------------------------------
 // Result shape
@@ -52,38 +52,35 @@ export interface ApplicationResult {
 export const createApplicationAction = withServerActionContext<
   ApplicationCreateInput,
   ApplicationResult
->(
-  { action: "application.manage" },
-  async ({ tx, input }) => {
-    const parsed = ApplicationCreateSchema.parse(input);
+>({ action: "application.manage" }, async ({ tx, input }) => {
+  const parsed = ApplicationCreateSchema.parse(input);
 
-    const contract = await tx.contract.findUnique({
-      where: { id: parsed.contractId },
-      select: { id: true, status: true },
-    });
-    if (!contract) throw new NotFoundError("契約が見つかりません");
-    if (contract.status === "CANCELLED") {
-      throw new InvalidStateTransitionError("キャンセルされた契約には申請を登録できません");
-    }
+  const contract = await tx.contract.findUnique({
+    where: { id: parsed.contractId },
+    select: { id: true, status: true },
+  });
+  if (!contract) throw new NotFoundError("契約が見つかりません");
+  if (contract.status === "CANCELLED") {
+    throw new InvalidStateTransitionError("キャンセルされた契約には申請を登録できません");
+  }
 
-    const row = await tx.application.create({
-      data: {
-        contractId: parsed.contractId,
-        type: parsed.type,
-        agency: parsed.agency ?? null,
-        plannedDate: parsed.plannedDate ? new Date(parsed.plannedDate) : null,
-        expectedAmount: parsed.estimatedAmount ?? null,
-        note: parsed.note ?? null,
-      },
-      select: SELECT_FIELDS,
-    });
+  const row = await tx.application.create({
+    data: {
+      contractId: parsed.contractId,
+      type: parsed.type,
+      agency: parsed.agency ?? null,
+      plannedDate: parsed.plannedDate ? new Date(parsed.plannedDate) : null,
+      expectedAmount: parsed.estimatedAmount ?? null,
+      note: parsed.note ?? null,
+    },
+    select: SELECT_FIELDS,
+  });
 
-    revalidatePath(`/contracts/${parsed.contractId}`);
-    revalidatePath(`/contracts/${parsed.contractId}/application`);
+  revalidatePath(`/contracts/${parsed.contractId}`);
+  revalidatePath(`/contracts/${parsed.contractId}/application`);
 
-    return toApplicationResult(row);
-  },
-);
+  return toApplicationResult(row);
+});
 
 // ---------------------------------------------------------------------------
 // updateApplicationAction
@@ -92,44 +89,41 @@ export const createApplicationAction = withServerActionContext<
 export const updateApplicationAction = withServerActionContext<
   ApplicationUpdateInput,
   ApplicationResult
->(
-  { action: "application.manage" },
-  async ({ tx, input }) => {
-    const parsed = ApplicationUpdateSchema.parse(input);
+>({ action: "application.manage" }, async ({ tx, input }) => {
+  const parsed = ApplicationUpdateSchema.parse(input);
 
-    const existing = await tx.application.findUnique({
-      where: { id: parsed.id },
-      select: { id: true, contractId: true },
-    });
-    if (!existing) throw new NotFoundError("申請情報が見つかりません");
+  const existing = await tx.application.findUnique({
+    where: { id: parsed.id },
+    select: { id: true, contractId: true },
+  });
+  if (!existing) throw new NotFoundError("申請情報が見つかりません");
 
-    const updated = await tx.application.update({
-      where: { id: parsed.id },
-      data: {
-        ...(parsed.type !== undefined ? { type: parsed.type } : {}),
-        ...(parsed.agency !== undefined ? { agency: parsed.agency } : {}),
-        ...(parsed.plannedDate !== undefined
-          ? { plannedDate: parsed.plannedDate ? new Date(parsed.plannedDate) : null }
-          : {}),
-        ...(parsed.submittedDate !== undefined
-          ? { submittedDate: parsed.submittedDate ? new Date(parsed.submittedDate) : null }
-          : {}),
-        ...(parsed.approvedDate !== undefined
-          ? { approvedDate: parsed.approvedDate ? new Date(parsed.approvedDate) : null }
-          : {}),
-        ...(parsed.estimatedAmount !== undefined ? { expectedAmount: parsed.estimatedAmount } : {}),
-        ...(parsed.confirmedAmount !== undefined ? { grantedAmount: parsed.confirmedAmount } : {}),
-        ...(parsed.note !== undefined ? { note: parsed.note } : {}),
-      },
-      select: SELECT_FIELDS,
-    });
+  const updated = await tx.application.update({
+    where: { id: parsed.id },
+    data: {
+      ...(parsed.type !== undefined ? { type: parsed.type } : {}),
+      ...(parsed.agency !== undefined ? { agency: parsed.agency } : {}),
+      ...(parsed.plannedDate !== undefined
+        ? { plannedDate: parsed.plannedDate ? new Date(parsed.plannedDate) : null }
+        : {}),
+      ...(parsed.submittedDate !== undefined
+        ? { submittedDate: parsed.submittedDate ? new Date(parsed.submittedDate) : null }
+        : {}),
+      ...(parsed.approvedDate !== undefined
+        ? { approvedDate: parsed.approvedDate ? new Date(parsed.approvedDate) : null }
+        : {}),
+      ...(parsed.estimatedAmount !== undefined ? { expectedAmount: parsed.estimatedAmount } : {}),
+      ...(parsed.confirmedAmount !== undefined ? { grantedAmount: parsed.confirmedAmount } : {}),
+      ...(parsed.note !== undefined ? { note: parsed.note } : {}),
+    },
+    select: SELECT_FIELDS,
+  });
 
-    revalidatePath(`/contracts/${existing.contractId}`);
-    revalidatePath(`/contracts/${existing.contractId}/application`);
+  revalidatePath(`/contracts/${existing.contractId}`);
+  revalidatePath(`/contracts/${existing.contractId}/application`);
 
-    return toApplicationResult(updated);
-  },
-);
+  return toApplicationResult(updated);
+});
 
 // ---------------------------------------------------------------------------
 // changeApplicationStatusAction
@@ -138,49 +132,42 @@ export const updateApplicationAction = withServerActionContext<
 export const changeApplicationStatusAction = withServerActionContext<
   ApplicationChangeStatusInput,
   ApplicationResult
->(
-  { action: "application.manage" },
-  async ({ tx, input }) => {
-    const parsed = ApplicationChangeStatusSchema.parse(input);
+>({ action: "application.manage" }, async ({ tx, input }) => {
+  const parsed = ApplicationChangeStatusSchema.parse(input);
 
-    const existing = await tx.application.findUnique({
-      where: { id: parsed.id },
-      select: { id: true, contractId: true, status: true },
-    });
-    if (!existing) throw new NotFoundError("申請情報が見つかりません");
+  const existing = await tx.application.findUnique({
+    where: { id: parsed.id },
+    select: { id: true, contractId: true, status: true },
+  });
+  if (!existing) throw new NotFoundError("申請情報が見つかりません");
 
-    const allowed = VALID_APPLICATION_TRANSITIONS[existing.status] ?? [];
-    if (!allowed.includes(parsed.status)) {
-      throw new InvalidStateTransitionError(
-        `${existing.status} から ${parsed.status} への遷移はできません`,
-        { from: existing.status, to: parsed.status },
-      );
-    }
+  const allowed = VALID_APPLICATION_TRANSITIONS[existing.status] ?? [];
+  if (!allowed.includes(parsed.status)) {
+    throw new InvalidStateTransitionError(
+      `${existing.status} から ${parsed.status} への遷移はできません`,
+      { from: existing.status, to: parsed.status },
+    );
+  }
 
-    const approvedDate =
-      parsed.status === "APPROVED" ? new Date() : undefined;
-    const submittedDate =
-      parsed.status === "SUBMITTED" ? new Date() : undefined;
+  const approvedDate = parsed.status === "APPROVED" ? new Date() : undefined;
+  const submittedDate = parsed.status === "SUBMITTED" ? new Date() : undefined;
 
-    const updated = await tx.application.update({
-      where: { id: parsed.id },
-      data: {
-        status: parsed.status,
-        ...(approvedDate !== undefined ? { approvedDate } : {}),
-        ...(submittedDate !== undefined ? { submittedDate } : {}),
-        ...(parsed.confirmedAmount !== undefined
-          ? { grantedAmount: parsed.confirmedAmount }
-          : {}),
-      },
-      select: SELECT_FIELDS,
-    });
+  const updated = await tx.application.update({
+    where: { id: parsed.id },
+    data: {
+      status: parsed.status,
+      ...(approvedDate !== undefined ? { approvedDate } : {}),
+      ...(submittedDate !== undefined ? { submittedDate } : {}),
+      ...(parsed.confirmedAmount !== undefined ? { grantedAmount: parsed.confirmedAmount } : {}),
+    },
+    select: SELECT_FIELDS,
+  });
 
-    revalidatePath(`/contracts/${existing.contractId}`);
-    revalidatePath(`/contracts/${existing.contractId}/application`);
+  revalidatePath(`/contracts/${existing.contractId}`);
+  revalidatePath(`/contracts/${existing.contractId}/application`);
 
-    return toApplicationResult(updated);
-  },
-);
+  return toApplicationResult(updated);
+});
 
 // ---------------------------------------------------------------------------
 // helpers

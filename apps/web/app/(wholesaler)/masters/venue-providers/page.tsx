@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { formatDateTime } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
 import { listVenueProviders } from "./data";
@@ -35,15 +36,15 @@ export default async function VenueProvidersListPage({ searchParams }: PageProps
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-medium text-carbon-dark">{t.title}</h1>
-          <p className="text-pewter text-sm mt-1">{t.listTitle}</p>
+          <h1 className="text-ink text-xl font-bold">{t.title}</h1>
+          <p className="text-mute-light mt-1 text-sm">{t.listTitle}</p>
         </div>
         <Button asChild>
           <Link href="/masters/venue-providers/new">{t.new}</Link>
         </Button>
       </div>
 
-      <form method="get" className="flex max-w-2xl items-center gap-3 mb-4">
+      <form method="get" className="mb-4 flex max-w-2xl items-center gap-3">
         <Input
           type="search"
           name="name"
@@ -66,15 +67,15 @@ export default async function VenueProvidersListPage({ searchParams }: PageProps
       </form>
 
       {rows.length === 0 ? (
-        <div className="border border-cloud-gray rounded-lg p-12 text-center">
-          <p className="text-carbon-dark font-medium">{t.empty}</p>
-          <p className="text-pewter mt-2 text-sm">{t.emptyCta}</p>
+        <div className="border-hairline-light rounded-lg border p-12 text-center">
+          <p className="text-ink font-medium">{t.empty}</p>
+          <p className="text-mute-light mt-2 text-sm">{t.emptyCta}</p>
           <Button asChild className="mt-4">
             <Link href="/masters/venue-providers/new">{t.new}</Link>
           </Button>
         </div>
       ) : (
-        <div className="border border-cloud-gray overflow-x-auto rounded-lg">
+        <div className="border-hairline-light overflow-x-auto rounded-lg border">
           <table>
             <thead>
               <tr>
@@ -94,7 +95,7 @@ export default async function VenueProvidersListPage({ searchParams }: PageProps
                   <td>
                     <Link
                       href={`/masters/venue-providers/${r.id}`}
-                      className="text-electric-blue underline-offset-4 hover:underline"
+                      className="text-primary underline-offset-4 hover:underline"
                     >
                       {r.name}
                     </Link>
@@ -104,9 +105,7 @@ export default async function VenueProvidersListPage({ searchParams }: PageProps
                   <td>{r.contractType ? t.contractTypes[r.contractType] : "—"}</td>
                   <td className="tabular-nums">{r.fixedFee ?? "—"}</td>
                   <td className="tabular-nums">{r.performanceRate ?? "—"}</td>
-                  <td className="text-pewter text-xs">
-                    {new Date(r.updatedAt).toLocaleString("ja-JP")}
-                  </td>
+                  <td className="text-mute-light text-xs">{formatDateTime(r.updatedAt)}</td>
                   <td>{r.isActive ? c.active : c.inactive}</td>
                 </tr>
               ))}

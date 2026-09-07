@@ -11,8 +11,9 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ConflictError, InvalidStateTransitionError } from "../../../../../lib/errors.js";
 import { notificationService } from "@/lib/notifications/notification-service";
+
+import { ConflictError, InvalidStateTransitionError } from "../../../../../lib/errors.js";
 
 import type * as DbModule from "@solar/db";
 
@@ -20,7 +21,9 @@ vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 vi.mock("@/lib/notifications/notification-service", () => ({
-  notificationService: { fire: vi.fn().mockResolvedValue({ notificationIds: [], skippedCount: 0 }) },
+  notificationService: {
+    fire: vi.fn().mockResolvedValue({ notificationIds: [], skippedCount: 0 }),
+  },
 }));
 
 vi.mock("@/lib/notifications/recipient-helpers", () => ({
@@ -60,12 +63,8 @@ vi.mock("@solar/db", async (orig) => {
   };
 });
 
-const {
-  submitCommentAction,
-  reviewCommentAction,
-  finalizeReportAction,
-  unlockReportAction,
-} = await import("../actions.js");
+const { submitCommentAction, reviewCommentAction, finalizeReportAction, unlockReportAction } =
+  await import("../actions.js");
 
 // ---------------------------------------------------------------------------
 // Shared session fixtures
@@ -95,15 +94,17 @@ const WS_ADMIN_SESSION = {
   },
 };
 
-function makeDraftReport(overrides?: Partial<{
-  id: string;
-  status: string;
-  wholesalerId: string;
-  relationshipId: string | null;
-  comments: Record<string, unknown> | null;
-  targetMonth: string;
-  aggregated: object;
-}>) {
+function makeDraftReport(
+  overrides?: Partial<{
+    id: string;
+    status: string;
+    wholesalerId: string;
+    relationshipId: string | null;
+    comments: Record<string, unknown> | null;
+    targetMonth: string;
+    aggregated: object;
+  }>,
+) {
   return {
     id: "mr_1",
     status: "DRAFT",
@@ -213,22 +214,18 @@ describe("FINALIZED report lock", () => {
     authMock.mockResolvedValue(DEALER_ADMIN_SESSION);
     findUniqueMock.mockResolvedValue(makeDraftReport({ status: "FINALIZED" }));
 
-    await expect(
-      submitCommentAction({ reportId: "mr_1", comments: {} }),
-    ).rejects.toThrow(ConflictError);
+    await expect(submitCommentAction({ reportId: "mr_1", comments: {} })).rejects.toThrow(
+      ConflictError,
+    );
 
     expect(updateMock).not.toHaveBeenCalled();
   });
 
   it("3b. reviewCommentAction on FINALIZED throws ConflictError", async () => {
     authMock.mockResolvedValue(WS_ADMIN_SESSION);
-    findUniqueMock.mockResolvedValue(
-      makeDraftReport({ status: "FINALIZED" }),
-    );
+    findUniqueMock.mockResolvedValue(makeDraftReport({ status: "FINALIZED" }));
 
-    await expect(
-      reviewCommentAction({ reportId: "mr_1" }),
-    ).rejects.toThrow(ConflictError);
+    await expect(reviewCommentAction({ reportId: "mr_1" })).rejects.toThrow(ConflictError);
 
     expect(updateMock).not.toHaveBeenCalled();
   });

@@ -4,9 +4,8 @@
 // the User, assigns the role, and stamps `acceptedAt`. Delegates to
 // `acceptUserInviteAction` from @solar/auth.
 
-import { type NextRequest, NextResponse } from "next/server";
-
 import { acceptUserInviteAction, UnauthorizedError } from "@solar/auth";
+import { type NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   let token: string | undefined;
@@ -30,7 +29,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   try {
     const result = await acceptUserInviteAction({ token, name, password, totpEnable });
-    return NextResponse.json({ ok: true, userId: result.userId, mfaSetupRequired: result.mfaSetupRequired });
+    return NextResponse.json({
+      ok: true,
+      userId: result.userId,
+      mfaSetupRequired: result.mfaSetupRequired,
+    });
   } catch (err) {
     if (err instanceof UnauthorizedError) {
       return NextResponse.json({ error: "invalid_or_expired_token" }, { status: 400 });

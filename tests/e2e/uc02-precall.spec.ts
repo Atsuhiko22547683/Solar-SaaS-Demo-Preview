@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
 
 import { signIn } from "./fixtures/auth";
+import { openCustomerByName } from "./fixtures/customers";
 
 // E2E spec for T-04-12 (part 2) — UC-02 steps 1-5
 // (F-031 / F-033 / F-035 / F-036 / F-037).
@@ -17,7 +18,7 @@ import { signIn } from "./fixtures/auth";
 //   Setup     wholesaler_admin: 顧客登録（WALK_IN チャネル） + アポ登録 → appointmentId 取得
 //   Step 1-2  wholesaler_call_team: マエカク画面 → APPROVED を記録
 //   Step 3    アポステータスが PRE_CALL_DONE に更新されたことを確認
-//   Step 4    (fixme) wholesaler_call_team: マエカク結果連絡 — 対象二次店に通知送信
+//   Step 4    (fixme) wholesaler_call_team: マエカク結果連絡 — 対象取引先に通知送信
 //             (PreCallNotification.send UI が未実装のため test.fixme)
 //   Step 5    (fixme) dealer_admin: 通知一覧 → 確認ボタン → ACKNOWLEDGED
 //             (/notifications/pre-call page が未実装のため test.fixme)
@@ -29,7 +30,9 @@ let customerId = "";
 const RUN_ID = Date.now();
 
 /** この実行が画面から登録する顧客の氏名。RUN_ID を含むので実行ごとに一意。 */
-const CUSTOMER_NAME = `UC-02 花子 ${RUN_ID}`;
+// 氏名に空白を入れると Windows の shell 経由で引数が割れるため、空白なしで組み立てる
+// （cleanup 側も同じ規則で組み立てて完全一致で消す）。
+const CUSTOMER_NAME = `UC02花子${RUN_ID}`;
 
 // ---------------------------------------------------------------------------
 // UC-02 steps 1-5 — serial shared state
@@ -39,14 +42,13 @@ test.describe.serial("UC-02 — アポ → マエカク → 結果連絡", () =>
   test.describe.configure({ timeout: 180_000 });
 
   // この spec は画面操作で実顧客を作るため、後始末しないと実行のたびに
-  // 「UC-02 花子 <数字>」が顧客一覧・コール一覧へ積み上がる。
+  // 「UC02花子<数字>」が顧客一覧・コール一覧へ積み上がる。
   // 途中のステップが落ちても顧客は残るので、afterAll で必ず消す
   // （削除対象はこの実行が作った氏名の完全一致 1 件のみ）。
   test.afterAll(() => {
     const script = resolve(__dirname, "fixtures", "cleanup-uc02-customer.ts");
     const dbDir = resolve(__dirname, "..", "..", "packages", "db");
-    // 引数は RUN_ID（数字のみ）。氏名は空白を含み Windows の shell 経由で分割されるため、
-    // 顧客名は cleanup 側で同じ規則から組み立てる。
+    // 引数は RUN_ID（数字のみ）。顧客名は cleanup 側で同じ規則から組み立てる。
     execFileSync("pnpm", ["exec", "tsx", script, String(RUN_ID)], {
       cwd: dbDir,
       stdio: "inherit",
@@ -87,17 +89,11 @@ test.describe.serial("UC-02 — アポ → マエカク → 結果連絡", () =>
       customerId = customerMatch[1]!;
     }
 
-    // 一覧ページに飛んだ場合 — 先頭行のリンク href から取得
+    // 一覧ページに飛んだ場合 — 一覧の行はリンクではなく role="button" の <tr>
+    // （aria-label="<氏名>様"）になったので、共有ヘルパーで氏名検索 → 行クリック →
+    // URL から ID を取る（先頭行が自分の登録とは限らないので順序に依存しない）。
     if (!customerId || customerId === "new") {
-      await page.goto("/customers");
-      await expect(page.getByRole("heading", { name: "顧客一覧" })).toBeVisible({
-        timeout: 30_000,
-      });
-      const firstLink = page.locator("table tbody tr:first-child td:first-child a");
-      await expect(firstLink).toBeVisible({ timeout: 20_000 });
-      const href = await firstLink.getAttribute("href");
-      const m = href?.match(/\/customers\/([A-Za-z0-9_-]+)/);
-      if (m) customerId = m[1]!;
+      customerId = await openCustomerByName(page, CUSTOMER_NAME);
     }
 
     expect(customerId, "顧客 ID が取得できなかった").toBeTruthy();
@@ -108,10 +104,15 @@ test.describe.serial("UC-02 — アポ → マエカク → 結果連絡", () =>
       timeout: 30_000,
     });
 
-    // 訪問予定日時
-    const scheduledAtInput = page.locator("input[type='datetime-local']");
+    // 訪問予定日時。react-hook-form のハイドレーション前に fill すると値がリセット
+    // されて空のまま送信され、バリデーションで弾かれる。値が残るまで入力を繰り返す。
+    await page.waitForLoadState("networkidle");
+    const scheduledAtInput = page.getByLabel("訪問予定日時", { exact: false });
     await expect(scheduledAtInput).toBeVisible({ timeout: 10_000 });
-    await scheduledAtInput.fill("2027-04-20T15:00");
+    await expect(async () => {
+      await scheduledAtInput.fill("2027-04-20T15:00");
+      await expect(scheduledAtInput).toHaveValue("2027-04-20T15:00", { timeout: 2_000 });
+    }).toPass({ timeout: 30_000 });
 
     await page.getByRole("button", { name: "登録" }).click();
 
@@ -243,11 +244,11 @@ test.describe.serial("UC-02 — アポ → マエカク → 結果連絡", () =>
 
     // マエカク結果連絡セクションが表示されている（T-04-10 で実装）
     const notificationSection = page.getByRole("region", {
-      name: "二次店への結果連絡",
+      name: "取引先への結果連絡",
     });
     await expect(notificationSection).toBeVisible({ timeout: 20_000 });
 
-    // 全二次店を選択して「連絡する」ボタンをクリック
+    // 全取引先を選択して「連絡する」ボタンをクリック
     const selectAllCheckbox = page.getByLabel("すべて選択");
     if (await selectAllCheckbox.isVisible({ timeout: 5_000 }).catch(() => false)) {
       await selectAllCheckbox.check();
@@ -274,7 +275,7 @@ test.describe.serial("UC-02 — アポ → マエカク → 結果連絡", () =>
   test.fixme("step-5: dealer_admin acknowledges pre-call notification", async ({ page }) => {
     await signIn(page, "alpha-admin@solar-saas.dev");
 
-    // 二次店側の通知一覧へ
+    // 取引先側の通知一覧へ
     await page.goto("/notifications/pre-call");
     await expect(page.getByRole("heading", { name: "マエカク結果通知一覧" })).toBeVisible({
       timeout: 30_000,

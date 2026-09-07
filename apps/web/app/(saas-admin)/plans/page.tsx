@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { formatDateTime } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
 import { listPlanRows } from "./data";
@@ -18,7 +19,7 @@ export default async function PlansListPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t.listTitle}</h1>
+        <h1 className="text-ink text-xl font-bold">{t.listTitle}</h1>
         <p className="text-muted-foreground text-sm">{t.listSubtitle}</p>
       </div>
 
@@ -53,7 +54,7 @@ export default async function PlansListPage() {
                   <td className="px-3 py-2">{r.plan ? tt.plans[r.plan] : c.notSet}</td>
                   <td className="px-3 py-2">{tt.statuses[r.status]}</td>
                   <td className="text-muted-foreground px-3 py-2 text-xs">
-                    {r.lastChangedAt ? new Date(r.lastChangedAt).toLocaleString("ja-JP") : "—"}
+                    {r.lastChangedAt ? formatDateTime(r.lastChangedAt) : "—"}
                   </td>
                 </tr>
               ))}

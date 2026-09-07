@@ -83,6 +83,10 @@ const DEALER_SCOPE_BY_KEY: Record<"dealerAlpha" | "dealerBeta" | "dealerGamma", 
   dealerGamma: "FULL_CLOSING",
 };
 
+// システムユーザーのロールは OWNER / SYSTEM_ADMIN / GENERAL_USER の 3 種類。
+// 旧 WHOLESALER_* は enum には残っているが、seed からは付与しない。
+// 業務上の役割（イベント / コール / 直販 / 現場）はスタッフマスタ側の担当なので、
+// ログインユーザーの権限としては「設定を触れるか」「決済を触れるか」だけを分ける。
 const USER_SEEDS: UserSeed[] = [
   {
     email: "saas_admin@solar-saas.dev",
@@ -95,35 +99,36 @@ const USER_SEEDS: UserSeed[] = [
     email: "wholesaler_admin@solar-saas.dev",
     name: "山下 浩一",
     tenantKey: "pilotWholesaler",
-    role: "WHOLESALER_ADMIN",
+    // 旧 WHOLESALER_ADMIN = テナントの管理者 → オーナー。
+    role: "OWNER",
     twoFactorRequired: true,
   },
   {
     email: "wholesaler_event_team@solar-saas.dev",
     name: "佐藤 美咲",
     tenantKey: "pilotWholesaler",
-    role: "WHOLESALER_EVENT_TEAM",
+    role: "GENERAL_USER",
     twoFactorRequired: false,
   },
   {
     email: "wholesaler_call_team@solar-saas.dev",
     name: "田中 由美",
     tenantKey: "pilotWholesaler",
-    role: "WHOLESALER_CALL_TEAM",
+    role: "GENERAL_USER",
     twoFactorRequired: false,
   },
   {
     email: "wholesaler_direct_sales@solar-saas.dev",
     name: "鈴木 大輔",
     tenantKey: "pilotWholesaler",
-    role: "WHOLESALER_DIRECT_SALES",
+    role: "GENERAL_USER",
     twoFactorRequired: false,
   },
   {
     email: "wholesaler_field_staff@solar-saas.dev",
     name: "中村 翔太",
     tenantKey: "pilotWholesaler",
-    role: "WHOLESALER_FIELD_STAFF",
+    role: "GENERAL_USER",
     twoFactorRequired: false,
   },
   {
@@ -169,6 +174,111 @@ const USER_SEEDS: UserSeed[] = [
     twoFactorRequired: false,
   },
 ];
+
+/**
+ * 業務スタッフ（Salesperson）のデモデータ。
+ *
+ * システムユーザー（User）とは **完全に別のレコード**。同姓同名でも別管理で、
+ * userId による自動リンクも行わない（スタッフ = 業務、ユーザー = ログイン/権限）。
+ * 顧客のトスアップ / クロージング担当も、イベントのアサインも、
+ * スタッフ一覧も、すべてこの Salesperson を唯一のスタッフマスタとして参照する。
+ *
+ * dealerKey が null なら自社スタッフ（relationshipId = null）。
+ */
+type SalespersonSeed = {
+  name: string;
+  kana: string;
+  dealerKey: "dealerAlpha" | "dealerBeta" | "dealerGamma" | null;
+  employmentType: "EMPLOYEE" | "CONTRACT" | "PART_TIME";
+};
+
+const SALESPERSON_SEEDS: SalespersonSeed[] = [
+  // --- 自社スタッフ ---
+  { name: "山下 浩一", kana: "ヤマシタ コウイチ", dealerKey: null, employmentType: "EMPLOYEE" },
+  { name: "佐藤 美咲", kana: "サトウ ミサキ", dealerKey: null, employmentType: "EMPLOYEE" },
+  { name: "田中 由美", kana: "タナカ ユミ", dealerKey: null, employmentType: "EMPLOYEE" },
+  { name: "鈴木 大輔", kana: "スズキ ダイスケ", dealerKey: null, employmentType: "EMPLOYEE" },
+  { name: "中村 翔太", kana: "ナカムラ ショウタ", dealerKey: null, employmentType: "CONTRACT" },
+  { name: "藤原 健太郎", kana: "フジワラ ケンタロウ", dealerKey: null, employmentType: "EMPLOYEE" },
+  // --- 取引先スタッフ ---
+  {
+    name: "小林 誠",
+    kana: "コバヤシ マコト",
+    dealerKey: "dealerAlpha",
+    employmentType: "EMPLOYEE",
+  },
+  {
+    name: "加藤 健太",
+    kana: "カトウ ケンタ",
+    dealerKey: "dealerAlpha",
+    employmentType: "PART_TIME",
+  },
+  { name: "渡辺 隆", kana: "ワタナベ タカシ", dealerKey: "dealerBeta", employmentType: "EMPLOYEE" },
+  {
+    name: "伊藤 直樹",
+    kana: "イトウ ナオキ",
+    dealerKey: "dealerBeta",
+    employmentType: "PART_TIME",
+  },
+  {
+    name: "山本 和也",
+    kana: "ヤマモト カズヤ",
+    dealerKey: "dealerGamma",
+    employmentType: "EMPLOYEE",
+  },
+  {
+    name: "松本 亮",
+    kana: "マツモト リョウ",
+    dealerKey: "dealerGamma",
+    employmentType: "PART_TIME",
+  },
+];
+
+/**
+ * スタッフを氏名 × 所属で find-or-create する。
+ *
+ * Salesperson には UNIQUE 制約が id 以外に無いため、seed 側で
+ * 「同一卸業者 × 同一所属 × 同一氏名」を同一人物とみなす。
+ * 既存行の isActive は変更しない（手動で論理削除したデモデータを復活させない）。
+ */
+async function upsertSalespersonByName(
+  tx: TxClient,
+  args: {
+    wholesalerId: string;
+    relationshipId: string | null;
+    name: string;
+    kana: string;
+    employmentType: "EMPLOYEE" | "CONTRACT" | "PART_TIME";
+  },
+): Promise<{ id: string }> {
+  const existing = await tx.salesperson.findFirst({
+    where: {
+      wholesalerId: args.wholesalerId,
+      relationshipId: args.relationshipId,
+      name: args.name,
+    },
+    select: { id: true },
+  });
+  if (existing) {
+    await tx.salesperson.update({
+      where: { id: existing.id },
+      data: { kana: args.kana, employmentType: args.employmentType },
+    });
+    return existing;
+  }
+  return tx.salesperson.create({
+    data: {
+      wholesalerId: args.wholesalerId,
+      relationshipId: args.relationshipId,
+      name: args.name,
+      kana: args.kana,
+      employmentType: args.employmentType,
+      isActive: true,
+      // userId は張らない。User との自動リンクは行わない設計。
+    },
+    select: { id: true },
+  });
+}
 
 export interface SeedSummary {
   saasOpsTenantId: string;
@@ -269,6 +379,9 @@ async function upsertUser(
     update: {},
     create: { userId: user.id, role: args.role, assignedBy: "seed" },
   });
+  // 1 ユーザー 1 ロール運用（システムユーザー管理画面と同じ）。
+  // 旧ロールが残っていると一覧にバッジが 2 つ並ぶので、seed 対象は貼り替える。
+  await tx.userRole.deleteMany({ where: { userId: user.id, role: { not: args.role } } });
 }
 
 export async function seedAll(): Promise<SeedSummary> {
@@ -376,10 +489,46 @@ export async function seedAll(): Promise<SeedSummary> {
         email: "demo@solar-saas.demo",
         name: "藤原 健太郎",
         tenantId: tenantIdByKey.pilotWholesaler,
-        role: "WHOLESALER_ADMIN",
+        role: "OWNER",
         twoFactorRequired: false,
         passwordHash: demoPasswordHash,
       });
+
+      // 業務スタッフ（Salesperson）。User とは別レコードとして作る。
+      const relIdByDealerKey: Record<"dealerAlpha" | "dealerBeta" | "dealerGamma", string> = {
+        dealerAlpha: rels[0]!.id,
+        dealerBeta: rels[1]!.id,
+        dealerGamma: rels[2]!.id,
+      };
+      for (const sp of SALESPERSON_SEEDS) {
+        await upsertSalespersonByName(tx, {
+          wholesalerId: pilot.id,
+          relationshipId: sp.dealerKey ? relIdByDealerKey[sp.dealerKey] : null,
+          name: sp.name,
+          kana: sp.kana,
+          employmentType: sp.employmentType,
+        });
+      }
+
+      // ロール確認用アカウント。3 ロールの見え方をそのまま確認できるようにする。
+      for (const roleDemo of [
+        { email: "owner@solar-saas.demo", name: "デモ オーナー", role: "OWNER" as const },
+        {
+          email: "sysadmin@solar-saas.demo",
+          name: "デモ システム管理者",
+          role: "SYSTEM_ADMIN" as const,
+        },
+        { email: "user@solar-saas.demo", name: "デモ 一般ユーザー", role: "GENERAL_USER" as const },
+      ]) {
+        await upsertUser(tx, {
+          email: roleDemo.email,
+          name: roleDemo.name,
+          tenantId: tenantIdByKey.pilotWholesaler,
+          role: roleDemo.role,
+          twoFactorRequired: false,
+          passwordHash: demoPasswordHash,
+        });
+      }
 
       // Seed one VenueProvider for pilotWholesaler so the UC-01 E2E test can
       // select a venue provider without depending on the masters test suite

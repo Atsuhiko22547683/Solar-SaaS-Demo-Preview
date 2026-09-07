@@ -13,6 +13,7 @@ import { UnauthorizedError } from "@/lib/errors";
 import { assertCan } from "@/lib/permissions/can";
 import { getTenantContext } from "@/lib/tenancy/context";
 import { withTenant } from "@/lib/tenancy/with-tenant";
+
 import type { MonthlyScope } from "@solar/db";
 
 const VALID_SCOPES: MonthlyScope[] = ["ALL", "SELF", "DEALER", "JOINT"];
@@ -90,13 +91,10 @@ export async function listMonthlyReports(
     action: "monthly_report.read",
   });
 
-  const scopeFilter =
-    filter.scope && VALID_SCOPES.includes(filter.scope) ? filter.scope : null;
+  const scopeFilter = filter.scope && VALID_SCOPES.includes(filter.scope) ? filter.scope : null;
 
   const monthFilter =
-    filter.targetMonth && /^\d{4}-\d{2}$/.test(filter.targetMonth)
-      ? filter.targetMonth
-      : null;
+    filter.targetMonth && /^\d{4}-\d{2}$/.test(filter.targetMonth) ? filter.targetMonth : null;
 
   return withTenant(ctx, async (tx) => {
     const where = {

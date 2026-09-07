@@ -12,8 +12,9 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { InvalidStateTransitionError, NotFoundError } from "../../../../lib/errors.js";
 import { notificationService } from "@/lib/notifications/notification-service";
+
+import { InvalidStateTransitionError, NotFoundError } from "../../../../lib/errors.js";
 
 import type * as DbModule from "@solar/db";
 
@@ -30,7 +31,9 @@ const incentiveUpsertMock = vi.fn();
 const revalidatePathMock = vi.fn();
 
 vi.mock("@/lib/notifications/notification-service", () => ({
-  notificationService: { fire: vi.fn().mockResolvedValue({ notificationIds: [], skippedCount: 0 }) },
+  notificationService: {
+    fire: vi.fn().mockResolvedValue({ notificationIds: [], skippedCount: 0 }),
+  },
 }));
 
 vi.mock("@/lib/notifications/recipient-helpers", () => ({

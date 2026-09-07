@@ -26,7 +26,7 @@ export default function WholesalerGroupError({ error, reset }: ErrorBoundaryProp
   if (isForbidden) {
     return (
       <div className="mx-auto max-w-md space-y-6 py-16 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">{c.forbidden}</h1>
+        <h1 className="text-ink text-xl font-bold">{c.forbidden}</h1>
         <p className="text-muted-foreground text-sm">{error.message || c.forbidden}</p>
         <div className="flex justify-center gap-2">
           <Button asChild variant="outline">
@@ -40,7 +40,7 @@ export default function WholesalerGroupError({ error, reset }: ErrorBoundaryProp
 
   return (
     <div className="mx-auto max-w-md space-y-6 py-16 text-center">
-      <h1 className="text-2xl font-semibold tracking-tight">{c.unknownError}</h1>
+      <h1 className="text-ink text-xl font-bold">{c.unknownError}</h1>
       <p className="text-muted-foreground text-sm">{error.message}</p>
       <Button onClick={reset}>{c.back}</Button>
     </div>

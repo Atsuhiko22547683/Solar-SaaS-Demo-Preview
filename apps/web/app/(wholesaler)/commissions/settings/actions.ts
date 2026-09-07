@@ -11,13 +11,13 @@
 // 差分サマリは upsert 前の現行値と新値を比較して生成。何も変わらなくても
 // 「明示的な保存アクション」として履歴 1 行を残す（"値の変更なし"）。
 
-import { revalidatePath } from "next/cache";
-
 import { DealerCommissionRateUpdateSchema } from "@solar/contracts";
-import type { DealerCommissionRateUpdateInput } from "@solar/contracts";
+import { revalidatePath } from "next/cache";
 
 import { NotFoundError } from "@/lib/errors";
 import { withServerActionContext } from "@/lib/tenancy/server-action";
+
+import type { DealerCommissionRateUpdateInput } from "@solar/contracts";
 
 const SETTINGS_PATH = "/commissions/settings";
 
@@ -69,9 +69,7 @@ function buildSummary(
   }
   const parts: string[] = [];
   if (before.tossUpRate !== after.tossUpRate) {
-    parts.push(
-      `${LBL.tossUp} ${formatRate(before.tossUpRate)} → ${formatRate(after.tossUpRate)}`,
-    );
+    parts.push(`${LBL.tossUp} ${formatRate(before.tossUpRate)} → ${formatRate(after.tossUpRate)}`);
   }
   if (before.closingRate !== after.closingRate) {
     parts.push(
@@ -82,9 +80,7 @@ function buildSummary(
     parts.push(`${LBL.applyFrom} ${before.applyFrom} → ${after.applyFrom}`);
   }
   if ((before.applyTo ?? null) !== (after.applyTo ?? null)) {
-    parts.push(
-      `${LBL.applyTo} ${formatDate(before.applyTo)} → ${formatDate(after.applyTo)}`,
-    );
+    parts.push(`${LBL.applyTo} ${formatDate(before.applyTo)} → ${formatDate(after.applyTo)}`);
   }
   if (parts.length === 0) return LBL.noChange;
   return parts.join(" / ");

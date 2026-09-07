@@ -16,7 +16,13 @@ import { assertCan } from "@/lib/permissions/can";
 import { getTenantContext } from "@/lib/tenancy/context";
 import { withTenant } from "@/lib/tenancy/with-tenant";
 
-import type { EventCandidateForWholesalerDto, EventCandidateStatus } from "@solar/contracts";
+import type {
+  BoothAreaValue,
+  EventCandidateForWholesalerDto,
+  EventCandidateStatus,
+  EventProductCategoryValue,
+  VenueChainValue,
+} from "@solar/contracts";
 
 export interface EventCandidateListItem {
   id: string;
@@ -39,6 +45,11 @@ export interface AssigneeRow {
 }
 
 export interface EventCandidateDetail extends EventCandidateForWholesalerDto {
+  // 催事の基本情報。共有 DTO には載せず、卸業者向け詳細画面の付加情報として返す。
+  venueChain: VenueChainValue | null;
+  boothArea: BoothAreaValue | null;
+  boothAreaNote: string | null;
+  productCategory: EventProductCategoryValue | null;
   venueProviderName: string | null;
   venueProviderArea: string | null;
   venueProviderAddress: string | null;
@@ -159,6 +170,10 @@ export async function getEventCandidate(id: string): Promise<EventCandidateDetai
         performanceRate: true,
         internalNote: true,
         contractNote: true,
+        venueChain: true,
+        boothArea: true,
+        boothAreaNote: true,
+        productCategory: true,
         status: true,
         publishedAt: true,
         createdAt: true,
@@ -167,9 +182,11 @@ export async function getEventCandidate(id: string): Promise<EventCandidateDetai
           select: {
             id: true,
             mode: true,
-            shifts: {
-              orderBy: { startPlanned: "asc" as const },
-              select: { id: true, userId: true, role: true, status: true },
+            // イベントのスタッフ配置は Salesperson が正（EventSalesperson）。
+            // EventShift（User ベースの時間帯シフト）は別機能なのでここでは読まない。
+            salespeople: {
+              orderBy: { createdAt: "asc" as const },
+              select: { salespersonId: true, salesperson: { select: { name: true } } },
             },
             dealers: {
               orderBy: { assignedAt: "asc" as const },
@@ -184,7 +201,15 @@ export async function getEventCandidate(id: string): Promise<EventCandidateDetai
     const provider = r.venueProviderId
       ? await tx.venueProvider.findUnique({
           where: { id: r.venueProviderId },
-          select: { name: true, area: true, address: true, note: true, contractType: true, fixedFee: true, performanceRate: true },
+          select: {
+            name: true,
+            area: true,
+            address: true,
+            note: true,
+            contractType: true,
+            fixedFee: true,
+            performanceRate: true,
+          },
         })
       : null;
     // Build the canonical wholesaler DTO first so the wire format is identical
@@ -211,31 +236,27 @@ export async function getEventCandidate(id: string): Promise<EventCandidateDetai
       createdAt: r.createdAt.toISOString(),
       updatedAt: r.updatedAt.toISOString(),
     });
-    // Build assignee rows from Event shifts + dealers
+    // Build assignee rows from Event salespeople + dealers
     const assignees: AssigneeRow[] = [];
     const ev = r.event;
     if (ev) {
-      // Resolve user names for shifts
-      const shiftUserIds = ev.shifts.map((s) => s.userId);
       const dealerRelIds = ev.dealers.map((d) => d.relationshipId);
-
-      const [users, rels] = await Promise.all([
-        shiftUserIds.length > 0
-          ? tx.user.findMany({ where: { id: { in: shiftUserIds } }, select: { id: true, name: true } })
-          : [],
+      const rels =
         dealerRelIds.length > 0
-          ? tx.relationship.findMany({ where: { id: { in: dealerRelIds } }, select: { id: true, dealer: { select: { name: true } } } })
-          : [],
-      ]);
-      const userName = new Map(users.map((u) => [u.id, u.name]));
+          ? await tx.relationship.findMany({
+              where: { id: { in: dealerRelIds } },
+              select: { id: true, dealer: { select: { name: true } } },
+            })
+          : [];
       const dealerName = new Map(rels.map((r2) => [r2.id, r2.dealer.name]));
 
-      for (const s of ev.shifts) {
+      // id は Salesperson.id。アサインダイアログのチェック状態の復元に使う。
+      for (const s of ev.salespeople) {
         assignees.push({
-          id: s.id,
-          name: userName.get(s.userId) ?? s.userId,
+          id: s.salespersonId,
+          name: s.salesperson.name,
           affiliation: "self",
-          assignStatus: s.status === "ASSIGNED" ? "adjusting" : "confirmed",
+          assignStatus: "confirmed",
         });
       }
       for (const d of ev.dealers) {
@@ -250,6 +271,10 @@ export async function getEventCandidate(id: string): Promise<EventCandidateDetai
 
     return {
       ...dto,
+      venueChain: r.venueChain,
+      boothArea: r.boothArea,
+      boothAreaNote: r.boothAreaNote,
+      productCategory: r.productCategory,
       venueProviderName: provider?.name ?? null,
       venueProviderArea: provider?.area ?? null,
       venueProviderAddress: provider?.address ?? null,
@@ -265,7 +290,11 @@ export async function getEventCandidate(id: string): Promise<EventCandidateDetai
   });
 }
 
-// 自社ユーザー一覧（アサイン用）
+// 自社ユーザー一覧。
+//
+// これは **システムユーザー（User）** の一覧。一覧画面の「担当者で絞り込む」など、
+// 操作ログ的な User を指す用途にだけ使う。
+// スタッフ（人物）を選ばせる UI では使わないこと — そちらは Salesperson が正。
 export interface WholesalerUserOption {
   id: string;
   name: string;
@@ -280,6 +309,31 @@ export async function listWholesalerUsers(): Promise<WholesalerUserOption[]> {
       select: { id: true, name: true },
     });
     return rows;
+  });
+}
+
+/** イベントへ配置できる自社スタッフ 1 件（Salesperson）。 */
+export interface SelfStaffOption {
+  id: string;
+  name: string;
+}
+
+/**
+ * イベントの「自社要員」候補。
+ *
+ * スタッフマスタ（Salesperson）の自社スタッフだけを返す。
+ * システムユーザー（User）/ UserRole は候補にしない — スタッフ一覧・顧客担当者と
+ * 同じ人物集合になるようにするため（User とスタッフは別管理）。
+ * 論理削除（isActive = false）は新規候補から自動的に外れる。
+ */
+export async function listSelfStaff(): Promise<SelfStaffOption[]> {
+  const ctx = await requireWholesalerCtx();
+  return withTenant(ctx, async (tx) => {
+    return tx.salesperson.findMany({
+      where: { isActive: true, relationshipId: null },
+      orderBy: [{ kana: { sort: "asc", nulls: "last" } }, { name: "asc" }],
+      select: { id: true, name: true },
+    });
   });
 }
 

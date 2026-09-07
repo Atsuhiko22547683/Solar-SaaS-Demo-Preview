@@ -9,6 +9,7 @@ import { notFound } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { formatDate, formatDateTime } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
 import { getDealerEventDetail } from "./data";
@@ -39,10 +40,9 @@ export default async function DealerEventDetailPage({ params }: PageProps) {
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{data.eventCandidate.storeName}</h1>
+          <h1 className="text-ink text-xl font-bold">{data.eventCandidate.storeName}</h1>
           <p className="text-muted-foreground text-sm">
-            {data.eventCandidate.targetMonth} —{" "}
-            {new Date(data.eventCandidate.scheduledDate).toLocaleDateString("ja-JP")}
+            {data.eventCandidate.targetMonth} — {formatDate(data.eventCandidate.scheduledDate)}
           </p>
         </div>
         <Button asChild variant="outline">
@@ -96,17 +96,17 @@ export default async function DealerEventDetailPage({ params }: PageProps) {
 
       {/* Scope */}
       <section aria-label={t.sections.scope}>
-        <h2 className="text-base font-semibold mb-3">{t.sections.scope}</h2>
+        <h2 className="mb-3 text-base font-semibold">{t.sections.scope}</h2>
         <p className="text-sm">
           {data.scopeOverride
-            ? t.scopes[data.scopeOverride as keyof typeof t.scopes] ?? data.scopeOverride
+            ? (t.scopes[data.scopeOverride as keyof typeof t.scopes] ?? data.scopeOverride)
             : c.notSet}
         </p>
       </section>
 
       {/* Reports */}
       <section aria-label={t.sections.reports}>
-        <h2 className="text-base font-semibold mb-3">{t.sections.reports}</h2>
+        <h2 className="mb-3 text-base font-semibold">{t.sections.reports}</h2>
         {data.reports.length === 0 ? (
           <p className="text-muted-foreground text-sm">{t.noReports}</p>
         ) : (
@@ -117,7 +117,7 @@ export default async function DealerEventDetailPage({ params }: PageProps) {
                   {t.reportTypes[r.type as keyof typeof t.reportTypes] ?? r.type}
                 </span>
                 <span className="text-muted-foreground ml-2 text-xs">
-                  {new Date(r.createdAt).toLocaleString("ja-JP")}
+                  {formatDateTime(r.createdAt)}
                 </span>
               </li>
             ))}
@@ -127,17 +127,21 @@ export default async function DealerEventDetailPage({ params }: PageProps) {
 
       {/* Report actions (T-04-03) */}
       <section aria-label={labels.eventReport.sections.actions}>
-        <h2 className="text-base font-semibold mb-3">{labels.eventReport.sections.actions}</h2>
+        <h2 className="mb-3 text-base font-semibold">{labels.eventReport.sections.actions}</h2>
         <DealerReportButtons
           eventId={data.id}
-          hasDealerStart={data.reports.some((r) => r.type === "START" && r.reporterOrgType === "DEALER")}
-          hasDealerEnd={data.reports.some((r) => r.type === "END" && r.reporterOrgType === "DEALER")}
+          hasDealerStart={data.reports.some(
+            (r) => r.type === "START" && r.reporterOrgType === "DEALER",
+          )}
+          hasDealerEnd={data.reports.some(
+            (r) => r.type === "END" && r.reporterOrgType === "DEALER",
+          )}
         />
       </section>
 
       {/* Result report (T-04-04 / F-030) */}
       <section aria-label={labels.eventReport.sections.result}>
-        <h2 className="text-base font-semibold mb-3">{labels.eventReport.sections.result}</h2>
+        <h2 className="mb-3 text-base font-semibold">{labels.eventReport.sections.result}</h2>
         <DealerResultReportForm
           eventId={data.id}
           hasDealerResult={data.reports.some(

@@ -34,6 +34,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { formatDate } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
 import { createIncentiveRateAction, updateIncentiveRateAction } from "./actions";
@@ -393,9 +394,7 @@ function EditForm(props: {
           </p>
           <p className="text-sm">
             <span className="text-muted-foreground">{t.fields.effectiveFrom}: </span>
-            <span className="font-medium">
-              {new Date(props.effectiveFrom).toLocaleDateString("ja-JP")}
-            </span>
+            <span className="font-medium">{formatDate(props.effectiveFrom)}</span>
           </p>
           <p className="text-muted-foreground text-xs">{t.notices.immutableFields}</p>
         </section>

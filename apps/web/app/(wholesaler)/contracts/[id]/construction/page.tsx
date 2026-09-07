@@ -19,13 +19,15 @@ import { auth } from "@/auth";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { UnauthorizedError } from "@/lib/errors";
+import { formatDate } from "@/lib/format/date";
+import { labels } from "@/lib/i18n/labels";
 import { assertCan } from "@/lib/permissions/can";
 import { getTenantContext } from "@/lib/tenancy/context";
 import { withTenant } from "@/lib/tenancy/with-tenant";
-import { labels } from "@/lib/i18n/labels";
-import type { ConstructionStatus } from "@solar/db";
 
 import { ConstructionForm } from "./ConstructionForm";
+
+import type { ConstructionStatus } from "@solar/db";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -169,31 +171,32 @@ export default async function ConstructionPage({ params }: PageProps) {
         <Button asChild variant="outline" size="sm">
           <Link href={`/contracts/${id}`}>{t.backToContract}</Link>
         </Button>
-        <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
+        <h1 className="text-ink text-xl font-bold">{t.title}</h1>
       </div>
 
       {/* Contract header */}
-      <div className="border-border rounded-md border p-4 space-y-2">
+      <div className="border-border space-y-2 rounded-md border p-4">
         <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
           <dt className="text-muted-foreground">{labels.contract.fields.contractDate}</dt>
-          <dd>{new Date(data.contractDate).toLocaleDateString("ja-JP")}</dd>
+          <dd>{formatDate(data.contractDate)}</dd>
           <dt className="text-muted-foreground">{labels.contract.fields.totalAmount}</dt>
           <dd>
             {Number(data.contractAmount).toLocaleString("ja-JP")} {c.currencySuffix}
           </dd>
           <dt className="text-muted-foreground">{labels.contract.fields.status}</dt>
           <dd>
-            {labels.contract.statuses[data.contractStatus as keyof typeof labels.contract.statuses] ??
-              data.contractStatus}
+            {labels.contract.statuses[
+              data.contractStatus as keyof typeof labels.contract.statuses
+            ] ?? data.contractStatus}
           </dd>
         </dl>
       </div>
 
       {/* Construction list */}
       {data.constructions.length === 0 ? (
-        <div className="border-border rounded-md border p-6 text-center space-y-2">
-          <p className="text-sm text-muted-foreground">{t.empty}</p>
-          <p className="text-sm text-muted-foreground">{t.emptyCta}</p>
+        <div className="border-border space-y-2 rounded-md border p-6 text-center">
+          <p className="text-muted-foreground text-sm">{t.empty}</p>
+          <p className="text-muted-foreground text-sm">{t.emptyCta}</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -206,13 +209,11 @@ export default async function ConstructionPage({ params }: PageProps) {
               new Date(con.plannedDate) >= now;
 
             return (
-              <div key={con.id} className="border-border rounded-md border p-4 space-y-3">
+              <div key={con.id} className="border-border space-y-3 rounded-md border p-4">
                 <div className="flex items-center gap-3">
-                  <span className="font-medium text-sm">
-                    {t.statuses[con.status]}
-                  </span>
+                  <span className="text-sm font-medium">{t.statuses[con.status]}</span>
                   {isUpcoming && (
-                    <span className="text-xs rounded-full bg-amber-100 text-amber-800 px-2 py-0.5">
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
                       {t.upcomingBadge}
                     </span>
                   )}
@@ -235,19 +236,19 @@ export default async function ConstructionPage({ params }: PageProps) {
                   {con.surveyDate && (
                     <>
                       <dt className="text-muted-foreground">{t.fields.surveyDate}</dt>
-                      <dd>{new Date(con.surveyDate).toLocaleDateString("ja-JP")}</dd>
+                      <dd>{formatDate(con.surveyDate)}</dd>
                     </>
                   )}
                   {con.plannedDate && (
                     <>
                       <dt className="text-muted-foreground">{t.fields.plannedDate}</dt>
-                      <dd>{new Date(con.plannedDate).toLocaleDateString("ja-JP")}</dd>
+                      <dd>{formatDate(con.plannedDate)}</dd>
                     </>
                   )}
                   {con.completedDate && (
                     <>
                       <dt className="text-muted-foreground">{t.fields.completedDate}</dt>
-                      <dd>{new Date(con.completedDate).toLocaleDateString("ja-JP")}</dd>
+                      <dd>{formatDate(con.completedDate)}</dd>
                     </>
                   )}
                   {con.note && (

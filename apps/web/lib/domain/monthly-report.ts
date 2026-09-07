@@ -12,12 +12,13 @@
 // using the compound key. We therefore use findFirst + create/update instead
 // of upsert when relationshipId may be null.
 
-import type { TxClient } from "@solar/db";
 import {
   aggregateMonthlyData,
   type MonthlyContractRow,
   type MonthlyIncentiveRow,
 } from "@solar/contracts";
+
+import type { TxClient } from "@solar/db";
 
 // ---------------------------------------------------------------------------
 // Raw SQL row shapes (Prisma $queryRaw returns lowercase snake_case columns)

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
+import { formatDate as fmtDate } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
 import type { LineEventListRow } from "./data";
@@ -28,8 +29,7 @@ function chipColor(dateStr: string): string {
 }
 
 function formatDate(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString("ja-JP", { year: "numeric", month: "2-digit", day: "2-digit" });
+  return fmtDate(iso);
 }
 
 function statusVariant(s: LineEventListRow["status"]): "default" | "secondary" | "destructive" {
@@ -55,47 +55,47 @@ export function LineTable({ rows }: LineTableProps) {
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-hairline-light bg-surface-soft/50">
-            <th className="px-4 py-3 text-left text-xs font-medium text-mute-light uppercase tracking-wider whitespace-nowrap">
+          <tr className="border-hairline-light bg-surface-soft/50 border-b">
+            <th className="text-mute-light whitespace-nowrap px-4 py-3 text-left text-xs font-semibold">
               {t.columns.venueName}
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-mute-light uppercase tracking-wider whitespace-nowrap">
+            <th className="text-mute-light whitespace-nowrap px-4 py-3 text-left text-xs font-semibold">
               {t.columns.venueProvider}
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-mute-light uppercase tracking-wider">
+            <th className="text-mute-light px-4 py-3 text-left text-xs font-semibold">
               {t.columns.scheduledDates}
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-mute-light uppercase tracking-wider whitespace-nowrap">
+            <th className="text-mute-light whitespace-nowrap px-4 py-3 text-left text-xs font-semibold">
               {t.columns.area}
             </th>
-            <th className="px-4 py-3 text-right text-xs font-medium text-mute-light uppercase tracking-wider whitespace-nowrap">
+            <th className="text-mute-light whitespace-nowrap px-4 py-3 text-right text-xs font-semibold">
               {t.columns.holdingCount}
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-mute-light uppercase tracking-wider whitespace-nowrap">
+            <th className="text-mute-light whitespace-nowrap px-4 py-3 text-left text-xs font-semibold">
               {t.columns.lastUpdated}
             </th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-hairline-light">
+        <tbody className="divide-hairline-light divide-y">
           {rows.map((row) => {
             const sorted = [...row.scheduledDates].sort();
             return (
               <tr
                 key={row.id}
-                className="hover:bg-surface-soft/30 transition-colors cursor-pointer"
+                className="hover:bg-surface-soft/30 cursor-pointer transition-colors"
                 onClick={() => router.push(`/line-events/${row.id}`)}
               >
-                <td className="px-4 py-3 whitespace-nowrap">
+                <td className="whitespace-nowrap px-4 py-3">
                   <div className="flex items-center gap-2">
                     <span className="text-ink font-medium">{row.name}</span>
                     <Badge variant={statusVariant(row.status)}>{t.statuses[row.status]}</Badge>
                   </div>
                 </td>
-                <td className="px-4 py-3 text-body-light whitespace-nowrap">
+                <td className="text-body-light whitespace-nowrap px-4 py-3">
                   {row.venueProviderName ?? "—"}
                 </td>
                 <td className="px-4 py-3">
-                  <div className="flex flex-wrap gap-1.5 max-w-md">
+                  <div className="flex max-w-md flex-wrap gap-1.5">
                     {sorted.map((d) => (
                       <span
                         key={d}
@@ -109,12 +109,12 @@ export function LineTable({ rows }: LineTableProps) {
                     ))}
                   </div>
                 </td>
-                <td className="px-4 py-3 text-body-light whitespace-nowrap">{row.area ?? "—"}</td>
-                <td className="px-4 py-3 text-right tabular-nums text-ink whitespace-nowrap">
+                <td className="text-body-light whitespace-nowrap px-4 py-3">{row.area ?? "—"}</td>
+                <td className="text-ink whitespace-nowrap px-4 py-3 text-right tabular-nums">
                   {row.scheduledDates.length}
                   {t.holdingCountSuffix}
                 </td>
-                <td className="px-4 py-3 text-body-light tabular-nums whitespace-nowrap">
+                <td className="text-body-light whitespace-nowrap px-4 py-3 tabular-nums">
                   {formatDate(row.updatedAt)}
                 </td>
               </tr>

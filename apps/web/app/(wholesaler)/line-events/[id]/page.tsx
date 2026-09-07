@@ -2,9 +2,10 @@ import { notFound } from "next/navigation";
 
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatDate } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
-import { getLineEvent, listActiveDealers, listWholesalerUsers } from "../data";
+import { getLineEvent, listActiveDealers, listSelfStaff } from "../data";
 import { LineAssignSection } from "./line-assign-section";
 import { LineScheduleSection } from "./line-schedule-section";
 import { LineStatusSelect } from "./line-status-select";
@@ -17,9 +18,9 @@ interface PageProps {
 
 export default async function LineEventDetailPage({ params }: PageProps) {
   const { id } = await params;
-  const [row, wholesalerUsers, dealers] = await Promise.all([
+  const [row, selfStaff, dealers] = await Promise.all([
     getLineEvent(id),
-    listWholesalerUsers(),
+    listSelfStaff(),
     listActiveDealers(),
   ]);
   if (!row) notFound();
@@ -33,15 +34,17 @@ export default async function LineEventDetailPage({ params }: PageProps) {
 
   return (
     <div className="space-y-6">
-      <Breadcrumb items={[{ label: t.breadcrumbList, href: "/line-events" }, { label: row.name }]} />
+      <Breadcrumb
+        items={[{ label: t.breadcrumbList, href: "/line-events" }, { label: row.name }]}
+      />
 
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold text-ink">{row.name}</h1>
+          <h1 className="text-ink text-xl font-bold">{row.name}</h1>
           <LineStatusSelect id={row.id} current={row.status} />
         </div>
-        <p className="text-xs text-mute-light whitespace-nowrap">
-          {t.fields.updatedAt} {new Date(row.updatedAt).toLocaleDateString("ja-JP")}
+        <p className="text-mute-light whitespace-nowrap text-xs">
+          {t.fields.updatedAt} {formatDate(row.updatedAt)}
         </p>
       </div>
 
@@ -54,22 +57,22 @@ export default async function LineEventDetailPage({ params }: PageProps) {
           <CardContent>
             <dl className="space-y-4">
               <div>
-                <dt className="text-xs text-link-light">{t.fields.venueProvider}</dt>
-                <dd className="text-sm font-semibold text-ink mt-0.5">
+                <dt className="text-link-light text-xs">{t.fields.venueProvider}</dt>
+                <dd className="text-ink mt-0.5 text-sm font-semibold">
                   {row.venueProviderName ?? "—"}
                 </dd>
               </div>
               <div>
-                <dt className="text-xs text-link-light">{t.fields.area}</dt>
-                <dd className="text-sm font-semibold text-ink mt-0.5">{row.area ?? "—"}</dd>
+                <dt className="text-link-light text-xs">{t.fields.area}</dt>
+                <dd className="text-ink mt-0.5 text-sm font-semibold">{row.area ?? "—"}</dd>
               </div>
               <div>
-                <dt className="text-xs text-link-light">{t.fields.targetMonth}</dt>
-                <dd className="text-sm font-semibold text-ink mt-0.5">{row.targetMonth}</dd>
+                <dt className="text-link-light text-xs">{t.fields.targetMonth}</dt>
+                <dd className="text-ink mt-0.5 text-sm font-semibold">{row.targetMonth}</dd>
               </div>
               <div>
-                <dt className="text-xs text-link-light">{t.columns.holdingCount}</dt>
-                <dd className="text-sm font-semibold text-ink mt-0.5">
+                <dt className="text-link-light text-xs">{t.columns.holdingCount}</dt>
+                <dd className="text-ink mt-0.5 text-sm font-semibold">
                   {row.scheduledDates.length}
                   {t.holdingCountSuffix}
                 </dd>
@@ -86,13 +89,13 @@ export default async function LineEventDetailPage({ params }: PageProps) {
           <CardContent>
             <dl className="space-y-4">
               <div>
-                <dt className="text-xs text-link-light">{t.fields.contractType}</dt>
-                <dd className="text-sm font-semibold text-ink mt-0.5">{contractTypeLabel}</dd>
+                <dt className="text-link-light text-xs">{t.fields.contractType}</dt>
+                <dd className="text-ink mt-0.5 text-sm font-semibold">{contractTypeLabel}</dd>
               </div>
               {row.contractType === "FIXED" ? (
                 <div>
-                  <dt className="text-xs text-link-light">{t.fields.perDayFee}</dt>
-                  <dd className="text-sm font-semibold text-ink mt-0.5">
+                  <dt className="text-link-light text-xs">{t.fields.perDayFee}</dt>
+                  <dd className="text-ink mt-0.5 text-sm font-semibold">
                     {row.fixedFee != null
                       ? `¥${Number(row.fixedFee).toLocaleString("ja-JP")}`
                       : "—"}
@@ -101,15 +104,15 @@ export default async function LineEventDetailPage({ params }: PageProps) {
               ) : null}
               {row.contractType === "PERFORMANCE" ? (
                 <div>
-                  <dt className="text-xs text-link-light">{t.fields.revenueRate}</dt>
-                  <dd className="text-sm font-semibold text-ink mt-0.5">
+                  <dt className="text-link-light text-xs">{t.fields.revenueRate}</dt>
+                  <dd className="text-ink mt-0.5 text-sm font-semibold">
                     {row.performanceRate != null ? `${row.performanceRate}%` : "—"}
                   </dd>
                 </div>
               ) : null}
               <div>
-                <dt className="text-xs text-link-light">{t.fields.contractNote}</dt>
-                <dd className="text-sm font-semibold text-ink mt-0.5 whitespace-pre-wrap">
+                <dt className="text-link-light text-xs">{t.fields.contractNote}</dt>
+                <dd className="text-ink mt-0.5 whitespace-pre-wrap text-sm font-semibold">
                   {row.contractNote ?? "—"}
                 </dd>
               </div>
@@ -136,7 +139,7 @@ export default async function LineEventDetailPage({ params }: PageProps) {
         assignDealerIds={row.assignDealerIds}
         assignees={row.assignees}
         assignNote={row.assignNote}
-        wholesalerUsers={wholesalerUsers}
+        selfStaff={selfStaff}
         dealers={dealers}
       />
     </div>

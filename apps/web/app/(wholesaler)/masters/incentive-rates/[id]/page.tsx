@@ -43,7 +43,7 @@ export default async function IncentiveRateDetailPage({ params }: PageProps) {
         <Button asChild variant="outline" size="sm">
           <Link href="/masters/incentive-rates">{labels.common.back}</Link>
         </Button>
-        <h1 className="text-2xl font-semibold tracking-tight">{t.edit}</h1>
+        <h1 className="text-ink text-xl font-bold">{t.edit}</h1>
       </div>
       <IncentiveRateForm
         mode={{

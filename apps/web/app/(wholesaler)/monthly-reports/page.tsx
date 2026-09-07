@@ -10,10 +10,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { labels } from "@/lib/i18n/labels";
 
-import type { MonthlyScope } from "@solar/db";
-
 import { listMonthlyReports } from "./data";
 import { RunAggregateForm } from "./run-aggregate-form";
+
+import type { MonthlyScope } from "@solar/db";
 
 export const dynamic = "force-dynamic";
 
@@ -56,7 +56,7 @@ export default async function MonthlyReportListPage({ searchParams }: PageProps)
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t.listTitle}</h1>
+          <h1 className="text-ink text-xl font-bold">{t.listTitle}</h1>
           <p className="text-muted-foreground mt-1 text-sm">{t.listSubtitle}</p>
         </div>
         <RunAggregateForm />
@@ -95,13 +95,13 @@ export default async function MonthlyReportListPage({ searchParams }: PageProps)
       </form>
 
       {/* Scope tabs */}
-      <div className="flex gap-1 border-b border-border">
+      <div className="border-border flex gap-1 border-b">
         <Link
           href={filterUrl({ scope: undefined })}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+          className={`border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
             !scope
               ? "border-primary text-primary"
-              : "border-transparent text-muted-foreground hover:text-foreground"
+              : "text-muted-foreground hover:text-foreground border-transparent"
           }`}
         >
           {t.allTab}
@@ -110,10 +110,10 @@ export default async function MonthlyReportListPage({ searchParams }: PageProps)
           <Link
             key={s}
             href={filterUrl({ scope: s })}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            className={`border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
               scope === s
                 ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+                : "text-muted-foreground hover:text-foreground border-transparent"
             }`}
           >
             {t.scopes[s]}
@@ -135,16 +135,16 @@ export default async function MonthlyReportListPage({ searchParams }: PageProps)
                 <th className="px-3 py-2 font-medium">{t.fields.targetMonth}</th>
                 <th className="px-3 py-2 font-medium">{t.fields.scope}</th>
                 <th className="px-3 py-2 font-medium">{t.fields.status}</th>
-                <th className="px-3 py-2 font-medium text-right">{t.fields.contractCount}</th>
-                <th className="px-3 py-2 font-medium text-right">{t.fields.totalSales}</th>
-                <th className="px-3 py-2 font-medium text-right">{t.fields.totalGrossProfit}</th>
-                <th className="px-3 py-2 font-medium text-right">{t.fields.totalIncentive}</th>
+                <th className="px-3 py-2 text-right font-medium">{t.fields.contractCount}</th>
+                <th className="px-3 py-2 text-right font-medium">{t.fields.totalSales}</th>
+                <th className="px-3 py-2 text-right font-medium">{t.fields.totalGrossProfit}</th>
+                <th className="px-3 py-2 text-right font-medium">{t.fields.totalIncentive}</th>
                 <th className="px-3 py-2 font-medium">{c.actions}</th>
               </tr>
             </thead>
             <tbody>
               {result.items.map((row) => (
-                <tr key={row.id} className="border-border border-t hover:bg-muted/20">
+                <tr key={row.id} className="border-border hover:bg-muted/20 border-t">
                   <td className="px-3 py-2 font-medium tabular-nums">{row.targetMonth}</td>
                   <td className="px-3 py-2">{t.scopes[row.scope] ?? row.scope}</td>
                   <td className="px-3 py-2">

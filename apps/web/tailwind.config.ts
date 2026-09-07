@@ -14,70 +14,86 @@ const config: Config = {
     },
     extend: {
       fontFamily: {
-        sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
+        // 和欧混植。欧文・数字は Inter、日本語は OS 標準の日本語フェイスへ
+        // 明示的にフォールバックさせる（globals.css の body と同一スタック）。
+        sans: [
+          "Inter",
+          "Hiragino Kaku Gothic ProN",
+          "Hiragino Sans",
+          "Noto Sans JP",
+          "Yu Gothic Medium",
+          "Yu Gothic",
+          "Meiryo",
+          "ui-sans-serif",
+          "system-ui",
+          "sans-serif",
+        ],
       },
       colors: {
-        // Brand — 青系（PlayStation 系）。単一アクセントのブランドブルー。
-        primary: { DEFAULT: "#0070d1", foreground: "#ffffff", pressed: "#0064b7", active: "#004d8d" },
-        commerce: { DEFAULT: "#d53b00", foreground: "#ffffff", pressed: "#aa2f00" },
+        // ── Brand ──────────────────────────────────────────────────────────
+        // 単一アクセント。ブランドブルーは唯一の「操作可能」を表す色で、
+        // 状態色（status.*）とは役割を分ける。
+        primary: {
+          DEFAULT: "#0070d1",
+          foreground: "#ffffff",
+          pressed: "#0064b7",
+          active: "#004d8d",
+        },
 
-        // Named palette — コンポーネントが参照する名前付きトークン。
-        "electric-blue": "#0070d1", // アクセント = ブランドブルー
-        "carbon-dark": "#1a1a1a", // 見出し / 強調テキスト（off-black）
-        graphite: "#3f3f46", // 本文上の濃いニュートラル（バッジ/ラベル）
-        pewter: "#6b6b6b", // ミュート二次テキスト
-        "light-ash": "#f1f5f9", // 明るいニュートラル面 / チップ背景 (slate-100)
-        "cloud-gray": "#e2e8f0", // 控えめな境界 / divider (slate-200)
-        "mist-light": "#f8fafc", // ごく薄い行 / ホバー面 (slate-50)
-        "silver-fog": "#94a3b8", // プレースホルダ (slate-400)
-
-        // Surfaces — light page を slate-50 にティントし、カード/入力は白で浮かせる
-        "canvas-dark": "#000000",
-        "surface-dark": "#121314",
-        "surface-dark-card": "#181818",
+        // ── Surfaces ───────────────────────────────────────────────────────
+        // ページ地を slate-50 にティントし、カード/入力を白で浮かせる。
         "canvas-light": "#ffffff",
-        page: "#f8fafc", // アプリのページ/キャンバス背景ティント (slate-50)
+        page: "#f8fafc", // アプリのページ背景 (slate-50)
         "surface-soft": "#f1f5f9", // hover 行 / ソフトパネル (slate-100)
         "surface-card": "#f8fafc", // テーブルヘッダ等 (slate-50)
 
-        // Text
-        ink: "#000000",
-        "body-light": "#334155", // 本文 (slate-700, AA 余裕)
-        "mute-light": "#64748b", // 二次テキスト (slate-500, AA)
-        "ash-light": "#cbd5e1", // 入力境界 (slate-300)
+        // ── Text ───────────────────────────────────────────────────────────
+        // 見出しは純黒ではなく slate-900。白背景に対し 17.9:1 で、
+        // 純黒より締まりが出て本文 (slate-700) との段差も自然になる。
+        ink: "#0f172a",
+        "body-light": "#334155", // 本文 (slate-700, 10.4:1)
+        "mute-light": "#64748b", // 二次テキスト (slate-500, 4.8:1 AA)
         "on-dark": "#ffffff",
-        "body-dark": "rgba(255,255,255,0.7)",
 
-        // Hairlines
-        "hairline-light": "#e2e8f0", // 境界 (slate-200)
-        "hairline-dark": "rgba(229,229,229,0.2)",
+        // ── Lines ──────────────────────────────────────────────────────────
+        // 罫線は用途で 2 段階だけ持つ。
+        //   hairline-light … 表の行区切り・カード外周（装飾的）
+        //   ash-light      … 入力欄の枠（UI 部品の境界。WCAG 1.4.11 の 3:1 を満たす）
+        "hairline-light": "#e2e8f0", // slate-200
+        "ash-light": "#828fa1", // 白背景に対し 3.28:1
 
-        // Semantic
-        warning: "#c81b3a",
+        // ── Status ─────────────────────────────────────────────────────────
+        // 業務上の「状態」を表す意味色。アクセント（primary）とは独立。
+        // 全色とも白背景に対して AA (4.5:1) 以上。
+        danger: { DEFAULT: "#b3261e", foreground: "#ffffff" }, // 期限超過 / 破壊的操作 (6.5:1)
+        caution: "#9a5b00", // 期限間近 / 要確認 (5.4:1)
+        ok: "#15803d", // 完了 / 正常 (5.0:1)
         "link-light": "#0064b7",
-        "link-dark": "#53b1ff",
 
-        // Legacy compat (keep so existing classes don't break)
-        // NOTE: background/card/popover は白を維持（bg-background は textarea/tabs/sheet/toast
-        // 等の白サーフェスで使われるため）。ページティントは body と shell main の bg-page で担保。
+        // ── shadcn 互換エイリアス ──────────────────────────────────────────
+        // shadcn/ui 由来のコンポーネントが参照する名前。上の実体を指すだけで、
+        // 新しい色は増やさない。
         background: "#ffffff",
-        foreground: "#000000",
+        foreground: "#0f172a",
         border: "#e2e8f0",
         ring: "#0070d1",
-        destructive: { DEFAULT: "#c81b3a", foreground: "#ffffff" },
+        destructive: { DEFAULT: "#b3261e", foreground: "#ffffff" },
         muted: { DEFAULT: "#f1f5f9", foreground: "#64748b" },
-        accent: { DEFAULT: "#f1f5f9", foreground: "#000000" },
-        secondary: { DEFAULT: "#f1f5f9", foreground: "#000000" },
-        card: { DEFAULT: "#ffffff", foreground: "#000000" },
-        popover: { DEFAULT: "#ffffff", foreground: "#000000" },
-        input: "#cbd5e1",
+        accent: { DEFAULT: "#f1f5f9", foreground: "#0f172a" },
+        secondary: { DEFAULT: "#f1f5f9", foreground: "#0f172a" },
+        card: { DEFAULT: "#ffffff", foreground: "#0f172a" },
+        popover: { DEFAULT: "#ffffff", foreground: "#0f172a" },
+        input: "#828fa1",
       },
+      // 角丸は 1 段階を基本にする。ボタン/入力/カードで半径を変えると
+      // 同じ画面の中で別々の出自の部品に見えるため、md に揃える。
+      // full はアバターとページャの現在地など「円であること」に意味がある箇所のみ。
       borderRadius: {
-        sm: "4px",
-        md: "8px",
-        lg: "16px",
+        sm: "4px", // バッジ・チップ
+        md: "6px", // ボタン・入力・カード（既定）
+        lg: "8px", // モーダル・ポップオーバー
         full: "9999px",
-        DEFAULT: "8px",
+        DEFAULT: "6px",
       },
       keyframes: {
         "accordion-down": {
@@ -93,8 +109,10 @@ const config: Config = {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
       },
+      // 業務ツールのホバー/押下フィードバックは即時性が要る。
+      // 330ms は体感で明確に遅れるため、標準的な 140ms にする。
       transitionDuration: {
-        DEFAULT: "330ms",
+        DEFAULT: "140ms",
       },
     },
   },

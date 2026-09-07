@@ -1,9 +1,5 @@
 "use client";
 
-import Image from "next/image";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
 import {
   Bell,
   LogOut,
@@ -15,10 +11,16 @@ import {
   Settings,
   Wallet,
   Package,
+  CreditCard,
   type LucideIcon,
 } from "lucide-react";
-import { labels } from "@/lib/i18n/labels";
+import Image from "next/image";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+
 import { signOutAction } from "@/app/actions/sign-out";
+import { labels } from "@/lib/i18n/labels";
 
 import type { ReactNode } from "react";
 
@@ -27,6 +29,11 @@ import type { ReactNode } from "react";
 export interface NavLeaf {
   label: string;
   href: string;
+  /**
+   * 遷移先がまだ実装されていない（プレースホルダ画面）ことを示す。
+   * 導線からは隠さず、押す前に分かるよう一覧側に印を出す。
+   */
+  upcoming?: boolean;
 }
 
 export interface NavGroup {
@@ -49,8 +56,11 @@ export interface RoleShellProps {
 /* ── Brand logo ── */
 
 function BrandLogo({ className }: { className?: string }) {
+  // "/" はロールに応じたホームへ振り分ける（app/page.tsx）。
+  // "/dashboard" 固定だと二次店・SaaS 運営がロゴを押すたびに
+  // 卸業者用ホームへ飛ばされ、権限エラーになる。
   return (
-    <Link href="/dashboard" className={["inline-flex items-center", className ?? ""].join(" ")}>
+    <Link href="/" className={["inline-flex items-center", className ?? ""].join(" ")}>
       <Image
         src="/logo.png"
         alt={labels.brand}
@@ -85,7 +95,7 @@ function HamburgerButton({
       aria-label={label}
       aria-expanded={active}
       className={[
-        "flex h-8 w-8 items-center justify-center rounded-md text-body-light hover:bg-surface-soft hover:text-ink transition-colors",
+        "text-body-light hover:bg-surface-soft hover:text-ink flex h-8 w-8 items-center justify-center rounded-md transition-colors",
         className ?? "",
       ].join(" ")}
     >
@@ -135,9 +145,8 @@ function SidebarGroup({
   const activeChildHref =
     matchingChildren.length === 0
       ? null
-      : matchingChildren.reduce((best, cur) =>
-          cur.href.length > best.href.length ? cur : best,
-        ).href;
+      : matchingChildren.reduce((best, cur) => (cur.href.length > best.href.length ? cur : best))
+          .href;
   const hasActive = activeChildHref !== null;
   const [open, setOpen] = useState(hasActive);
   const Icon = group.icon;
@@ -149,7 +158,7 @@ function SidebarGroup({
         href={firstHref}
         title={group.label}
         className={[
-          "flex items-center justify-center py-2.5 rounded-md transition-colors",
+          "flex items-center justify-center rounded-md py-2.5 transition-colors",
           hasActive ? "text-primary" : "text-body-light hover:bg-surface-soft hover:text-ink",
         ].join(" ")}
       >
@@ -164,15 +173,20 @@ function SidebarGroup({
         type="button"
         onClick={() => setOpen(!open)}
         className={[
-          "flex items-center gap-3 w-full rounded-md px-3 py-2 text-sm transition-colors",
-          hasActive ? "text-ink font-medium" : "text-body-light hover:bg-surface-soft hover:text-ink",
+          "flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+          hasActive
+            ? "text-ink font-medium"
+            : "text-body-light hover:bg-surface-soft hover:text-ink",
         ].join(" ")}
       >
         <Icon size={18} className="shrink-0" />
-        <span className="flex-1 text-left truncate">{group.label}</span>
+        <span className="flex-1 truncate text-left">{group.label}</span>
         <ChevronDown
           size={14}
-          className={["shrink-0 text-mute-light transition-transform duration-200", open ? "rotate-180" : ""].join(" ")}
+          className={[
+            "text-mute-light shrink-0 transition-transform duration-200",
+            open ? "rotate-180" : "",
+          ].join(" ")}
         />
       </button>
       <div
@@ -182,7 +196,7 @@ function SidebarGroup({
         ].join(" ")}
       >
         <div className="overflow-hidden">
-          <div className="ml-5 pl-3 border-l border-hairline-light space-y-0.5 mt-0.5 mb-1">
+          <div className="border-hairline-light mb-1 ml-5 mt-0.5 space-y-0.5 border-l pl-3">
             {group.children.map((child) => {
               const isActive = child.href === activeChildHref;
               return (
@@ -191,13 +205,18 @@ function SidebarGroup({
                   href={child.href}
                   onClick={onNavigate}
                   className={[
-                    "block rounded-md px-3 py-1.5 text-[13px] transition-colors",
+                    "flex items-center justify-between gap-2 rounded-md px-3 py-1.5 text-[13px] transition-colors",
                     isActive
-                      ? "text-primary font-medium bg-primary/5"
+                      ? "text-primary bg-primary/5 font-medium"
                       : "text-body-light hover:bg-surface-soft hover:text-ink",
                   ].join(" ")}
                 >
-                  {child.label}
+                  <span>{child.label}</span>
+                  {child.upcoming ? (
+                    <span className="text-mute-light border-hairline-light shrink-0 rounded-sm border px-1 text-[10px] font-normal leading-4">
+                      {labels.nav.upcoming}
+                    </span>
+                  ) : null}
                 </Link>
               );
             })}
@@ -223,9 +242,12 @@ function SidebarLeaf({
   collapsed: boolean;
   onNavigate?: () => void;
 }) {
-  const isActive = item.href === "/dashboard" || item.href === "/d-dashboard" || item.href === "/saas-admin-dashboard"
-    ? pathname === item.href
-    : pathname.startsWith(item.href);
+  const isActive =
+    item.href === "/dashboard" ||
+    item.href === "/d-dashboard" ||
+    item.href === "/saas-admin-dashboard"
+      ? pathname === item.href
+      : pathname.startsWith(item.href);
 
   if (collapsed) {
     return (
@@ -233,7 +255,7 @@ function SidebarLeaf({
         href={item.href}
         title={item.label}
         className={[
-          "flex items-center justify-center py-2.5 rounded-md transition-colors",
+          "flex items-center justify-center rounded-md py-2.5 transition-colors",
           isActive ? "text-primary" : "text-body-light hover:bg-surface-soft hover:text-ink",
         ].join(" ")}
       >
@@ -249,7 +271,7 @@ function SidebarLeaf({
       className={[
         "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
         isActive
-          ? "text-primary font-medium bg-primary/5"
+          ? "text-primary bg-primary/5 font-medium"
           : "text-body-light hover:bg-surface-soft hover:text-ink",
       ].join(" ")}
     >
@@ -276,16 +298,26 @@ function SidebarNav({
 }) {
   return (
     <nav
-      className={[
-        "flex-1 px-2 pb-6 space-y-0.5 overflow-y-auto mt-2",
-        className ?? "",
-      ].join(" ")}
+      className={["mt-2 flex-1 space-y-0.5 overflow-y-auto px-2 pb-6", className ?? ""].join(" ")}
     >
       {navItems.map((entry, i) =>
         isGroup(entry) ? (
-          <SidebarGroup key={i} group={entry} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
+          <SidebarGroup
+            key={i}
+            group={entry}
+            pathname={pathname}
+            collapsed={collapsed}
+            onNavigate={onNavigate}
+          />
         ) : (
-          <SidebarLeaf key={entry.href} item={entry} icon={entry.icon} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
+          <SidebarLeaf
+            key={entry.href}
+            item={entry}
+            icon={entry.icon}
+            pathname={pathname}
+            collapsed={collapsed}
+            onNavigate={onNavigate}
+          />
         ),
       )}
     </nav>
@@ -320,17 +352,17 @@ export function RoleShell({ navItems = [], children }: RoleShellProps) {
   }, [mobileOpen]);
 
   return (
-    <div className="flex min-h-screen bg-canvas-light text-body-light">
+    <div className="bg-canvas-light text-body-light flex min-h-screen">
       {/* ── Desktop Sidebar ── */}
       <aside
         className={[
-          "hidden lg:flex lg:flex-col lg:shrink-0 border-r border-hairline-light bg-canvas-light transition-all duration-300",
+          "border-hairline-light bg-canvas-light hidden border-r transition-all duration-300 lg:flex lg:shrink-0 lg:flex-col",
           collapsed ? "lg:w-14" : "lg:w-56",
         ].join(" ")}
       >
         <div
           className={[
-            "flex items-center h-14 border-b border-hairline-light",
+            "border-hairline-light flex h-14 items-center border-b",
             collapsed ? "justify-center px-1" : "justify-between px-3",
           ].join(" ")}
         >
@@ -367,11 +399,11 @@ export function RoleShell({ navItems = [], children }: RoleShellProps) {
       />
       <aside
         className={[
-          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-hairline-light bg-canvas-light shadow-xl transition-transform duration-300 ease-in-out lg:hidden",
+          "border-hairline-light bg-canvas-light fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r shadow-xl transition-transform duration-300 ease-in-out lg:hidden",
           mobileOpen ? "translate-x-0" : "-translate-x-full",
         ].join(" ")}
       >
-        <div className="flex h-14 items-center border-b border-hairline-light pl-12 pr-4">
+        <div className="border-hairline-light flex h-14 items-center border-b pl-12 pr-4">
           <BrandLogo />
         </div>
         {/* key を開閉でトグルして remount し、スタッガード表示を都度再生する */}
@@ -386,8 +418,8 @@ export function RoleShell({ navItems = [], children }: RoleShellProps) {
       </aside>
 
       {/* ── Main column ── */}
-      <div className="flex flex-1 flex-col min-w-0">
-        <header className="flex h-14 items-center justify-between border-b border-hairline-light bg-canvas-light px-4 lg:px-6 shrink-0">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="border-hairline-light bg-canvas-light flex h-14 shrink-0 items-center justify-between border-b px-4 lg:px-6">
           <div className="flex items-center gap-3 pl-10 lg:pl-0">
             {/* モバイルではブランドロゴ（開閉ボタンは固定配置）。デスクトップは
                 サイドバー側にロゴがあるのでここは非表示。 */}
@@ -398,24 +430,24 @@ export function RoleShell({ navItems = [], children }: RoleShellProps) {
             <Link
               href="/notifications"
               aria-label={labels.nav.notifications}
-              className="flex items-center justify-center w-8 h-8 rounded-md text-body-light hover:text-ink hover:bg-surface-soft transition-colors"
+              className="text-body-light hover:text-ink hover:bg-surface-soft flex h-8 w-8 items-center justify-center rounded-md transition-colors"
             >
               <Bell size={18} />
             </Link>
             <Link
               href="/profile"
               aria-label={labels.nav.profile}
-              className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-surface-soft transition-colors"
+              className="hover:bg-surface-soft flex h-8 w-8 items-center justify-center rounded-md transition-colors"
             >
-              <div className="w-7 h-7 rounded-full bg-surface-soft flex items-center justify-center">
-                <span className="text-xs font-medium text-mute-light">U</span>
+              <div className="bg-surface-soft flex h-7 w-7 items-center justify-center rounded-full">
+                <span className="text-mute-light text-xs font-semibold">U</span>
               </div>
             </Link>
             <form action={signOutAction}>
               <button
                 type="submit"
                 aria-label={labels.signOut.ariaLabel}
-                className="flex items-center justify-center w-8 h-8 rounded-md text-body-light hover:text-ink hover:bg-surface-soft transition-colors"
+                className="text-body-light hover:text-ink hover:bg-surface-soft flex h-8 w-8 items-center justify-center rounded-md transition-colors"
               >
                 <LogOut size={16} />
               </button>
@@ -423,8 +455,8 @@ export function RoleShell({ navItems = [], children }: RoleShellProps) {
           </div>
         </header>
 
-        <main className="flex-1 bg-page px-4 py-6 lg:px-8 lg:py-8 overflow-auto">
-          <div className="max-w-6xl mx-auto">{children}</div>
+        <main className="bg-page flex-1 overflow-auto px-4 py-6 lg:px-8 lg:py-8">
+          <div className="mx-auto max-w-6xl">{children}</div>
         </main>
       </div>
     </div>
@@ -432,4 +464,4 @@ export function RoleShell({ navItems = [], children }: RoleShellProps) {
 }
 
 /* ── Re-export icons for layout files ── */
-export { Home, Calendar, Users, LineChart, Settings, Wallet, Package };
+export { Home, Calendar, Users, LineChart, Settings, Wallet, Package, CreditCard };

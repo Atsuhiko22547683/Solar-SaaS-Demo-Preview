@@ -8,9 +8,11 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { formatDate as fmtDate } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
 import { saveDealerCommissionRate } from "./actions";
+
 import type { DealerRateSetting } from "./data";
 
 const t = labels.commission.settingsPage;
@@ -22,8 +24,7 @@ function formatYen(amount: number): string {
 
 // "2026-04-01" → "2026/04/01"。null は終了日なし表記へ。
 function formatDate(iso: string): string {
-  const [y, m, d] = iso.split("-");
-  return `${y}/${m}/${d}`;
+  return fmtDate(iso);
 }
 
 // number input の生文字列を率(%)としてパース。空 / 不正は 0 扱い、負数は 0 にクランプ。
@@ -45,21 +46,21 @@ function DealerList({
   const c = t.columns;
   return (
     <Card className="overflow-hidden p-0">
-      <div className="border-b border-hairline-light px-5 py-4">
-        <h2 className="text-sm font-medium text-ink">{t.listTitle}</h2>
+      <div className="border-hairline-light border-b px-5 py-4">
+        <h2 className="text-ink text-sm font-medium">{t.listTitle}</h2>
       </div>
 
       {dealers.length === 0 ? (
-        <p className="px-5 py-12 text-center text-sm text-mute-light">{t.empty}</p>
+        <p className="text-mute-light px-5 py-12 text-center text-sm">{t.empty}</p>
       ) : (
         <>
-          <div className="hidden grid-cols-[1fr_auto_auto] gap-4 border-b border-hairline-light bg-surface-soft/30 px-5 py-2 text-xs font-medium uppercase tracking-wider text-mute-light sm:grid">
+          <div className="border-hairline-light bg-surface-soft/30 text-mute-light hidden grid-cols-[1fr_auto_auto] gap-4 border-b px-5 py-2 text-xs font-semibold sm:grid">
             <span>{c.dealerName}</span>
             <span className="w-16 text-right">{c.tossUpRate}</span>
             <span className="w-16 text-right">{c.closingRate}</span>
           </div>
 
-          <ul className="divide-y divide-hairline-light">
+          <ul className="divide-hairline-light divide-y">
             {dealers.map((d) => {
               const active = d.id === selectedId;
               return (
@@ -71,14 +72,14 @@ function DealerList({
                     className={[
                       "grid w-full grid-cols-[1fr_auto_auto] items-center gap-4 px-5 py-3.5 text-left transition-colors",
                       active
-                        ? "border-l-2 border-primary bg-primary/5"
-                        : "border-l-2 border-transparent hover:bg-surface-soft/40",
+                        ? "border-primary bg-primary/5 border-l-2"
+                        : "hover:bg-surface-soft/40 border-l-2 border-transparent",
                     ].join(" ")}
                   >
                     <span
                       className={[
                         "min-w-0 truncate text-sm",
-                        active ? "font-semibold text-primary" : "font-medium text-ink",
+                        active ? "text-primary font-semibold" : "text-ink font-medium",
                       ].join(" ")}
                     >
                       {d.dealerName}
@@ -133,9 +134,9 @@ function RateCard({
     <div className={["rounded-md border p-4", accent.bg, accent.border].join(" ")}>
       <div className="flex items-center gap-2">
         <Coins size={16} className={accent.icon} />
-        <span className="text-sm font-medium text-ink">{title}</span>
+        <span className="text-ink text-sm font-medium">{title}</span>
       </div>
-      <p className="mt-1 text-xs text-mute-light">{description}</p>
+      <p className="text-mute-light mt-1 text-xs">{description}</p>
 
       <div className="mt-4 flex items-end gap-2">
         <Input
@@ -146,7 +147,7 @@ function RateCard({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           aria-label={title}
-          className="h-12 w-28 bg-white text-right text-2xl font-semibold tabular-nums text-ink"
+          className="text-ink h-12 w-28 bg-white text-right text-2xl font-semibold tabular-nums"
         />
         <span className={["pb-2 text-2xl font-semibold tabular-nums", accent.value].join(" ")}>
           {t.percentSuffix}
@@ -170,10 +171,10 @@ function ApplyPeriod({
   const p = t.applyPeriod;
   return (
     <section>
-      <h3 className="mb-3 text-sm font-medium text-ink">{t.sections.applyPeriod}</h3>
-      <div className="flex flex-wrap items-end gap-x-4 gap-y-3 rounded-md border border-hairline-light bg-surface-soft/30 px-4 py-3 text-sm">
+      <h3 className="text-ink mb-3 text-sm font-medium">{t.sections.applyPeriod}</h3>
+      <div className="border-hairline-light bg-surface-soft/30 flex flex-wrap items-end gap-x-4 gap-y-3 rounded-md border px-4 py-3 text-sm">
         <label className="flex flex-col gap-1">
-          <span className="text-xs text-mute-light">{p.from}</span>
+          <span className="text-mute-light text-xs">{p.from}</span>
           <Input
             type="date"
             value={from}
@@ -181,9 +182,9 @@ function ApplyPeriod({
             className="w-44 tabular-nums"
           />
         </label>
-        <ArrowRight size={14} className="mb-3 text-mute-light" />
+        <ArrowRight size={14} className="text-mute-light mb-3" />
         <label className="flex flex-col gap-1">
-          <span className="text-xs text-mute-light">{p.to}</span>
+          <span className="text-mute-light text-xs">{p.to}</span>
           <Input
             type="date"
             value={to}
@@ -191,7 +192,7 @@ function ApplyPeriod({
             className="w-44 tabular-nums"
           />
         </label>
-        <span className="mb-3 text-xs text-mute-light">{p.noEndHint}</span>
+        <span className="text-mute-light mb-3 text-xs">{p.noEndHint}</span>
       </div>
     </section>
   );
@@ -217,13 +218,13 @@ function PreviewCalculator({
 
   return (
     <section>
-      <h3 className="mb-3 flex items-center gap-2 text-sm font-medium text-ink">
+      <h3 className="text-ink mb-3 flex items-center gap-2 text-sm font-medium">
         <Calculator size={16} className="text-mute-light" />
         {t.sections.preview}
       </h3>
-      <div className="rounded-md border border-hairline-light bg-surface-soft/30 p-4">
+      <div className="border-hairline-light bg-surface-soft/30 rounded-md border p-4">
         <label className="block">
-          <span className="mb-1.5 block text-xs text-mute-light">{p.baseAmount}</span>
+          <span className="text-mute-light mb-1.5 block text-xs">{p.baseAmount}</span>
           <div className="flex items-center gap-2">
             <Input
               type="number"
@@ -235,27 +236,27 @@ function PreviewCalculator({
               onChange={(e) => setBaseRaw(e.target.value)}
               className="w-48 text-right tabular-nums"
             />
-            <span className="text-sm text-body-light">{labels.common.currencySuffix}</span>
+            <span className="text-body-light text-sm">{labels.common.currencySuffix}</span>
           </div>
         </label>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <div className="rounded-md border border-amber-200 bg-amber-50/70 px-4 py-3">
-            <div className="text-xs text-mute-light">{p.tossUpFee}</div>
+            <div className="text-mute-light text-xs">{p.tossUpFee}</div>
             <div className="mt-1 text-xl font-semibold tabular-nums text-amber-700">
               {formatYen(tossUpFee)}
             </div>
-            <div className="mt-0.5 text-xs tabular-nums text-mute-light">
+            <div className="text-mute-light mt-0.5 text-xs tabular-nums">
               {tossUpRate}
               {t.percentSuffix}
             </div>
           </div>
           <div className="rounded-md border border-blue-200 bg-blue-50/70 px-4 py-3">
-            <div className="text-xs text-mute-light">{p.closingFee}</div>
+            <div className="text-mute-light text-xs">{p.closingFee}</div>
             <div className="mt-1 text-xl font-semibold tabular-nums text-blue-700">
               {formatYen(closingFee)}
             </div>
-            <div className="mt-0.5 text-xs tabular-nums text-mute-light">
+            <div className="text-mute-light mt-0.5 text-xs tabular-nums">
               {closingRate}
               {t.percentSuffix}
             </div>
@@ -270,36 +271,34 @@ function HistoryTable({ history }: { history: DealerRateSetting["history"] }) {
   const h = t.historyColumns;
   return (
     <section>
-      <h3 className="mb-3 flex items-center gap-2 text-sm font-medium text-ink">
+      <h3 className="text-ink mb-3 flex items-center gap-2 text-sm font-medium">
         <History size={16} className="text-mute-light" />
         {t.sections.history}
       </h3>
       {history.length === 0 ? (
-        <p className="rounded-md border border-hairline-light bg-surface-soft/30 px-4 py-6 text-center text-sm text-mute-light">
+        <p className="border-hairline-light bg-surface-soft/30 text-mute-light rounded-md border px-4 py-6 text-center text-sm">
           {t.historyEmpty}
         </p>
       ) : (
-        <div className="overflow-hidden rounded-md border border-hairline-light">
+        <div className="border-hairline-light overflow-hidden rounded-md border">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-hairline-light bg-surface-soft/30 text-left">
-                <th className="w-28 px-4 py-2 text-xs font-medium uppercase tracking-wider text-mute-light">
-                  {h.date}
-                </th>
-                <th className="w-32 px-4 py-2 text-xs font-medium uppercase tracking-wider text-mute-light">
+              <tr className="border-hairline-light bg-surface-soft/30 border-b text-left">
+                <th className="text-mute-light w-28 px-4 py-2 text-xs font-semibold">{h.date}</th>
+                <th className="text-mute-light w-32 px-4 py-2 text-xs font-semibold">
                   {h.changedBy}
                 </th>
-                <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-mute-light">
-                  {h.summary}
-                </th>
+                <th className="text-mute-light px-4 py-2 text-xs font-semibold">{h.summary}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-hairline-light">
+            <tbody className="divide-hairline-light divide-y">
               {history.map((rc) => (
                 <tr key={rc.id}>
-                  <td className="px-4 py-2.5 tabular-nums text-body-light">{formatDate(rc.date)}</td>
-                  <td className="px-4 py-2.5 text-body-light">{rc.changedBy}</td>
-                  <td className="px-4 py-2.5 text-ink">{rc.summary}</td>
+                  <td className="text-body-light px-4 py-2.5 tabular-nums">
+                    {formatDate(rc.date)}
+                  </td>
+                  <td className="text-body-light px-4 py-2.5">{rc.changedBy}</td>
+                  <td className="text-ink px-4 py-2.5">{rc.summary}</td>
                 </tr>
               ))}
             </tbody>
@@ -375,10 +374,10 @@ function ConfigPanel({ setting }: { setting: DealerRateSetting }) {
 
   return (
     <Card className="p-0">
-      <div className="flex items-center justify-between gap-4 border-b border-hairline-light px-6 py-4">
+      <div className="border-hairline-light flex items-center justify-between gap-4 border-b px-6 py-4">
         <div className="min-w-0">
-          <h2 className="truncate text-base font-semibold text-ink">{setting.dealerName}</h2>
-          <p className="mt-0.5 text-xs text-mute-light">{t.sections.baseSetting}</p>
+          <h2 className="text-ink truncate text-base font-semibold">{setting.dealerName}</h2>
+          <p className="text-mute-light mt-0.5 text-xs">{t.sections.baseSetting}</p>
         </div>
         <Button type="button" size="sm" disabled={!isDirty || isPending} onClick={handleSave}>
           {isPending ? labels.common.saving : t.save}
@@ -387,7 +386,7 @@ function ConfigPanel({ setting }: { setting: DealerRateSetting }) {
 
       <div className="space-y-6 px-6 py-5">
         <section>
-          <h3 className="mb-3 text-sm font-medium text-ink">{t.sections.rates}</h3>
+          <h3 className="text-ink mb-3 text-sm font-medium">{t.sections.rates}</h3>
           <div className="grid gap-4 md:grid-cols-2">
             <RateCard
               variant="tossUp"

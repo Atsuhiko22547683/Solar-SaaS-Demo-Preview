@@ -11,6 +11,7 @@ import { notFound } from "next/navigation";
 
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
+import { formatDate, formatDateTime } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
 import { listHistoryForScope } from "../data";
@@ -56,11 +57,11 @@ export default async function MonthlyReportDetailPage({ params }: PageProps) {
         <Button asChild variant="outline" size="sm">
           <Link href="/monthly-reports">{t.backToList}</Link>
         </Button>
-        <h1 className="text-2xl font-semibold tracking-tight">{t.detailTitle}</h1>
+        <h1 className="text-ink text-xl font-bold">{t.detailTitle}</h1>
       </div>
 
       {/* Header metadata */}
-      <div className="border-border rounded-md border p-4 space-y-3">
+      <div className="border-border space-y-3 rounded-md border p-4">
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-4">
           <dt className="text-muted-foreground">{t.fields.targetMonth}</dt>
           <dd className="font-medium tabular-nums">{report.targetMonth}</dd>
@@ -75,15 +76,13 @@ export default async function MonthlyReportDetailPage({ params }: PageProps) {
             </span>
             {report.status === "FINALIZED" && report.finalizedAt && (
               <span className="text-muted-foreground ml-2 text-xs">
-                ({new Date(report.finalizedAt).toLocaleDateString("ja-JP")})
+                ({formatDate(report.finalizedAt)})
               </span>
             )}
           </dd>
 
           <dt className="text-muted-foreground">{t.fields.updatedAt}</dt>
-          <dd className="text-muted-foreground text-xs">
-            {new Date(report.updatedAt).toLocaleString("ja-JP")}
-          </dd>
+          <dd className="text-muted-foreground text-xs">{formatDateTime(report.updatedAt)}</dd>
 
           {report.relationshipId && (
             <>
@@ -95,7 +94,7 @@ export default async function MonthlyReportDetailPage({ params }: PageProps) {
       </div>
 
       {/* Aggregated figures */}
-      <div className="border-border rounded-md border p-4 space-y-3">
+      <div className="border-border space-y-3 rounded-md border p-4">
         <h2 className="font-medium">{t.aggregatedSection}</h2>
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-4">
           <dt className="text-muted-foreground">{t.fields.contractCount}</dt>
@@ -126,21 +125,21 @@ export default async function MonthlyReportDetailPage({ params }: PageProps) {
       </div>
 
       {/* Bar chart — last 6 months */}
-      <div className="border-border rounded-md border p-4 space-y-3">
+      <div className="border-border space-y-3 rounded-md border p-4">
         <h2 className="font-medium">{t.chartSection}</h2>
         <MonthlyChartClient history={historyData} />
       </div>
 
       {/* Comments section */}
-      <div className="border-border rounded-md border p-4 space-y-4">
+      <div className="border-border space-y-4 rounded-md border p-4">
         <h2 className="font-medium">{t.commentsSection}</h2>
 
         {/* Dealer comment display */}
         {report.status === "DRAFT" ? (
-          <p className="text-sm text-muted-foreground">{tc.notSubmittedYet}</p>
+          <p className="text-muted-foreground text-sm">{tc.notSubmittedYet}</p>
         ) : (
           <div className="space-y-3 text-sm">
-            <p className="text-xs text-muted-foreground font-medium">{tc.dealerCommentLabel}</p>
+            <p className="text-muted-foreground text-xs font-medium">{tc.dealerCommentLabel}</p>
             {(
               [
                 ["mainResults", tc.fields.mainResults],
@@ -161,7 +160,7 @@ export default async function MonthlyReportDetailPage({ params }: PageProps) {
 
             {commentsObj["reviewComment"] && (
               <div className="border-t pt-3">
-                <p className="text-xs text-muted-foreground font-medium mb-1">
+                <p className="text-muted-foreground mb-1 text-xs font-medium">
                   {tc.wholesalerCommentLabel}
                 </p>
                 <p className="whitespace-pre-wrap">{commentsObj["reviewComment"]}</p>
@@ -171,28 +170,24 @@ export default async function MonthlyReportDetailPage({ params }: PageProps) {
         )}
 
         {/* Review action — wholesaler_admin when status=SUBMITTED */}
-        {report.status === "SUBMITTED" && (
-          <ReviewCommentForm reportId={report.id} />
-        )}
+        {report.status === "SUBMITTED" && <ReviewCommentForm reportId={report.id} />}
       </div>
 
       {/* Finalize / Unlock section (T-06-09) */}
-      <div className="border-border rounded-md border p-4 space-y-3">
+      <div className="border-border space-y-3 rounded-md border p-4">
         <h2 className="font-medium">{t.finalizeSection}</h2>
 
-        {report.status === "REVIEWED" && (
-          <FinalizeReportForm reportId={report.id} />
-        )}
+        {report.status === "REVIEWED" && <FinalizeReportForm reportId={report.id} />}
 
         {report.status === "FINALIZED" && (
           <div className="space-y-4">
-            <p className="text-sm text-green-700 font-medium">{t.finalizedBadge}</p>
+            <p className="text-sm font-medium text-green-700">{t.finalizedBadge}</p>
             <UnlockReportForm reportId={report.id} />
           </div>
         )}
 
         {report.status !== "REVIEWED" && report.status !== "FINALIZED" && (
-          <p className="text-sm text-muted-foreground">{t.notReviewedYet}</p>
+          <p className="text-muted-foreground text-sm">{t.notReviewedYet}</p>
         )}
       </div>
     </div>

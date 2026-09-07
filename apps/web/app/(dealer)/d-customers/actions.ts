@@ -8,13 +8,13 @@
 //
 // PII masking is NOT applied here; read paths apply masking via DTO layer.
 
-import { revalidatePath } from "next/cache";
-
 import { CustomerCreateSchema } from "@solar/contracts";
-import type { CustomerCreateInput } from "@solar/contracts";
+import { revalidatePath } from "next/cache";
 
 import { ValidationError, NotFoundError } from "@/lib/errors";
 import { withServerActionContext } from "@/lib/tenancy/server-action";
+
+import type { CustomerCreateInput } from "@solar/contracts";
 
 export interface CreateCustomerResult {
   id: string;
@@ -41,10 +41,12 @@ export const createDealerCustomerAction = withServerActionContext<
     // so single-wholesaler dealers (the common case) work without a switcher.
     const wholesalerId =
       ctx.wholesalerId ??
-      (await tx.relationship.findFirst({
-        where: { id: relationshipId },
-        select: { wholesalerId: true },
-      }).then((r) => r?.wholesalerId));
+      (await tx.relationship
+        .findFirst({
+          where: { id: relationshipId },
+          select: { wholesalerId: true },
+        })
+        .then((r) => r?.wholesalerId));
 
     if (!wholesalerId) {
       throw new ValidationError("卸業者コンテキストが必要です");

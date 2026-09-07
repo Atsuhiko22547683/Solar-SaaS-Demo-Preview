@@ -18,11 +18,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getCustomerProjectInfo } from "@/lib/customer/get-project-info";
 import { getCustomerProjectInfoEditable } from "@/lib/customer/get-project-info-editable";
 import { UnauthorizedError } from "@/lib/errors";
+import { formatDate } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 import { assertCan } from "@/lib/permissions/can";
 import { getTenantContext } from "@/lib/tenancy/context";
 
 import { listActiveAreas, listActiveDealers } from "../../event-detail/data";
+import { listAssignableStaff } from "../../salespeople/data";
 import { listWholesalerUsers } from "../data";
 import { BasicInfoInlineEdit, MemoInlineEdit } from "./basic-info-edit";
 import { CustomerChat } from "./customer-chat";
@@ -85,12 +87,7 @@ function normalizeTab(value: string | undefined): string {
 }
 
 function formatDay(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("ja-JP", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
+  return formatDate(iso);
 }
 
 // 生年月日(ISO)から満年齢を算出して "NN 歳" を返す（未設定は null）。
@@ -228,6 +225,9 @@ async function getCustomerEditableValues(id: string): Promise<
       tossUpRelationshipId: string | null;
       closingUserId: string | null;
       closingRelationshipId: string | null;
+      // 担当者の個人スタッフ参照。既存の二次店担当は会社までしか記録が無いので null。
+      tossUpSalespersonId: string | null;
+      closingSalespersonId: string | null;
       powerSaleStartDate: string | null;
       powerSaleNote: string | null;
     })
@@ -277,11 +277,15 @@ async function getCustomerEditableValues(id: string): Promise<
         equipmentId: true,
         area: true,
         inflowRoute: true,
+        salesChannel: true,
+        faceToFace: true,
         registeredByUserId: true,
         tossUpUserId: true,
         tossUpRelationshipId: true,
         closingUserId: true,
         closingRelationshipId: true,
+        tossUpSalespersonId: true,
+        closingSalespersonId: true,
         note: true,
         powerSaleStartDate: true,
         powerSaleNote: true,
@@ -315,12 +319,22 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
     getCustomerProjectInfo(id),
     getCustomerProjectInfoEditable(id),
   ]);
+  // 担当者に指定できるスタッフ（自社 + 二次店）。上と同時に走らせると 1 リクエストで
+  // 開くトランザクションが増えるので逐次で取る。
+  const assignableStaff = await listAssignableStaff();
 
   const t = labels.customer;
   const d = t.detail;
   const bc = labels.breadcrumb.items;
 
   const postalDisplay = detail.postalCode ? `〒${detail.postalCode}` : null;
+  // 対面者は 3 状態（true=主権者 / false=非主権者 / null=未設定）。
+  const faceToFaceText =
+    detail.faceToFace === null
+      ? null
+      : detail.faceToFace
+        ? d.faceToFaceLabels.sovereign
+        : d.faceToFaceLabels.nonSovereign;
 
   // customer.update 権限保持者のみ raw 値（マスク前）で初期化したインライン編集を描画。
   // editable が null（二次店・閲覧のみ）のときは読み取り専用 InfoRow（マスク済み）を表示。
@@ -333,6 +347,9 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
         postalCode: editable.postalCode,
         area: editable.area,
         inflowRoute: editable.inflowRoute,
+        salesChannel: editable.salesChannel,
+        faceToFace: editable.faceToFace,
+        tossDept: editable.tossDept,
         prefecture: editable.prefecture,
         city: editable.city,
         addressLine: editable.addressLine,
@@ -363,7 +380,7 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
 
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
         <div className="space-y-2.5">
-          <h1 className="text-ink text-2xl font-bold">
+          <h1 className="text-ink text-xl font-bold">
             {detail.name}
             <span className="text-body-light ml-1 text-xl font-medium">{t.honorific}</span>
           </h1>
@@ -429,14 +446,30 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
                 currentTossUpRelationshipId={editable.tossUpRelationshipId}
                 currentClosingUserId={editable.closingUserId}
                 currentClosingRelationshipId={editable.closingRelationshipId}
+                currentTossUpSalespersonId={editable.tossUpSalespersonId}
+                currentClosingSalespersonId={editable.closingSalespersonId}
                 users={users}
                 dealers={dealers}
+                staff={assignableStaff}
               />
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <AssigneeBlock role={d.fields.tossUpAssignee} assignee={detail.tossUp} />
               <AssigneeBlock role={d.fields.closingAssignee} assignee={detail.closing} />
             </div>
+
+            {/* 販売情報 — 値は顧客情報カードで編集し、ここでは確認用に並べる。
+                加盟店番号・マエカク実施者は現行スキーマでは一意に導出できないため出さない
+                （data.ts の CustomerDetail のコメント参照）。 */}
+            <h3 className="text-ink mb-3 mt-5 text-sm font-semibold">{d.salesSection}</h3>
+            <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
+              <InfoRow
+                label={d.fields.salesChannel}
+                value={detail.salesChannel ? d.salesChannelLabels[detail.salesChannel] : null}
+              />
+              <InfoRow label={d.fields.faceToFace} value={faceToFaceText} />
+              <InfoRow label={d.fields.tossDept} value={detail.tossDept} />
+            </dl>
           </Card>
 
           {/* ── 現状情報 — 顧客の連絡先・既存設備・電気契約など現在の状況 ── */}

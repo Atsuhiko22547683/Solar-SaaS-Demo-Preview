@@ -19,12 +19,8 @@
 // wholesalerId / relationshipId are always read from DB — never from input.
 // FINALIZED Incentive → ConflictError (409).
 
+import { IncentiveAdjustJointSchema, type IncentiveAdjustJointInput } from "@solar/contracts";
 import { revalidatePath } from "next/cache";
-
-import {
-  IncentiveAdjustJointSchema,
-  type IncentiveAdjustJointInput,
-} from "@solar/contracts";
 
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
 import { notificationService } from "@/lib/notifications/notification-service";
@@ -39,112 +35,109 @@ export interface AdjustJointIncentiveResult {
 export const adjustJointIncentiveAction = withServerActionContext<
   IncentiveAdjustJointInput,
   AdjustJointIncentiveResult
->(
-  { action: "incentive.adjust" },
-  async ({ tx, ctx, input }) => {
-    const parsed = IncentiveAdjustJointSchema.parse(input);
-    const now = new Date();
+>({ action: "incentive.adjust" }, async ({ tx, ctx, input }) => {
+  const parsed = IncentiveAdjustJointSchema.parse(input);
+  const now = new Date();
 
-    // 1. Fetch contract — verify mode=JOINT.
-    const contract = await tx.contract.findUnique({
-      where: { id: parsed.contractId },
+  // 1. Fetch contract — verify mode=JOINT.
+  const contract = await tx.contract.findUnique({
+    where: { id: parsed.contractId },
+    select: {
+      id: true,
+      eventModeAtContract: true,
+      wholesalerId: true,
+    },
+  });
+
+  if (!contract) throw new NotFoundError("契約が見つかりません");
+
+  if (contract.eventModeAtContract !== "JOINT") {
+    throw new ValidationError(
+      "共同開催インセンティブ調整は eventModeAtContract=JOINT の契約のみ対象です",
+      { eventModeAtContract: contract.eventModeAtContract },
+    );
+  }
+
+  const updatedIncentiveIds: string[] = [];
+  const adjustmentIds: string[] = [];
+
+  // 2 & 3. Process each distribution entry.
+  for (const dist of parsed.distributions) {
+    const incentive = await tx.incentive.findUnique({
+      where: {
+        contractId_relationshipId: {
+          contractId: parsed.contractId,
+          relationshipId: dist.relationshipId,
+        },
+      },
       select: {
         id: true,
-        eventModeAtContract: true,
-        wholesalerId: true,
+        status: true,
+        amount: true,
       },
     });
 
-    if (!contract) throw new NotFoundError("契約が見つかりません");
-
-    if (contract.eventModeAtContract !== "JOINT") {
-      throw new ValidationError(
-        "共同開催インセンティブ調整は eventModeAtContract=JOINT の契約のみ対象です",
-        { eventModeAtContract: contract.eventModeAtContract },
+    if (!incentive) {
+      throw new NotFoundError(
+        `インセンティブが見つかりません（relationshipId: ${dist.relationshipId}）`,
+        { relationshipId: dist.relationshipId },
       );
     }
 
-    const updatedIncentiveIds: string[] = [];
-    const adjustmentIds: string[] = [];
+    if (incentive.status === "FINALIZED") {
+      throw new ConflictError("既に確定済みのインセンティブは再調整できません", {
+        incentiveId: incentive.id,
+        status: incentive.status,
+      });
+    }
 
-    // 2 & 3. Process each distribution entry.
+    const beforeAmount = Number(incentive.amount);
+    const afterAmount = Number(dist.amount);
+
+    // Create adjustment record.
+    const adjustment = await tx.incentiveAdjustment.create({
+      data: {
+        incentiveId: incentive.id,
+        kind: "JOINT_DISTRIBUTION",
+        beforeAmount: beforeAmount.toFixed(2),
+        afterAmount: afterAmount.toFixed(2),
+        reason: dist.reason,
+        adjustedBy: ctx.actorUserId,
+      },
+      select: { id: true },
+    });
+    adjustmentIds.push(adjustment.id);
+
+    // Update incentive to FINALIZED with new amount.
+    await tx.incentive.update({
+      where: { id: incentive.id },
+      data: {
+        amount: afterAmount.toFixed(2),
+        status: "FINALIZED",
+        finalizedAt: now,
+      },
+    });
+    updatedIncentiveIds.push(incentive.id);
+  }
+
+  // Notify each affected dealer's admins that their incentive is finalized.
+  if (ctx.wholesalerId) {
     for (const dist of parsed.distributions) {
-      const incentive = await tx.incentive.findUnique({
-        where: {
-          contractId_relationshipId: {
-            contractId: parsed.contractId,
-            relationshipId: dist.relationshipId,
-          },
-        },
-        select: {
-          id: true,
-          status: true,
-          amount: true,
-        },
-      });
-
-      if (!incentive) {
-        throw new NotFoundError(
-          `インセンティブが見つかりません（relationshipId: ${dist.relationshipId}）`,
-          { relationshipId: dist.relationshipId },
-        );
-      }
-
-      if (incentive.status === "FINALIZED") {
-        throw new ConflictError(
-          "既に確定済みのインセンティブは再調整できません",
-          { incentiveId: incentive.id, status: incentive.status },
-        );
-      }
-
-      const beforeAmount = Number(incentive.amount);
-      const afterAmount = Number(dist.amount);
-
-      // Create adjustment record.
-      const adjustment = await tx.incentiveAdjustment.create({
-        data: {
-          incentiveId: incentive.id,
-          kind: "JOINT_DISTRIBUTION",
-          beforeAmount: beforeAmount.toFixed(2),
-          afterAmount: afterAmount.toFixed(2),
-          reason: dist.reason,
-          adjustedBy: ctx.actorUserId,
-        },
-        select: { id: true },
-      });
-      adjustmentIds.push(adjustment.id);
-
-      // Update incentive to FINALIZED with new amount.
-      await tx.incentive.update({
-        where: { id: incentive.id },
-        data: {
-          amount: afterAmount.toFixed(2),
-          status: "FINALIZED",
-          finalizedAt: now,
-        },
-      });
-      updatedIncentiveIds.push(incentive.id);
-    }
-
-    // Notify each affected dealer's admins that their incentive is finalized.
-    if (ctx.wholesalerId) {
-      for (const dist of parsed.distributions) {
-        const dealerAdmins = await resolveDealerAdmins(tx, dist.relationshipId);
-        if (dealerAdmins.length > 0) {
-          await notificationService.fire(tx, {
-            type: "INCENTIVE_FINALIZED",
-            recipientUserIds: dealerAdmins,
-            tenantId: ctx.wholesalerId,
-            params: { targetMonth: "" },
-            dedupKey: `INCENTIVE_FINALIZED:joint:${parsed.contractId}:${dist.relationshipId}`,
-          });
-        }
+      const dealerAdmins = await resolveDealerAdmins(tx, dist.relationshipId);
+      if (dealerAdmins.length > 0) {
+        await notificationService.fire(tx, {
+          type: "INCENTIVE_FINALIZED",
+          recipientUserIds: dealerAdmins,
+          tenantId: ctx.wholesalerId,
+          params: { targetMonth: "" },
+          dedupKey: `INCENTIVE_FINALIZED:joint:${parsed.contractId}:${dist.relationshipId}`,
+        });
       }
     }
+  }
 
-    revalidatePath(`/contracts/${parsed.contractId}/incentive`);
-    revalidatePath(`/contracts/${parsed.contractId}`);
+  revalidatePath(`/contracts/${parsed.contractId}/incentive`);
+  revalidatePath(`/contracts/${parsed.contractId}`);
 
-    return { updatedIncentiveIds, adjustmentIds };
-  },
-);
+  return { updatedIncentiveIds, adjustmentIds };
+});

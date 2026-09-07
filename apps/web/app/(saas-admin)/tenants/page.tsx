@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import { formatDateTime } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
 import { listTenants } from "./data";
@@ -45,7 +46,7 @@ export default async function TenantsListPage({ searchParams }: PageProps) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t.listTitle}</h1>
+          <h1 className="text-ink text-xl font-bold">{t.listTitle}</h1>
           <p className="text-muted-foreground text-sm">{t.listSubtitle}</p>
         </div>
         <Button asChild>
@@ -137,7 +138,7 @@ export default async function TenantsListPage({ searchParams }: PageProps) {
                   <td className="px-3 py-2">{t.statuses[r.status]}</td>
                   <td className="px-3 py-2 tabular-nums">{r.userCount}</td>
                   <td className="text-muted-foreground px-3 py-2 text-xs">
-                    {new Date(r.createdAt).toLocaleString("ja-JP")}
+                    {formatDateTime(r.createdAt)}
                   </td>
                 </tr>
               ))}

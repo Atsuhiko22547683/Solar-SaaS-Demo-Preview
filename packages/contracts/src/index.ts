@@ -14,6 +14,7 @@ export * from "./schemas/event-decision.js";
 export * from "./schemas/event-shift.js";
 export * from "./schemas/product.js";
 export * from "./schemas/installer.js";
+export * from "./schemas/salesperson.js";
 export * from "./schemas/area.js";
 export * from "./schemas/store.js";
 export * from "./schemas/incentive-rate.js";

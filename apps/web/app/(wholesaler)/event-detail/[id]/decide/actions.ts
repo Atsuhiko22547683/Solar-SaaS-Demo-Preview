@@ -23,14 +23,13 @@
 //   - No Event row is created
 //   - Redirects to /event-detail
 
-import { redirect } from "next/navigation";
-
 import {
   EventDecisionSchema,
   EventModeChangeSchema,
   type EventDecisionInput,
   type EventModeChangeInput,
 } from "@solar/contracts";
+import { redirect } from "next/navigation";
 
 import { InvalidStateTransitionError, NotFoundError, ValidationError } from "@/lib/errors";
 import { notificationService } from "@/lib/notifications/notification-service";
@@ -132,9 +131,7 @@ export const decideEventModeAction = withServerActionContext<
 
     // requiredPeople is only meaningful for SELF / JOINT modes.
     const requiredPeople =
-      parsed.mode === "SELF" || parsed.mode === "JOINT"
-        ? (parsed.requiredPeople ?? null)
-        : null;
+      parsed.mode === "SELF" || parsed.mode === "JOINT" ? (parsed.requiredPeople ?? null) : null;
 
     // Create Event row.
     const event = await tx.event.create({
@@ -231,10 +228,7 @@ export interface ChangeModeResult {
 // Changes the mode of an already-decided Event and records a before/after diff
 // in EventChange. The Event must exist and belong to the current wholesaler.
 // docs/05 §4.5 — `eventDecision.changeMode`.
-export const changeModeAction = withServerActionContext<
-  EventModeChangeInput,
-  ChangeModeResult
->(
+export const changeModeAction = withServerActionContext<EventModeChangeInput, ChangeModeResult>(
   {
     action: "event_decision.decide",
     resource: ({ ctx }) => (ctx.wholesalerId ? { wholesalerId: ctx.wholesalerId } : undefined),
@@ -301,9 +295,7 @@ export const changeModeAction = withServerActionContext<
 
     // requiredPeople only applies to SELF / JOINT.
     const newRequiredPeople =
-      parsed.mode === "SELF" || parsed.mode === "JOINT"
-        ? (parsed.requiredPeople ?? null)
-        : null;
+      parsed.mode === "SELF" || parsed.mode === "JOINT" ? (parsed.requiredPeople ?? null) : null;
 
     // Update Event mode and requiredPeople.
     await tx.event.update({

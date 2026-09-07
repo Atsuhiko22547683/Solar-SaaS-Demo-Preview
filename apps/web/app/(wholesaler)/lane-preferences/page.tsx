@@ -37,8 +37,8 @@ export default async function LanePreferencesPage({ searchParams }: PageProps) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-ink">{t.title}</h1>
-          <p className="text-body-light text-sm mt-1">{t.subtitle}</p>
+          <h1 className="text-ink text-xl font-bold">{t.title}</h1>
+          <p className="text-body-light mt-1 text-sm">{t.subtitle}</p>
         </div>
         <Button type="button" variant="outline" size="sm" disabled>
           {t.csvExport}
@@ -53,16 +53,16 @@ export default async function LanePreferencesPage({ searchParams }: PageProps) {
         />
       </Card>
 
-      <Card className="p-0 overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-hairline-light">
-          <h2 className="text-sm font-medium text-ink">{t.title}</h2>
-          <span className="text-xs text-mute-light tabular-nums">
+      <Card className="overflow-hidden p-0">
+        <div className="border-hairline-light flex items-center justify-between border-b px-6 py-4">
+          <h2 className="text-ink text-sm font-medium">{t.title}</h2>
+          <span className="text-mute-light text-xs tabular-nums">
             {rows.length}
             {t.filter.resultCount}
           </span>
         </div>
         {rows.length === 0 ? (
-          <div className="px-6 py-12 text-center text-mute-light text-sm">{t.empty}</div>
+          <div className="text-mute-light px-6 py-12 text-center text-sm">{t.empty}</div>
         ) : (
           <LanePreferenceAccordion rows={rows} />
         )}

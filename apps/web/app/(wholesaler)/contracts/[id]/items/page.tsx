@@ -13,6 +13,7 @@
 
 import "server-only";
 
+import { toContractItemWholesalerDto } from "@solar/contracts";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -20,14 +21,15 @@ import { auth } from "@/auth";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { UnauthorizedError } from "@/lib/errors";
+import { formatDate } from "@/lib/format/date";
+import { labels } from "@/lib/i18n/labels";
 import { assertCan } from "@/lib/permissions/can";
 import { getTenantContext } from "@/lib/tenancy/context";
 import { withTenant } from "@/lib/tenancy/with-tenant";
-import { labels } from "@/lib/i18n/labels";
-import { toContractItemWholesalerDto } from "@solar/contracts";
-import type { ContractItemForWholesalerDto } from "@solar/contracts";
 
 import { ContractItemsForm } from "./ContractItemsForm";
+
+import type { ContractItemForWholesalerDto } from "@solar/contracts";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -198,15 +200,15 @@ export default async function ContractItemsPage({ params }: PageProps) {
         <Button asChild variant="outline" size="sm">
           <Link href={`/contracts/${id}`}>{c.back}</Link>
         </Button>
-        <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
+        <h1 className="text-ink text-xl font-bold">{t.title}</h1>
       </div>
 
       {/* Contract header */}
-      <div className="border-border rounded-md border p-4 space-y-2">
-        <h2 className="font-medium text-sm text-muted-foreground">{t.contractInfo}</h2>
+      <div className="border-border space-y-2 rounded-md border p-4">
+        <h2 className="text-muted-foreground text-sm font-medium">{t.contractInfo}</h2>
         <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
           <dt className="text-muted-foreground">{t.fields.contractDate}</dt>
-          <dd>{new Date(data.contract.contractDate).toLocaleDateString("ja-JP")}</dd>
+          <dd>{formatDate(data.contract.contractDate)}</dd>
           <dt className="text-muted-foreground">{t.fields.status}</dt>
           <dd>{data.contract.status}</dd>
           <dt className="text-muted-foreground">{t.fields.totalAmount}</dt>
@@ -217,7 +219,7 @@ export default async function ContractItemsPage({ params }: PageProps) {
       </div>
 
       {!isEditable && (
-        <p className="text-sm text-muted-foreground border rounded-md p-3 border-amber-300 bg-amber-50">
+        <p className="text-muted-foreground rounded-md border border-amber-300 bg-amber-50 p-3 text-sm">
           {t.notEditable}
         </p>
       )}

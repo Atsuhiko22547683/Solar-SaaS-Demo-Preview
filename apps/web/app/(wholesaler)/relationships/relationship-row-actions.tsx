@@ -2,14 +2,15 @@
 
 // Inline scope editor + suspend/resume button for a single Relationship row.
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { labels } from "@/lib/i18n/labels";
 
 import { updateRelationshipAction } from "./actions";
+
 import type { RelationshipListItem } from "./data";
 
 type DealerScope = RelationshipListItem["defaultScope"];

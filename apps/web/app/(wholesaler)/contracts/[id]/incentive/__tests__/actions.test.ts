@@ -9,8 +9,9 @@
 
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
-import { ConflictError, NotFoundError, ValidationError } from "../../../../../../lib/errors.js";
 import { notificationService } from "@/lib/notifications/notification-service";
+
+import { ConflictError, NotFoundError, ValidationError } from "../../../../../../lib/errors.js";
 
 import type * as DbModule from "@solar/db";
 
@@ -22,7 +23,9 @@ const incentiveAdjustmentCreateMock = vi.fn();
 const revalidatePathMock = vi.fn();
 
 vi.mock("@/lib/notifications/notification-service", () => ({
-  notificationService: { fire: vi.fn().mockResolvedValue({ notificationIds: [], skippedCount: 0 }) },
+  notificationService: {
+    fire: vi.fn().mockResolvedValue({ notificationIds: [], skippedCount: 0 }),
+  },
 }));
 
 vi.mock("@/lib/notifications/recipient-helpers", () => ({
@@ -150,7 +153,9 @@ describe("adjustJointIncentiveAction", () => {
     expect(incUpdate.data.finalizedAt).toBeInstanceOf(Date);
 
     // Path revalidation triggered.
-    expect(revalidatePathMock).toHaveBeenCalledWith(`/contracts/${BASE_INPUT.contractId}/incentive`);
+    expect(revalidatePathMock).toHaveBeenCalledWith(
+      `/contracts/${BASE_INPUT.contractId}/incentive`,
+    );
 
     // Notification fired for INCENTIVE_FINALIZED
     expect(notificationService.fire).toHaveBeenCalledWith(
@@ -165,9 +170,7 @@ describe("adjustJointIncentiveAction", () => {
       eventModeAtContract: "DEALER",
     });
 
-    await expect(adjustJointIncentiveAction(BASE_INPUT)).rejects.toBeInstanceOf(
-      ValidationError,
-    );
+    await expect(adjustJointIncentiveAction(BASE_INPUT)).rejects.toBeInstanceOf(ValidationError);
 
     expect(incentiveFindUniqueMock).not.toHaveBeenCalled();
     expect(incentiveAdjustmentCreateMock).not.toHaveBeenCalled();
@@ -180,9 +183,7 @@ describe("adjustJointIncentiveAction", () => {
       amount: { toString: () => "120000.00" },
     });
 
-    await expect(adjustJointIncentiveAction(BASE_INPUT)).rejects.toBeInstanceOf(
-      ConflictError,
-    );
+    await expect(adjustJointIncentiveAction(BASE_INPUT)).rejects.toBeInstanceOf(ConflictError);
 
     expect(incentiveAdjustmentCreateMock).not.toHaveBeenCalled();
     expect(incentiveUpdateMock).not.toHaveBeenCalled();
@@ -191,9 +192,7 @@ describe("adjustJointIncentiveAction", () => {
   it("4. Missing contract → NotFoundError", async () => {
     contractFindUniqueMock.mockResolvedValue(null);
 
-    await expect(adjustJointIncentiveAction(BASE_INPUT)).rejects.toBeInstanceOf(
-      NotFoundError,
-    );
+    await expect(adjustJointIncentiveAction(BASE_INPUT)).rejects.toBeInstanceOf(NotFoundError);
 
     expect(incentiveFindUniqueMock).not.toHaveBeenCalled();
   });
@@ -201,9 +200,7 @@ describe("adjustJointIncentiveAction", () => {
   it("5. Missing incentive for given relationshipId → NotFoundError", async () => {
     incentiveFindUniqueMock.mockResolvedValue(null);
 
-    await expect(adjustJointIncentiveAction(BASE_INPUT)).rejects.toBeInstanceOf(
-      NotFoundError,
-    );
+    await expect(adjustJointIncentiveAction(BASE_INPUT)).rejects.toBeInstanceOf(NotFoundError);
 
     expect(incentiveAdjustmentCreateMock).not.toHaveBeenCalled();
   });

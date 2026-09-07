@@ -6,13 +6,13 @@
 //   1. New application registration (create).
 //   2. For each existing application: metadata update + status change.
 
+import { VALID_APPLICATION_TRANSITIONS } from "@solar/contracts";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { formatDateTime } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
-import type { ApplicationStatus } from "@solar/db";
-import { VALID_APPLICATION_TRANSITIONS } from "@solar/contracts";
 
 import {
   createApplicationAction,
@@ -20,6 +20,8 @@ import {
   changeApplicationStatusAction,
   type ApplicationResult,
 } from "./actions";
+
+import type { ApplicationStatus } from "@solar/db";
 
 interface ApplicationRow {
   id: string;
@@ -112,18 +114,18 @@ export function ApplicationForm({ contractId, applications: initial }: Props) {
       ))}
 
       {/* ---- Create new application ---- */}
-      <div className="border-border rounded-md border p-4 space-y-4">
+      <div className="border-border space-y-4 rounded-md border p-4">
         <h2 className="font-medium">{t.new}</h2>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-1 sm:col-span-2">
-            <label className="text-sm text-muted-foreground">
+            <label className="text-muted-foreground text-sm">
               {t.fields.type}
               <span className="text-destructive ml-1">*</span>
             </label>
             <input
               type="text"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
               value={createType}
               onChange={(e) => setCreateType(e.target.value)}
               disabled={isPending}
@@ -132,10 +134,10 @@ export function ApplicationForm({ contractId, applications: initial }: Props) {
           </div>
 
           <div className="space-y-1">
-            <label className="text-sm text-muted-foreground">{t.fields.agency}</label>
+            <label className="text-muted-foreground text-sm">{t.fields.agency}</label>
             <input
               type="text"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
               value={createAgency}
               onChange={(e) => setCreateAgency(e.target.value)}
               disabled={isPending}
@@ -144,10 +146,10 @@ export function ApplicationForm({ contractId, applications: initial }: Props) {
           </div>
 
           <div className="space-y-1">
-            <label className="text-sm text-muted-foreground">{t.fields.plannedDate}</label>
+            <label className="text-muted-foreground text-sm">{t.fields.plannedDate}</label>
             <input
               type="date"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
               value={createPlannedDate}
               onChange={(e) => setCreatePlannedDate(e.target.value)}
               disabled={isPending}
@@ -155,11 +157,11 @@ export function ApplicationForm({ contractId, applications: initial }: Props) {
           </div>
 
           <div className="space-y-1">
-            <label className="text-sm text-muted-foreground">{t.fields.estimatedAmount}</label>
+            <label className="text-muted-foreground text-sm">{t.fields.estimatedAmount}</label>
             <input
               type="text"
               inputMode="numeric"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
               value={createEstimatedAmount}
               onChange={(e) => setCreateEstimatedAmount(e.target.value)}
               disabled={isPending}
@@ -168,9 +170,9 @@ export function ApplicationForm({ contractId, applications: initial }: Props) {
           </div>
 
           <div className="space-y-1 sm:col-span-2">
-            <label className="text-sm text-muted-foreground">{t.fields.note}</label>
+            <label className="text-muted-foreground text-sm">{t.fields.note}</label>
             <textarea
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
               rows={3}
               value={createNote}
               onChange={(e) => setCreateNote(e.target.value)}
@@ -255,8 +257,7 @@ function ApplicationEditPanel({
         const result = await changeApplicationStatusAction({
           id: application.id,
           status: newStatus,
-          confirmedAmount:
-            newStatus === "APPROVED" ? (confirmedAmount || undefined) : undefined,
+          confirmedAmount: newStatus === "APPROVED" ? confirmedAmount || undefined : undefined,
         });
         onStatusChange(result);
       } catch (err) {
@@ -268,22 +269,21 @@ function ApplicationEditPanel({
   const isDisabled = editPending || statusPending || isPending;
 
   return (
-    <div className="border-border rounded-md border p-4 space-y-4">
+    <div className="border-border space-y-4 rounded-md border p-4">
       <div className="flex items-center justify-between">
-        <span className="font-medium text-sm">
+        <span className="text-sm font-medium">
           {t.statuses[application.status as keyof typeof t.statuses]}
         </span>
-        <span className="text-xs text-muted-foreground">
-          {t.fields.updatedAt}:{" "}
-          {new Date(application.updatedAt).toLocaleString("ja-JP")}
+        <span className="text-muted-foreground text-xs">
+          {t.fields.updatedAt}: {formatDateTime(application.updatedAt)}
         </span>
       </div>
 
       {/* Status transitions */}
       {allowedTransitions.length > 0 && (
         <div className="space-y-1">
-          <p className="text-sm text-muted-foreground">{t.sections.statusChange}</p>
-          <div className="flex gap-2 flex-wrap">
+          <p className="text-muted-foreground text-sm">{t.sections.statusChange}</p>
+          <div className="flex flex-wrap gap-2">
             {allowedTransitions.map((next) => (
               <Button
                 key={next}
@@ -299,7 +299,7 @@ function ApplicationEditPanel({
             ))}
           </div>
           {allowedTransitions.includes("APPROVED") && (
-            <p className="text-xs text-muted-foreground">{t.errors.confirmedAmountRequired}</p>
+            <p className="text-muted-foreground text-xs">{t.errors.confirmedAmountRequired}</p>
           )}
         </div>
       )}
@@ -307,10 +307,10 @@ function ApplicationEditPanel({
       {/* Edit fields */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="space-y-1 sm:col-span-2">
-          <label className="text-sm text-muted-foreground">{t.fields.type}</label>
+          <label className="text-muted-foreground text-sm">{t.fields.type}</label>
           <input
             type="text"
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
             value={type}
             onChange={(e) => setType(e.target.value)}
             disabled={isDisabled}
@@ -318,10 +318,10 @@ function ApplicationEditPanel({
         </div>
 
         <div className="space-y-1">
-          <label className="text-sm text-muted-foreground">{t.fields.agency}</label>
+          <label className="text-muted-foreground text-sm">{t.fields.agency}</label>
           <input
             type="text"
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
             value={agency}
             onChange={(e) => setAgency(e.target.value)}
             disabled={isDisabled}
@@ -329,10 +329,10 @@ function ApplicationEditPanel({
         </div>
 
         <div className="space-y-1">
-          <label className="text-sm text-muted-foreground">{t.fields.plannedDate}</label>
+          <label className="text-muted-foreground text-sm">{t.fields.plannedDate}</label>
           <input
             type="date"
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
             value={plannedDate}
             onChange={(e) => setPlannedDate(e.target.value)}
             disabled={isDisabled}
@@ -340,10 +340,10 @@ function ApplicationEditPanel({
         </div>
 
         <div className="space-y-1">
-          <label className="text-sm text-muted-foreground">{t.fields.submittedDate}</label>
+          <label className="text-muted-foreground text-sm">{t.fields.submittedDate}</label>
           <input
             type="date"
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
             value={submittedDate}
             onChange={(e) => setSubmittedDate(e.target.value)}
             disabled={isDisabled}
@@ -351,10 +351,10 @@ function ApplicationEditPanel({
         </div>
 
         <div className="space-y-1">
-          <label className="text-sm text-muted-foreground">{t.fields.approvedDate}</label>
+          <label className="text-muted-foreground text-sm">{t.fields.approvedDate}</label>
           <input
             type="date"
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
             value={approvedDate}
             onChange={(e) => setApprovedDate(e.target.value)}
             disabled={isDisabled}
@@ -362,11 +362,11 @@ function ApplicationEditPanel({
         </div>
 
         <div className="space-y-1">
-          <label className="text-sm text-muted-foreground">{t.fields.estimatedAmount}</label>
+          <label className="text-muted-foreground text-sm">{t.fields.estimatedAmount}</label>
           <input
             type="text"
             inputMode="numeric"
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
             value={estimatedAmount}
             onChange={(e) => setEstimatedAmount(e.target.value)}
             disabled={isDisabled}
@@ -374,11 +374,11 @@ function ApplicationEditPanel({
         </div>
 
         <div className="space-y-1">
-          <label className="text-sm text-muted-foreground">{t.fields.confirmedAmount}</label>
+          <label className="text-muted-foreground text-sm">{t.fields.confirmedAmount}</label>
           <input
             type="text"
             inputMode="numeric"
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
             value={confirmedAmount}
             onChange={(e) => setConfirmedAmount(e.target.value)}
             disabled={isDisabled}
@@ -386,9 +386,9 @@ function ApplicationEditPanel({
         </div>
 
         <div className="space-y-1 sm:col-span-2">
-          <label className="text-sm text-muted-foreground">{t.fields.note}</label>
+          <label className="text-muted-foreground text-sm">{t.fields.note}</label>
           <textarea
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
             rows={3}
             value={note}
             onChange={(e) => setNote(e.target.value)}

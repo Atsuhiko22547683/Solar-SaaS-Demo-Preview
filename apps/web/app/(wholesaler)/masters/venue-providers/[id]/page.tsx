@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
+import { formatDateTime } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
 import { getVenueProvider, listStoresByProvider } from "../data";
@@ -65,7 +66,7 @@ export default async function VenueProviderDetailPage({ params }: PageProps) {
           <Button asChild variant="outline" size="sm">
             <Link href="/masters/venue-providers">{labels.common.back}</Link>
           </Button>
-          <h1 className="text-2xl font-semibold tracking-tight">{t.edit}</h1>
+          <h1 className="text-ink text-xl font-bold">{t.edit}</h1>
         </div>
         <span className="text-muted-foreground text-sm">
           {row.isActive ? labels.common.active : labels.common.inactive}
@@ -107,7 +108,7 @@ export default async function VenueProviderDetailPage({ params }: PageProps) {
                       {s.isActive ? labels.common.active : labels.common.inactive}
                     </td>
                     <td className="text-muted-foreground px-3 py-2 text-xs">
-                      {new Date(s.updatedAt).toLocaleString("ja-JP")}
+                      {formatDateTime(s.updatedAt)}
                     </td>
                     <td className="px-3 py-2 text-right">
                       <Link

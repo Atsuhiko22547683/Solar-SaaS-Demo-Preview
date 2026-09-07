@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
+import { formatDate, formatDateTime } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
 import { getProduct, getProductHistory } from "../data";
@@ -46,7 +47,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
             <Link href="/masters/products">{c.back}</Link>
           </Button>
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">{t.edit}</h1>
+            <h1 className="text-ink text-xl font-bold">{t.edit}</h1>
             <p className="text-muted-foreground text-sm">
               {t.categories[row.category]} / {row.maker} / {row.name}
             </p>
@@ -98,11 +99,11 @@ export default async function ProductDetailPage({ params }: PageProps) {
           </div>
           <div>
             <dt className="text-muted-foreground text-xs">{t.fields.effectiveFrom}</dt>
-            <dd>{new Date(row.effectiveFrom).toLocaleDateString("ja-JP")}</dd>
+            <dd>{formatDate(row.effectiveFrom)}</dd>
           </div>
           <div>
             <dt className="text-muted-foreground text-xs">{t.fields.effectiveTo}</dt>
-            <dd>{row.effectiveTo ? new Date(row.effectiveTo).toLocaleDateString("ja-JP") : "—"}</dd>
+            <dd>{row.effectiveTo ? formatDate(row.effectiveTo) : "—"}</dd>
           </div>
         </dl>
       </section>
@@ -135,9 +136,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
                   };
                   return (
                     <tr key={h.id} className="border-border border-t">
-                      <td className="px-3 py-2 text-xs">
-                        {new Date(h.changedAt).toLocaleString("ja-JP")}
-                      </td>
+                      <td className="px-3 py-2 text-xs">{formatDateTime(h.changedAt)}</td>
                       <td className="px-3 py-2 text-xs">{h.changedBy}</td>
                       <td className="px-3 py-2 tabular-nums">
                         {fmt(before.purchasePrice, after.purchasePrice)}

@@ -10,6 +10,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { formatDate } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
 import { getDealerContractDetail } from "../data";
@@ -35,18 +36,18 @@ export default async function DealerContractDetailPage({ params }: PageProps) {
         <Button asChild variant="outline" size="sm">
           <Link href="/d-contracts">{c.back}</Link>
         </Button>
-        <h1 className="text-2xl font-semibold tracking-tight">{t.detailTitle}</h1>
+        <h1 className="text-ink text-xl font-bold">{t.detailTitle}</h1>
       </div>
 
       {/* Basic info */}
-      <div className="border-border rounded-md border p-4 space-y-3">
+      <div className="border-border space-y-3 rounded-md border p-4">
         <h2 className="font-medium">{t.sections.basic}</h2>
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
           <dt className="text-muted-foreground">{t.fields.customer}</dt>
           <dd>{contract.customerName}</dd>
 
           <dt className="text-muted-foreground">{t.fields.contractDate}</dt>
-          <dd>{new Date(contract.contractDate).toLocaleDateString("ja-JP")}</dd>
+          <dd>{formatDate(contract.contractDate)}</dd>
 
           <dt className="text-muted-foreground">{t.fields.totalAmount}</dt>
           <dd>
@@ -54,7 +55,7 @@ export default async function DealerContractDetailPage({ params }: PageProps) {
           </dd>
 
           <dt className="text-muted-foreground">{t.fields.cancelDeadline}</dt>
-          <dd>{new Date(contract.cancelDeadline).toLocaleDateString("ja-JP")}</dd>
+          <dd>{formatDate(contract.cancelDeadline)}</dd>
 
           <dt className="text-muted-foreground">{t.fields.status}</dt>
           <dd>
@@ -66,10 +67,10 @@ export default async function DealerContractDetailPage({ params }: PageProps) {
       </div>
 
       {/* Items section — snapshotPurchasePrice physically absent from DTO */}
-      <div className="border-border rounded-md border p-4 space-y-3">
+      <div className="border-border space-y-3 rounded-md border p-4">
         <h2 className="font-medium">{t.sections.items}</h2>
         {contract.items.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t.detail.noItems}</p>
+          <p className="text-muted-foreground text-sm">{t.detail.noItems}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -88,9 +89,9 @@ export default async function DealerContractDetailPage({ params }: PageProps) {
                 {contract.items.map((item) => (
                   <tr key={item.id} className="border-border border-t">
                     <td className="px-3 py-2">{item.productName}</td>
-                    <td className="px-3 py-2 text-muted-foreground">{item.maker}</td>
+                    <td className="text-muted-foreground px-3 py-2">{item.maker}</td>
                     <td className="px-3 py-2">{item.qty}</td>
-                    <td className="px-3 py-2 text-muted-foreground">{item.unit}</td>
+                    <td className="text-muted-foreground px-3 py-2">{item.unit}</td>
                     <td className="px-3 py-2">
                       {Number(item.snapshotDealerPrice).toLocaleString("ja-JP")}
                     </td>
@@ -110,7 +111,7 @@ export default async function DealerContractDetailPage({ params }: PageProps) {
 
       {/* Incentive placeholder */}
       <div className="border-border rounded-md border border-dashed p-4">
-        <p className="text-sm text-muted-foreground">{t.detail.incentivePlaceholder}</p>
+        <p className="text-muted-foreground text-sm">{t.detail.incentivePlaceholder}</p>
       </div>
     </div>
   );

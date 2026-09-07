@@ -89,9 +89,10 @@ test.describe("コール一覧", () => {
 
     await page.waitForURL(/\/customers\/maekaku/, { timeout: 90_000 });
     await expect(page.getByRole("heading", { name: "コール一覧" })).toBeVisible();
+    // 画面名から読み取れる内容しか持たない定型 subtitle は出さない方針。
     await expect(
       page.getByText("顧客ごとの各種コール対応状況を一覧で確認・管理できます。"),
-    ).toBeVisible();
+    ).toHaveCount(0);
   });
 
   test("シナリオ1b: 検索パネルは初期状態で閉じ、ヘッダのクリックで開閉する", async ({ page }) => {
@@ -252,7 +253,8 @@ test.describe("コール一覧", () => {
     for (let i = 0; i < total; i += 1) {
       const cell = rows.nth(i).locator("td").nth(6);
       const text = (await cell.innerText()).trim();
-      if (text === "—") continue;
+      // 予定が無い行も行高を揃えるため 2 行構成（「予定なし」+ "—"）で描かれる。
+      if (text === "—" || text.startsWith("予定なし")) continue;
       withTask += 1;
       // 対応項目名 + 日時（YYYY/MM/DD HH:mm）が 1 組だけ。
       expect(text, `${i} 行目の次回対応に項目名がある`).toMatch(KINDS);

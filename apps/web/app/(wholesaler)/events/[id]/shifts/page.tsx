@@ -13,6 +13,7 @@ import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
+import { formatDate } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
 import { getShiftPageData } from "./data";
@@ -57,7 +58,7 @@ export default async function EventShiftsPage({ params }: PageProps) {
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
+          <h1 className="text-ink text-xl font-bold">{t.title}</h1>
           <p className="text-muted-foreground text-sm">{t.subtitle}</p>
         </div>
         <Button asChild variant="outline">
@@ -83,9 +84,7 @@ export default async function EventShiftsPage({ params }: PageProps) {
         </div>
         <div>
           <p className="text-muted-foreground text-xs">{ec.fields.scheduledDate}</p>
-          <p className="text-sm">
-            {new Date(event.eventCandidate.scheduledDate).toLocaleDateString("ja-JP")}
-          </p>
+          <p className="text-sm">{formatDate(event.eventCandidate.scheduledDate)}</p>
         </div>
         <div>
           <p className="text-muted-foreground text-xs">{ed.fields.mode}</p>
@@ -119,7 +118,7 @@ export default async function EventShiftsPage({ params }: PageProps) {
 
       {/* Shift table */}
       <section>
-        <div className="flex items-center justify-between mb-3">
+        <div className="mb-3 flex items-center justify-between">
           <h2 className="text-base font-semibold">{t.title}</h2>
           <AddShiftButton eventId={event.id} assignableUsers={assignableUsers} />
         </div>

@@ -15,7 +15,7 @@ export function Breadcrumb({ items }: BreadcrumbProps) {
   const t = labels.breadcrumb;
   return (
     <nav aria-label={t.ariaLabel}>
-      <ol className="flex flex-wrap items-center gap-1 text-sm text-pewter">
+      <ol className="text-mute-light flex flex-wrap items-center gap-1 text-sm">
         {items.map((item, index) => {
           const isLast = index === items.length - 1;
           return (
@@ -26,13 +26,11 @@ export function Breadcrumb({ items }: BreadcrumbProps) {
                 </span>
               )}
               {isLast || !item.href ? (
-                <span className={isLast ? "text-carbon-dark font-medium" : undefined}>
-                  {item.label}
-                </span>
+                <span className={isLast ? "text-ink font-medium" : undefined}>{item.label}</span>
               ) : (
                 <Link
                   href={item.href}
-                  className="hover:text-carbon-dark transition-colors duration-[330ms]"
+                  className="hover:text-ink transition-colors duration-[330ms]"
                 >
                   {item.label}
                 </Link>

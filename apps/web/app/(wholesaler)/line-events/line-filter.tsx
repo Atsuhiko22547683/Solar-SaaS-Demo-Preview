@@ -9,8 +9,7 @@ import { labels } from "@/lib/i18n/labels";
 
 import type { ActiveVenueProviderOption } from "./data";
 
-const SELECT_CLASS =
-  "flex h-9 rounded-md border border-input bg-background px-3 py-1 text-sm";
+const SELECT_CLASS = "flex h-9 rounded-md border border-input bg-background px-3 py-1 text-sm";
 
 interface LineFilterProps {
   venueProviders: ActiveVenueProviderOption[];
@@ -47,8 +46,11 @@ export function LineFilter({
   return (
     <div className="flex flex-wrap items-end gap-3">
       <div className="space-y-1">
-        <label className="text-xs text-mute-light font-medium">{t.filter.month}</label>
+        <label htmlFor="line-filter-month" className="text-mute-light text-xs font-medium">
+          {t.filter.month}
+        </label>
         <Input
+          id="line-filter-month"
           type="month"
           value={currentMonth}
           onChange={(e) => updateParam("month", e.target.value)}
@@ -57,8 +59,11 @@ export function LineFilter({
       </div>
 
       <div className="space-y-1">
-        <label className="text-xs text-mute-light font-medium">{t.filter.venueProvider}</label>
+        <label htmlFor="line-filter-venue" className="text-mute-light text-xs font-medium">
+          {t.filter.venueProvider}
+        </label>
         <select
+          id="line-filter-venue"
           value={currentVenueProviderId}
           onChange={(e) => updateParam("venueProviderId", e.target.value)}
           className={SELECT_CLASS}

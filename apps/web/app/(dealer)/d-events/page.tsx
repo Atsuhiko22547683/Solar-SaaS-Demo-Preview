@@ -10,6 +10,7 @@ import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { formatDate } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
 import { listDealerEvents } from "./data";
@@ -22,9 +23,7 @@ const VALID_STATUSES: EventStatus[] = ["PLANNED", "ONGOING", "CLOSED", "CANCELLE
 
 function coerceStatus(value: string | undefined): EventStatus | undefined {
   if (!value) return undefined;
-  return (VALID_STATUSES as readonly string[]).includes(value)
-    ? (value as EventStatus)
-    : undefined;
+  return (VALID_STATUSES as readonly string[]).includes(value) ? (value as EventStatus) : undefined;
 }
 
 function coerceDate(value: string | undefined): string | undefined {
@@ -59,11 +58,11 @@ export default async function DealerEventsPage({ searchParams }: PageProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
+        <h1 className="text-ink text-xl font-bold">{t.title}</h1>
         <p className="text-muted-foreground text-sm">{t.listTitle}</p>
       </div>
 
-      <form method="get" className="flex flex-wrap max-w-3xl items-center gap-2">
+      <form method="get" className="flex max-w-3xl flex-wrap items-center gap-2">
         <select
           name="status"
           defaultValue={status ?? ""}
@@ -118,7 +117,7 @@ export default async function DealerEventsPage({ searchParams }: PageProps) {
             </thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.id} className="border-border border-t hover:bg-muted/20">
+                <tr key={r.id} className="border-border hover:bg-muted/20 border-t">
                   <td className="px-3 py-2 font-medium">
                     <Link
                       href={`/events/${r.id}`}
@@ -133,9 +132,7 @@ export default async function DealerEventsPage({ searchParams }: PageProps) {
                       <p className="text-muted-foreground text-xs">{r.wholesalerName}</p>
                     ) : null}
                   </td>
-                  <td className="px-3 py-2">
-                    {new Date(r.scheduledDate).toLocaleDateString("ja-JP")}
-                  </td>
+                  <td className="px-3 py-2">{formatDate(r.scheduledDate)}</td>
                   <td className="px-3 py-2">{t.modes[r.mode]}</td>
                   <td className="px-3 py-2">
                     <Badge
@@ -154,7 +151,7 @@ export default async function DealerEventsPage({ searchParams }: PageProps) {
                   </td>
                   <td className="px-3 py-2 text-xs">
                     {r.scopeOverride
-                      ? t.scopes[r.scopeOverride as keyof typeof t.scopes] ?? r.scopeOverride
+                      ? (t.scopes[r.scopeOverride as keyof typeof t.scopes] ?? r.scopeOverride)
                       : "—"}
                   </td>
                   <td className="px-3 py-2">{r.reportCount}</td>

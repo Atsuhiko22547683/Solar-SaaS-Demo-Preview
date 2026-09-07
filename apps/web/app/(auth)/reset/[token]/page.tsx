@@ -57,12 +57,9 @@ export default function PasswordResetSetPage({ params }: PageProps) {
   if (done) {
     return (
       <div className="space-y-4 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">{t.successTitle}</h1>
+        <h1 className="text-ink text-xl font-bold">{t.successTitle}</h1>
         <p className="text-muted-foreground text-sm">{t.successBody}</p>
-        <Link
-          href="/login"
-          className="text-primary text-sm underline-offset-4 hover:underline"
-        >
+        <Link href="/login" className="text-primary text-sm underline-offset-4 hover:underline">
           {t.backToSignIn}
         </Link>
       </div>
@@ -72,7 +69,7 @@ export default function PasswordResetSetPage({ params }: PageProps) {
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">{t.newPasswordTitle}</h1>
+        <h1 className="text-ink text-xl font-bold">{t.newPasswordTitle}</h1>
         <p className="text-muted-foreground text-sm">{t.newPasswordSubtitle}</p>
       </div>
 

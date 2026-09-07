@@ -7,6 +7,7 @@
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import { formatDate } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
 import { listDealerDeals } from "./data";
@@ -55,7 +56,7 @@ export default async function DealerDealListPage({ searchParams }: PageProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t.listTitle}</h1>
+        <h1 className="text-ink text-xl font-bold">{t.listTitle}</h1>
         <p className="text-muted-foreground mt-1 text-sm">{t.dealerSubtitle}</p>
       </div>
 
@@ -110,12 +111,10 @@ export default async function DealerDealListPage({ searchParams }: PageProps) {
                     </td>
                     <td className="px-3 py-2">{t.statuses[row.status]}</td>
                     <td className="text-muted-foreground px-3 py-2">
-                      {row.expectedContractDate
-                        ? new Date(row.expectedContractDate).toLocaleDateString("ja-JP")
-                        : "—"}
+                      {row.expectedContractDate ? formatDate(row.expectedContractDate) : "—"}
                     </td>
                     <td className="text-muted-foreground px-3 py-2 text-xs">
-                      {new Date(row.createdAt).toLocaleDateString("ja-JP")}
+                      {formatDate(row.createdAt)}
                     </td>
                     <td className="px-3 py-2">
                       {!row.canUpdate ? (

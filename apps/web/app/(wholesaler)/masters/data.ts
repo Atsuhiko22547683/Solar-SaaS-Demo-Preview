@@ -34,7 +34,7 @@ export interface DealerRelationshipsTabSummary {
 export interface DealerRelationshipPreviewRow {
   id: string;
   dealerName: string;
-  status: "ACTIVE" | "SUSPENDED";
+  status: "ACTIVE" | "SUSPENDED" | "TERMINATED";
   defaultScope: "APPOINTMENT_ONLY" | "FIRST_VISIT" | "FULL_CLOSING";
   updatedAt: string;
 }
@@ -183,98 +183,98 @@ export async function getMastersHubSummary(): Promise<MastersHubSummary> {
       venueProviderPreview,
       storesTotalActiveCount,
     ] = await Promise.all([
-        tx.relationship.count({ where: { status: "ACTIVE" } }),
-        tx.relationship.findMany({
-          orderBy: [{ status: "asc" }, { updatedAt: "desc" }],
-          take: RELATIONSHIP_PREVIEW_LIMIT,
-          select: {
-            id: true,
-            status: true,
-            defaultScope: true,
-            updatedAt: true,
-            dealer: { select: { name: true } },
-          },
-        }),
-        tx.installer.count({ where: { isActive: true } }),
-        tx.installer.findMany({
-          where: { isActive: true },
-          orderBy: [{ updatedAt: "desc" }, { name: "asc" }],
-          take: INSTALLER_PREVIEW_LIMIT,
-          select: {
-            id: true,
-            name: true,
-            area: true,
-            updatedAt: true,
-          },
-        }),
-        tx.incentiveRate.findMany({
-          orderBy: [{ relationshipId: "asc" }, { effectiveFrom: "desc" }],
-          select: {
-            id: true,
-            relationshipId: true,
-            targetType: true,
-            rate: true,
-            effectiveFrom: true,
-            effectiveTo: true,
-            relationship: {
-              select: {
-                dealer: { select: { name: true } },
-              },
+      tx.relationship.count({ where: { status: "ACTIVE" } }),
+      tx.relationship.findMany({
+        orderBy: [{ status: "asc" }, { updatedAt: "desc" }],
+        take: RELATIONSHIP_PREVIEW_LIMIT,
+        select: {
+          id: true,
+          status: true,
+          defaultScope: true,
+          updatedAt: true,
+          dealer: { select: { name: true } },
+        },
+      }),
+      tx.installer.count({ where: { isActive: true } }),
+      tx.installer.findMany({
+        where: { isActive: true },
+        orderBy: [{ updatedAt: "desc" }, { name: "asc" }],
+        take: INSTALLER_PREVIEW_LIMIT,
+        select: {
+          id: true,
+          name: true,
+          area: true,
+          updatedAt: true,
+        },
+      }),
+      tx.incentiveRate.findMany({
+        orderBy: [{ relationshipId: "asc" }, { effectiveFrom: "desc" }],
+        select: {
+          id: true,
+          relationshipId: true,
+          targetType: true,
+          rate: true,
+          effectiveFrom: true,
+          effectiveTo: true,
+          relationship: {
+            select: {
+              dealer: { select: { name: true } },
             },
           },
-        }),
-        tx.wholesalerSettings.findUnique({
-          where: { wholesalerId },
-          select: {
-            cancelDeadlineDays: true,
-            fiscalYearStartMonth: true,
-            updatedAt: true,
+        },
+      }),
+      tx.wholesalerSettings.findUnique({
+        where: { wholesalerId },
+        select: {
+          cancelDeadlineDays: true,
+          fiscalYearStartMonth: true,
+          updatedAt: true,
+        },
+      }),
+      tx.area.count({ where: { isActive: true } }),
+      // ハブのエリア設定タブはイベント・顧客の両一覧をその場で表示する
+      // ため、prefix=AREA_PREVIEW_LIMIT には縛られず両 type を全件取る。
+      tx.area.findMany({
+        orderBy: [{ isActive: "desc" }, { name: "asc" }],
+        select: {
+          id: true,
+          name: true,
+          type: true,
+          description: true,
+          isActive: true,
+          updatedAt: true,
+        },
+      }),
+      tx.store.count({ where: { isActive: true } }),
+      tx.store.findMany({
+        where: { isActive: true },
+        orderBy: [{ updatedAt: "desc" }, { name: "asc" }],
+        take: STORE_PREVIEW_LIMIT,
+        select: {
+          id: true,
+          name: true,
+          updatedAt: true,
+        },
+      }),
+      tx.venueProvider.count({ where: { isActive: true } }),
+      tx.venueProvider.findMany({
+        where: { isActive: true },
+        orderBy: [{ updatedAt: "desc" }, { name: "asc" }],
+        take: VENUE_PROVIDER_PREVIEW_LIMIT,
+        select: {
+          id: true,
+          name: true,
+          area: true,
+          updatedAt: true,
+          stores: {
+            where: { isActive: true },
+            orderBy: { name: "asc" },
+            select: { id: true, name: true },
           },
-        }),
-        tx.area.count({ where: { isActive: true } }),
-        // ハブのエリア設定タブはイベント・顧客の両一覧をその場で表示する
-        // ため、prefix=AREA_PREVIEW_LIMIT には縛られず両 type を全件取る。
-        tx.area.findMany({
-          orderBy: [{ isActive: "desc" }, { name: "asc" }],
-          select: {
-            id: true,
-            name: true,
-            type: true,
-            description: true,
-            isActive: true,
-            updatedAt: true,
-          },
-        }),
-        tx.store.count({ where: { isActive: true } }),
-        tx.store.findMany({
-          where: { isActive: true },
-          orderBy: [{ updatedAt: "desc" }, { name: "asc" }],
-          take: STORE_PREVIEW_LIMIT,
-          select: {
-            id: true,
-            name: true,
-            updatedAt: true,
-          },
-        }),
-        tx.venueProvider.count({ where: { isActive: true } }),
-        tx.venueProvider.findMany({
-          where: { isActive: true },
-          orderBy: [{ updatedAt: "desc" }, { name: "asc" }],
-          take: VENUE_PROVIDER_PREVIEW_LIMIT,
-          select: {
-            id: true,
-            name: true,
-            area: true,
-            updatedAt: true,
-            stores: {
-              where: { isActive: true },
-              orderBy: { name: "asc" },
-              select: { id: true, name: true },
-            },
-          },
-        }),
-        tx.store.count({ where: { isActive: true } }),
-      ]);
+        },
+      }),
+      tx.store.count({ where: { isActive: true } }),
+    ]);
 
     // Group incentive rates by relationship and pick the row currently in
     // effect (effectiveFrom <= now < effectiveTo? null).

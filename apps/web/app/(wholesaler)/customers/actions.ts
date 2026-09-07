@@ -123,6 +123,29 @@ export const createCustomerAction = withServerActionContext<
       select: { id: true },
     });
 
+    // イベント経由の登録は sourceEventId が「自テナントに実在する Event」であることを
+    // サーバ側で確かめる。クライアントは query parameter / フォーム値をいくらでも
+    // 書き換えられるので、値の存在だけでは信用しない（他テナントの ID は RLS で
+    // 見えないため、ここで NotFound に落ちる）。
+    let resolvedSourceEventId: string | null = null;
+    if (parsed.sourceEventId) {
+      const event = await tx.event.findUnique({
+        where: { id: parsed.sourceEventId },
+        select: { id: true },
+      });
+      if (!event) {
+        throw new NotFoundError("催事が見つかりません");
+      }
+      resolvedSourceEventId = event.id;
+    }
+
+    // 実在するイベント由来なら販売チャネルは常に催事（EVENT）。フォームで別の値を
+    // 選ばれても、ここで催事へ寄せる（イベントから登録 → 販売チャネル = 催事 が方針）。
+    // イベント由来でないときだけ、フォームの指定をそのまま使う。
+    const salesChannel = resolvedSourceEventId
+      ? "EVENT"
+      : (parsed.salesChannel ?? (parsed.channel === "EVENT" ? "EVENT" : null));
+
     const registeredByOrgType = ctx.dealerId ? "DEALER" : "WHOLESALER";
 
     const created = await tx.customer.create({
@@ -141,7 +164,13 @@ export const createCustomerAction = withServerActionContext<
         electricBill: parsed.electricBill ?? null,
         household: parsed.household ?? null,
         channel: parsed.channel,
-        sourceEventId: parsed.sourceEventId ?? null,
+        salesChannel,
+        faceToFace: parsed.faceToFace ?? null,
+        tossDept: parsed.tossDept?.trim() || null,
+        // 担当者はスタッフ（Salesperson）が正。クライアントが送ってきた id は
+        // resolveSalespersonAssignee で読み直してから保存する。
+        ...(await resolveSalespersonAssignee(tx, parsed.tossUpSalespersonId, "tossUp")),
+        sourceEventId: resolvedSourceEventId,
         registeredByUserId: ctx.actorUserId,
         registeredByOrgType,
         registeredByRelationshipId: parsed.ownerRelationshipId ?? null,
@@ -155,6 +184,49 @@ export const createCustomerAction = withServerActionContext<
     return { id: created.id, duplicatePhoneWarning: !!dupPhone };
   },
 );
+
+/**
+ * 担当者に指定された Salesperson から、保存する 3 列を導出する。
+ *
+ * クライアントから送られた userId / relationshipId はそのまま信用せず、
+ * Salesperson の実データ（userId / relationshipId）から決め直す:
+ *   自社スタッフ   → salespersonId + userId、relationshipId は null
+ *   二次店スタッフ → salespersonId + relationshipId、userId は null
+ *
+ * `undefined`（未送信）なら何も返さず、既存値をそのまま残す。
+ * `null` なら個人スタッフの紐付けだけを外す（会社・User の既存値は触らない）。
+ * 別テナントの Salesperson は RLS で見えないので NotFound になる。
+ */
+async function resolveSalespersonAssignee(
+  tx: TxClient,
+  salespersonId: string | null | undefined,
+  role: "tossUp" | "closing",
+): Promise<Record<string, string | null>> {
+  if (salespersonId === undefined) return {};
+  const idKey = `${role}SalespersonId`;
+  if (salespersonId === null) return { [idKey]: null };
+
+  const staff = await tx.salesperson.findUnique({
+    where: { id: salespersonId },
+    select: { id: true, relationshipId: true },
+  });
+  if (!staff) throw new NotFoundError("スタッフが見つかりません");
+
+  // 担当者はスタッフ（Salesperson）を正とする。システムユーザー（User）は
+  // 人物マスタではないので、ここで *UserId に値を書き込むことはしない。
+  //
+  // 既存の *UserId は、過去に User を担当として保存していた時代の値。
+  // 新しくスタッフを割り当てた時点でその指定は上書きされたので null に戻す
+  // （行を触らない過去データはそのまま残る＝一括変換はしない）。
+  //
+  // 所属取引先は Salesperson からサーバ側で導出する。クライアントから
+  // relationshipId を受け取って信用することはしない。
+  return {
+    [idKey]: staff.id,
+    [`${role}UserId`]: null,
+    [`${role}RelationshipId`]: staff.relationshipId,
+  };
+}
 
 export interface UpdateCustomerResult {
   id: string;
@@ -180,6 +252,19 @@ export const updateCustomerAction = withServerActionContext<
     }
 
     const wholesalerId = existing.wholesalerId;
+
+    // 担当者を個人スタッフで指定された場合は、クライアントが送ってきた
+    // userId / relationshipId を信用せず、Salesperson を読み直して導出する。
+    const tossUpAssignee = await resolveSalespersonAssignee(
+      tx,
+      parsed.tossUpSalespersonId,
+      "tossUp",
+    );
+    const closingAssignee = await resolveSalespersonAssignee(
+      tx,
+      parsed.closingSalespersonId,
+      "closing",
+    );
 
     // Duplicate phone warning when phone is changing to an already-used number.
     let duplicatePhoneWarning = false;
@@ -252,12 +337,22 @@ export const updateCustomerAction = withServerActionContext<
         ...(parsed.registeredByUserId !== undefined
           ? { registeredByUserId: parsed.registeredByUserId }
           : {}),
-        ...(parsed.tossUpUserId !== undefined ? { tossUpUserId: parsed.tossUpUserId } : {}),
-        ...(parsed.tossUpRelationshipId !== undefined
+        ...tossUpAssignee,
+        ...closingAssignee,
+        // スタッフが「実際に選ばれた」ときだけ、クライアント由来の userId /
+        // relationshipId を捨ててスタッフから導出した値を使う。
+        // salespersonId が null（= スタッフ未選択。会社だけ選んだ場合など）のときは、
+        // 従来どおり userId / relationshipId をそのまま保存する。
+        ...(parsed.tossUpUserId !== undefined && !parsed.tossUpSalespersonId
+          ? { tossUpUserId: parsed.tossUpUserId }
+          : {}),
+        ...(parsed.tossUpRelationshipId !== undefined && !parsed.tossUpSalespersonId
           ? { tossUpRelationshipId: parsed.tossUpRelationshipId }
           : {}),
-        ...(parsed.closingUserId !== undefined ? { closingUserId: parsed.closingUserId } : {}),
-        ...(parsed.closingRelationshipId !== undefined
+        ...(parsed.closingUserId !== undefined && !parsed.closingSalespersonId
+          ? { closingUserId: parsed.closingUserId }
+          : {}),
+        ...(parsed.closingRelationshipId !== undefined && !parsed.closingSalespersonId
           ? { closingRelationshipId: parsed.closingRelationshipId }
           : {}),
         ...(parsed.housingType !== undefined ? { housingType: parsed.housingType } : {}),
@@ -273,6 +368,10 @@ export const updateCustomerAction = withServerActionContext<
           ? { specialNote: parsed.specialNote?.trim() || null }
           : {}),
         ...(parsed.inflowRoute !== undefined ? { inflowRoute: parsed.inflowRoute } : {}),
+        ...(parsed.salesChannel !== undefined ? { salesChannel: parsed.salesChannel } : {}),
+        // 対面者は 3 状態（true=主権者 / false=非主権者 / null=未設定）なので
+        // undefined（未送信）と null（未設定へクリア）を取り違えないこと。
+        ...(parsed.faceToFace !== undefined ? { faceToFace: parsed.faceToFace } : {}),
         ...(parsed.maekakuStatus !== undefined ? { maekakuStatus: parsed.maekakuStatus } : {}),
         ...(parsed.nextAction !== undefined
           ? { nextAction: parsed.nextAction?.trim() || null }

@@ -9,8 +9,8 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import { labels } from "@/lib/i18n/labels";
 import { Button } from "@/components/ui/button";
+import { labels } from "@/lib/i18n/labels";
 
 import { updateNotificationPreferencesAction } from "./actions";
 
@@ -123,18 +123,18 @@ export function NotificationSettingsForm({ initialPrefs }: Props) {
       <div className="overflow-x-auto rounded-md border">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b bg-muted/50">
-              <th className="px-4 py-3 text-left font-medium min-w-[220px]">
+            <tr className="bg-muted/50 border-b">
+              <th className="min-w-[220px] px-4 py-3 text-left font-medium">
                 {labels.notificationSettings.typeColumnHeader}
               </th>
-              <th className="px-4 py-3 text-center font-medium whitespace-nowrap">
+              <th className="whitespace-nowrap px-4 py-3 text-center font-medium">
                 {labels.notificationSettings.channelHeaders.IN_APP}
               </th>
-              <th className="px-4 py-3 text-center font-medium whitespace-nowrap">
+              <th className="whitespace-nowrap px-4 py-3 text-center font-medium">
                 {labels.notificationSettings.channelHeaders.EMAIL}
               </th>
               <th
-                className="px-4 py-3 text-center font-medium whitespace-nowrap text-muted-foreground"
+                className="text-muted-foreground whitespace-nowrap px-4 py-3 text-center font-medium"
                 title={labels.notificationSettings.lineDisabledNote}
               >
                 {labels.notificationSettings.channelHeaders.LINE}
@@ -143,13 +143,8 @@ export function NotificationSettingsForm({ initialPrefs }: Props) {
           </thead>
           <tbody>
             {NOTIFICATION_TYPES.map((type, i) => (
-              <tr
-                key={type}
-                className={i % 2 === 0 ? "bg-background" : "bg-muted/20"}
-              >
-                <td className="px-4 py-2 font-medium">
-                  {labels.notificationTypes[type]}
-                </td>
+              <tr key={type} className={i % 2 === 0 ? "bg-background" : "bg-muted/20"}>
+                <td className="px-4 py-2 font-medium">{labels.notificationTypes[type]}</td>
                 {(["IN_APP", "EMAIL"] as ActiveChannel[]).map((channel) => (
                   <td key={channel} className="px-4 py-2 text-center">
                     <input
@@ -157,7 +152,7 @@ export function NotificationSettingsForm({ initialPrefs }: Props) {
                       checked={isEnabled(type, channel)}
                       onChange={() => toggle(type, channel)}
                       aria-label={`${labels.notificationTypes[type]} ${labels.notificationSettings.channelHeaders[channel]}`}
-                      className="h-4 w-4 cursor-pointer rounded border-input accent-primary"
+                      className="border-input accent-primary h-4 w-4 cursor-pointer rounded"
                     />
                   </td>
                 ))}
@@ -170,7 +165,7 @@ export function NotificationSettingsForm({ initialPrefs }: Props) {
                     readOnly
                     aria-label={`${labels.notificationTypes[type]} ${labels.notificationSettings.channelHeaders.LINE}`}
                     title={labels.notificationSettings.lineDisabledNote}
-                    className="h-4 w-4 cursor-not-allowed rounded border-input opacity-40"
+                    className="border-input h-4 w-4 cursor-not-allowed rounded opacity-40"
                   />
                 </td>
               </tr>
@@ -181,9 +176,7 @@ export function NotificationSettingsForm({ initialPrefs }: Props) {
 
       <div className="flex justify-end">
         <Button onClick={handleSave} disabled={isPending}>
-          {isPending
-            ? labels.notificationSettings.saving
-            : labels.notificationSettings.saveButton}
+          {isPending ? labels.notificationSettings.saving : labels.notificationSettings.saveButton}
         </Button>
       </div>
     </div>

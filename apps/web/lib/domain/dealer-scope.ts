@@ -6,10 +6,8 @@
 //
 // Called by T-05-03 deal-action Server Actions to authorize visit/pitch/close.
 
-import { withTenant, type TxClient } from "@solar/db";
 import { resolveScope, type DealerScope } from "@solar/contracts";
-
-import type { TenantContext } from "@solar/db";
+import { withTenant, type TxClient, type TenantContext } from "@solar/db";
 
 export interface ResolveScopeFromDbInput {
   relationshipId: string;

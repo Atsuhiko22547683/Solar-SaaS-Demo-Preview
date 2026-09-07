@@ -100,7 +100,7 @@ export function StatusControl({ id, current }: StatusControlProps) {
         aria-label={t.fields.status}
         value={localValue}
         onChange={(e) => onChange(e.target.value)}
-        className={`appearance-auto cursor-pointer rounded-full px-4 py-2 text-sm font-semibold ring-1 ring-inset hover:brightness-95 focus:outline-none focus:ring-2 focus:ring-electric-blue/40 ${STATUS_PILL_CLASS[localValue]}`}
+        className={`focus:ring-primary/40 cursor-pointer appearance-auto rounded-full px-4 py-2 text-sm font-semibold ring-1 ring-inset hover:brightness-95 focus:outline-none focus:ring-2 ${STATUS_PILL_CLASS[localValue]}`}
       >
         <option value={localValue}>{t.statuses[localValue]}</option>
         {otherTargets.map((s) => (
@@ -124,11 +124,7 @@ export function StatusControl({ id, current }: StatusControlProps) {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setShowFixedDialog(false)}
-            >
+            <Button type="button" variant="outline" onClick={() => setShowFixedDialog(false)}>
               あとで
             </Button>
             <Button

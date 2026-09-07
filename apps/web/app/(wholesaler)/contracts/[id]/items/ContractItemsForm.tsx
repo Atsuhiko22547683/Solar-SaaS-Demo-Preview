@@ -13,9 +13,10 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { labels } from "@/lib/i18n/labels";
-import type { ContractItemForWholesalerDto } from "@solar/contracts";
 
 import { replaceContractItemsAction } from "./actions";
+
+import type { ContractItemForWholesalerDto } from "@solar/contracts";
 
 interface ProductOption {
   id: string;
@@ -40,12 +41,7 @@ interface DraftRow {
   qty: number;
 }
 
-export function ContractItemsForm({
-  contractId,
-  products,
-  initialItems,
-  isEditable,
-}: Props) {
+export function ContractItemsForm({ contractId, products, initialItems, isEditable }: Props) {
   const t = labels.contractItem;
   const c = labels.common;
 
@@ -73,9 +69,7 @@ export function ContractItemsForm({
   }
 
   function updateQty(index: number, qty: number) {
-    setDraftRows((prev) =>
-      prev.map((r, i) => (i === index ? { ...r, qty: Math.max(1, qty) } : r)),
-    );
+    setDraftRows((prev) => prev.map((r, i) => (i === index ? { ...r, qty: Math.max(1, qty) } : r)));
   }
 
   function handleSubmit() {
@@ -101,7 +95,7 @@ export function ContractItemsForm({
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b bg-muted/50">
+              <tr className="bg-muted/50 border-b">
                 <th className="px-3 py-2 text-left font-medium">{t.columns.productName}</th>
                 <th className="px-3 py-2 text-left font-medium">{t.columns.maker}</th>
                 <th className="px-3 py-2 text-right font-medium">{t.columns.qty}</th>
@@ -110,9 +104,7 @@ export function ContractItemsForm({
                 <th className="px-3 py-2 text-right font-medium">{t.columns.dealerPrice}</th>
                 <th className="px-3 py-2 text-right font-medium">{t.columns.listPrice}</th>
                 <th className="px-3 py-2 text-right font-medium">{t.columns.subtotal}</th>
-                {isEditable && (
-                  <th className="px-3 py-2 text-center font-medium">{c.actions}</th>
-                )}
+                {isEditable && <th className="px-3 py-2 text-center font-medium">{c.actions}</th>}
               </tr>
             </thead>
             <tbody>
@@ -120,7 +112,7 @@ export function ContractItemsForm({
                 <tr>
                   <td
                     colSpan={isEditable ? 9 : 8}
-                    className="px-3 py-4 text-center text-muted-foreground"
+                    className="text-muted-foreground px-3 py-4 text-center"
                   >
                     {t.empty}
                   </td>
@@ -148,13 +140,11 @@ export function ContractItemsForm({
                       )}
                     </td>
                     <td className="px-3 py-2">{product?.unit ?? "—"}</td>
-                    <td className="px-3 py-2 text-right text-muted-foreground">
+                    <td className="text-muted-foreground px-3 py-2 text-right">
                       {t.purchasePriceHidden}
                     </td>
                     <td className="px-3 py-2 text-right">
-                      {product
-                        ? Number(product.dealerPrice).toLocaleString("ja-JP")
-                        : "—"}
+                      {product ? Number(product.dealerPrice).toLocaleString("ja-JP") : "—"}
                     </td>
                     <td className="px-3 py-2 text-right">
                       {product ? Number(product.listPrice).toLocaleString("ja-JP") : "—"}
@@ -182,11 +172,11 @@ export function ContractItemsForm({
 
       {/* Add row form */}
       {isEditable && (
-        <div className="border-border rounded-md border p-4 space-y-3">
-          <h3 className="font-medium text-sm">{t.addRow}</h3>
+        <div className="border-border space-y-3 rounded-md border p-4">
+          <h3 className="text-sm font-medium">{t.addRow}</h3>
           <div className="flex flex-wrap items-end gap-3">
-            <div className="flex-1 min-w-48 space-y-1">
-              <label className="text-xs text-muted-foreground">{t.fields.product}</label>
+            <div className="min-w-48 flex-1 space-y-1">
+              <label className="text-muted-foreground text-xs">{t.fields.product}</label>
               <select
                 value={newProductId}
                 onChange={(e) => setNewProductId(e.target.value)}
@@ -202,7 +192,7 @@ export function ContractItemsForm({
               </select>
             </div>
             <div className="w-24 space-y-1">
-              <label className="text-xs text-muted-foreground">{t.fields.qty}</label>
+              <label className="text-muted-foreground text-xs">{t.fields.qty}</label>
               <input
                 type="number"
                 min={1}

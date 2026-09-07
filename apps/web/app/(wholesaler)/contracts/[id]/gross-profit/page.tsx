@@ -19,10 +19,11 @@ import { auth } from "@/auth";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { UnauthorizedError } from "@/lib/errors";
+import { formatDate } from "@/lib/format/date";
+import { labels } from "@/lib/i18n/labels";
 import { assertCan } from "@/lib/permissions/can";
 import { getTenantContext } from "@/lib/tenancy/context";
 import { withTenant } from "@/lib/tenancy/with-tenant";
-import { labels } from "@/lib/i18n/labels";
 
 import { GrossProfitForm } from "./GrossProfitForm";
 
@@ -170,14 +171,14 @@ export default async function GrossProfitPage({ params }: PageProps) {
         <Button asChild variant="outline" size="sm">
           <Link href={`/contracts/${id}`}>{t.backToContract}</Link>
         </Button>
-        <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
+        <h1 className="text-ink text-xl font-bold">{t.title}</h1>
       </div>
 
       {/* Contract header */}
-      <div className="border-border rounded-md border p-4 space-y-2">
+      <div className="border-border space-y-2 rounded-md border p-4">
         <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
           <dt className="text-muted-foreground">{labels.contract.fields.contractDate}</dt>
-          <dd>{new Date(data.contract.contractDate).toLocaleDateString("ja-JP")}</dd>
+          <dd>{formatDate(data.contract.contractDate)}</dd>
           <dt className="text-muted-foreground">{labels.contract.fields.totalAmount}</dt>
           <dd>
             {Number(data.contract.contractAmount).toLocaleString("ja-JP")} {c.currencySuffix}
@@ -188,7 +189,7 @@ export default async function GrossProfitPage({ params }: PageProps) {
       </div>
 
       {data.itemCount === 0 && (
-        <p className="text-sm text-muted-foreground border rounded-md p-3 border-amber-300 bg-amber-50">
+        <p className="text-muted-foreground rounded-md border border-amber-300 bg-amber-50 p-3 text-sm">
           {t.noItems}
         </p>
       )}

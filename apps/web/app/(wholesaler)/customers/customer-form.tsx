@@ -7,6 +7,7 @@
 // (wholesaler vs. dealer variant differ in ownerRelationshipId handling).
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { SALES_CHANNEL_VALUES } from "@solar/contracts";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
@@ -14,6 +15,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -24,6 +26,27 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { labels } from "@/lib/i18n/labels";
+
+import type { SalesChannel } from "@solar/contracts";
+
+// 対面者の select トークン。true=主権者 / false=非主権者 / ""=未設定。
+const FACE_SOVEREIGN = "sovereign";
+const FACE_NON_SOVEREIGN = "nonSovereign";
+
+function boolToSelect(v: boolean | null): "" | typeof FACE_SOVEREIGN | typeof FACE_NON_SOVEREIGN {
+  if (v === null) return "";
+  return v ? FACE_SOVEREIGN : FACE_NON_SOVEREIGN;
+}
+
+function selectToBool(v: string): boolean | null {
+  if (v === FACE_SOVEREIGN) return true;
+  if (v === FACE_NON_SOVEREIGN) return false;
+  return null;
+}
+
+// 既存の獲得チャネル select と同じ見た目（このフォームはトークン直書きで統一されている）。
+const SELECT_CLASS =
+  "border border-ash-light bg-white text-ink rounded-md px-3 py-2 text-sm h-9 w-full focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-colors";
 
 export interface CustomerActionResult {
   id: string;
@@ -45,6 +68,14 @@ const FormSchema = z
     address: z.string().max(500).optional().default(""),
     channel: z.enum(["EVENT", "WALK_IN", "TELE", "REFERRAL", "OTHER"]),
     sourceEventId: z.string().max(255).optional().default(""),
+    // 販売関連。select は "" を未設定として扱う（送信時に null 化）。
+    salesChannel: z
+      .enum(["", ...SALES_CHANNEL_VALUES])
+      .optional()
+      .default(""),
+    faceToFace: z.enum(["", FACE_SOVEREIGN, FACE_NON_SOVEREIGN]).optional().default(""),
+    tossDept: z.string().max(100).optional().default(""),
+    tossUpSalespersonId: z.string().max(64).optional().default(""),
     note: z.string().max(2000).optional().default(""),
   })
   .superRefine((data, ctx) => {
@@ -68,11 +99,16 @@ export interface CustomerFormInitial {
   address?: string;
   channel: "EVENT" | "WALK_IN" | "TELE" | "REFERRAL" | "OTHER";
   sourceEventId?: string;
+  salesChannel?: SalesChannel | null;
+  faceToFace?: boolean | null;
+  tossDept?: string | null;
+  tossUpSalespersonId?: string | null;
   note?: string;
 }
 
 type Mode =
-  | { kind: "create" }
+  // create でも initial を渡せる（イベント経由の登録で催事 ID / 販売チャネルを前埋めする）。
+  | { kind: "create"; initial?: CustomerFormInitial }
   | { kind: "edit"; id: string; initial: CustomerFormInitial };
 
 export interface CustomerFormValues {
@@ -84,12 +120,30 @@ export interface CustomerFormValues {
   address?: string;
   channel: "EVENT" | "WALK_IN" | "TELE" | "REFERRAL" | "OTHER";
   sourceEventId?: string;
+  salesChannel?: SalesChannel | null;
+  faceToFace?: boolean | null;
+  tossDept?: string | null;
+  tossUpSalespersonId?: string | null;
   note?: string;
   id?: string;
 }
 
+/** トス獲得者の候補（自社スタッフ）。空配列なら選択欄自体を描画しない。 */
+/** トスアップ担当の候補（スタッフマスタ = Salesperson の自社スタッフ）。 */
+export interface TossUpStaffOption {
+  id: string;
+  name: string;
+}
+
 export interface CustomerFormProps {
   mode: Mode;
+  /** トス獲得者の選択肢（卸業者側のみ。二次店側は空でよい）。 */
+  tossUpStaff?: TossUpStaffOption[];
+  /**
+   * 実在イベント由来の登録で、販売チャネルを催事に固定するか。
+   * 表示上の固定であって強制ではない — 実際の確定は createCustomerAction 側が行う。
+   */
+  lockEventSalesChannel?: boolean;
   /** Server action to invoke on submit. */
   onSubmitAction: (values: CustomerFormValues) => Promise<CustomerActionResult>;
   redirectTo?: string;
@@ -105,13 +159,26 @@ function toFormValues(initial?: CustomerFormInitial): FormValues {
     address: initial?.address ?? "",
     channel: initial?.channel ?? "EVENT",
     sourceEventId: initial?.sourceEventId ?? "",
+    // 催事チャネルが既定なので、販売チャネルの初期値も催事（EVENT）に揃える。
+    salesChannel:
+      initial?.salesChannel ?? ((initial?.channel ?? "EVENT") === "EVENT" ? "EVENT" : ""),
+    faceToFace: boolToSelect(initial?.faceToFace ?? null),
+    tossDept: initial?.tossDept ?? "",
+    tossUpSalespersonId: initial?.tossUpSalespersonId ?? "",
     note: initial?.note ?? "",
   };
 }
 
-export function CustomerForm({ mode, onSubmitAction, redirectTo }: CustomerFormProps) {
+export function CustomerForm({
+  mode,
+  tossUpStaff = [],
+  lockEventSalesChannel = false,
+  onSubmitAction,
+  redirectTo,
+}: CustomerFormProps) {
   const router = useRouter();
   const t = labels.customer;
+  const d = t.detail;
   const c = labels.common;
 
   const [serverError, setServerError] = useState<string | null>(null);
@@ -120,7 +187,7 @@ export function CustomerForm({ mode, onSubmitAction, redirectTo }: CustomerFormP
   const form = useForm<FormValues>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(FormSchema) as any,
-    defaultValues: toFormValues(mode.kind === "edit" ? mode.initial : undefined),
+    defaultValues: toFormValues(mode.initial),
   });
 
   function onSubmit(values: FormValues) {
@@ -139,6 +206,10 @@ export function CustomerForm({ mode, onSubmitAction, redirectTo }: CustomerFormP
           address: blank(values.address),
           channel: values.channel,
           sourceEventId: blank(values.sourceEventId),
+          salesChannel: values.salesChannel === "" ? null : values.salesChannel,
+          faceToFace: selectToBool(values.faceToFace),
+          tossDept: blank(values.tossDept) ?? null,
+          tossUpSalespersonId: blank(values.tossUpSalespersonId) ?? null,
           note: blank(values.note),
         });
 
@@ -162,167 +233,277 @@ export function CustomerForm({ mode, onSubmitAction, redirectTo }: CustomerFormP
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="max-w-2xl space-y-6" noValidate>
-        {/* 基本情報 */}
-        <section className="bg-white border border-cloud-gray rounded-lg p-8 space-y-4">
-          <h2 className="text-lg font-medium text-carbon-dark border-b border-cloud-gray pb-2 mb-4">{t.sections.basic}</h2>
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {t.fields.name} <span className="text-destructive">*</span>
-                </FormLabel>
-                <FormControl>
-                  <Input autoComplete="off" aria-required="true" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="kana"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t.fields.kana}</FormLabel>
-                <FormControl>
-                  <Input autoComplete="off" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </section>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="max-w-3xl space-y-4" noValidate>
+        <Card className="space-y-5 p-5">
+          {/* 基本情報 */}
+          <section className="space-y-3">
+            <h2 className="text-mute-light border-hairline-light border-b pb-1.5 text-xs font-semibold">
+              {t.sections.basic}
+            </h2>
+            <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {t.fields.name} <span className="text-destructive">*</span>
+                    </FormLabel>
+                    <FormControl>
+                      <Input autoComplete="off" aria-required="true" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="kana"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t.fields.kana}</FormLabel>
+                    <FormControl>
+                      <Input autoComplete="off" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </section>
 
-        {/* 連絡先 */}
-        <section className="bg-white border border-cloud-gray rounded-lg p-8 space-y-4">
-          <h2 className="text-lg font-medium text-carbon-dark border-b border-cloud-gray pb-2 mb-4">{t.sections.contact}</h2>
-          <FormField
-            control={form.control}
-            name="phone"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {t.fields.phone} <span className="text-destructive">*</span>
-                </FormLabel>
-                <FormControl>
-                  <Input type="tel" autoComplete="tel" aria-required="true" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t.fields.email}</FormLabel>
-                <FormControl>
-                  <Input type="email" autoComplete="email" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </section>
+          {/* 連絡先 */}
+          <section className="space-y-3">
+            <h2 className="text-mute-light border-hairline-light border-b pb-1.5 text-xs font-semibold">
+              {t.sections.contact}
+            </h2>
+            <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {t.fields.phone} <span className="text-destructive">*</span>
+                    </FormLabel>
+                    <FormControl>
+                      <Input type="tel" autoComplete="tel" aria-required="true" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t.fields.email}</FormLabel>
+                    <FormControl>
+                      <Input type="email" autoComplete="email" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </section>
 
-        {/* 住所 */}
-        <section className="bg-white border border-cloud-gray rounded-lg p-8 space-y-4">
-          <h2 className="text-lg font-medium text-carbon-dark border-b border-cloud-gray pb-2 mb-4">{t.sections.address}</h2>
-          <FormField
-            control={form.control}
-            name="postalCode"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t.fields.postalCode}</FormLabel>
-                <FormControl>
-                  <Input autoComplete="postal-code" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="address"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t.fields.address}</FormLabel>
-                <FormControl>
-                  <Input autoComplete="street-address" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </section>
+          {/* 住所 */}
+          <section className="space-y-3">
+            <h2 className="text-mute-light border-hairline-light border-b pb-1.5 text-xs font-semibold">
+              {t.sections.address}
+            </h2>
+            <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="postalCode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t.fields.postalCode}</FormLabel>
+                    <FormControl>
+                      <Input autoComplete="postal-code" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="address"
+                render={({ field }) => (
+                  <FormItem className="sm:col-span-2">
+                    <FormLabel>{t.fields.address}</FormLabel>
+                    <FormControl>
+                      <Input autoComplete="street-address" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </section>
 
-        {/* 獲得チャネル */}
-        <section className="bg-white border border-cloud-gray rounded-lg p-8 space-y-4">
-          <h2 className="text-lg font-medium text-carbon-dark border-b border-cloud-gray pb-2 mb-4">{t.sections.acquisition}</h2>
-          <FormField
-            control={form.control}
-            name="channel"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {t.fields.channel} <span className="text-destructive">*</span>
-                </FormLabel>
-                <FormControl>
-                  <select
-                    {...field}
-                    className="border border-cloud-gray bg-white text-carbon-dark rounded-sm px-3 py-2 text-sm h-10 w-full focus:outline-none focus:ring-2 focus:ring-electric-blue/20 focus:border-electric-blue transition-colors"
-                  >
-                    <option value="EVENT">{t.channels.EVENT}</option>
-                    <option value="WALK_IN">{t.channels.WALK_IN}</option>
-                    <option value="TELE">{t.channels.TELE}</option>
-                    <option value="REFERRAL">{t.channels.REFERRAL}</option>
-                    <option value="OTHER">{t.channels.OTHER}</option>
-                  </select>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="sourceEventId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t.fields.sourceEventId}</FormLabel>
-                <FormControl>
-                  <Input autoComplete="off" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </section>
+          {/* 獲得チャネル */}
+          <section className="space-y-3">
+            <h2 className="text-mute-light border-hairline-light border-b pb-1.5 text-xs font-semibold">
+              {t.sections.acquisition}
+            </h2>
+            <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="channel"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {t.fields.channel} <span className="text-destructive">*</span>
+                    </FormLabel>
+                    <FormControl>
+                      <select {...field} className={SELECT_CLASS}>
+                        <option value="EVENT">{t.channels.EVENT}</option>
+                        <option value="WALK_IN">{t.channels.WALK_IN}</option>
+                        <option value="TELE">{t.channels.TELE}</option>
+                        <option value="REFERRAL">{t.channels.REFERRAL}</option>
+                        <option value="OTHER">{t.channels.OTHER}</option>
+                      </select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="sourceEventId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t.fields.sourceEventId}</FormLabel>
+                    <FormControl>
+                      <Input
+                        autoComplete="off"
+                        readOnly={lockEventSalesChannel}
+                        aria-readonly={lockEventSalesChannel || undefined}
+                        className={
+                          lockEventSalesChannel ? "bg-surface-soft text-mute-light" : undefined
+                        }
+                        {...field}
+                      />
+                    </FormControl>
+                    <p className="text-mute-light text-xs">
+                      {lockEventSalesChannel ? t.sourceEventIdFromEvent : t.sourceEventIdHint}
+                    </p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-        {/* 備考 */}
-        <section className="bg-white border border-cloud-gray rounded-lg p-8 space-y-4">
-          <h2 className="text-lg font-medium text-carbon-dark border-b border-cloud-gray pb-2 mb-4">{t.sections.note}</h2>
-          <FormField
-            control={form.control}
-            name="note"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t.fields.note}</FormLabel>
-                <FormControl>
-                  <textarea
-                    rows={4}
-                    className="border border-cloud-gray bg-white text-carbon-dark placeholder:text-silver-fog rounded-sm px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-electric-blue/20 focus:border-electric-blue transition-colors"
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </section>
+              {/* 販売関連 — 催事で獲った情報をそのまま顧客へ引き継ぐ。
+              販売チャネルの既定は催事（獲得チャネル EVENT と揃えている）。 */}
+              <FormField
+                control={form.control}
+                name="salesChannel"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{d.fields.salesChannel}</FormLabel>
+                    <FormControl>
+                      <select {...field} disabled={lockEventSalesChannel} className={SELECT_CLASS}>
+                        <option value="">{d.unassigned}</option>
+                        {SALES_CHANNEL_VALUES.map((v) => (
+                          <option key={v} value={v}>
+                            {d.salesChannelLabels[v]}
+                          </option>
+                        ))}
+                      </select>
+                    </FormControl>
+                    {lockEventSalesChannel ? (
+                      <p className="text-mute-light text-xs">{t.eventSalesChannelLocked}</p>
+                    ) : null}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="faceToFace"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{d.fields.faceToFace}</FormLabel>
+                    <FormControl>
+                      <select {...field} className={SELECT_CLASS}>
+                        <option value="">{d.unassigned}</option>
+                        <option value={FACE_SOVEREIGN}>{d.faceToFaceLabels.sovereign}</option>
+                        <option value={FACE_NON_SOVEREIGN}>
+                          {d.faceToFaceLabels.nonSovereign}
+                        </option>
+                      </select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="tossDept"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{d.fields.tossDept}</FormLabel>
+                    <FormControl>
+                      <Input autoComplete="off" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              {tossUpStaff.length > 0 ? (
+                <FormField
+                  control={form.control}
+                  name="tossUpSalespersonId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{d.fields.tossUpAssignee}</FormLabel>
+                      <FormControl>
+                        <select {...field} className={SELECT_CLASS}>
+                          <option value="">{d.unassigned}</option>
+                          {tossUpStaff.map((u) => (
+                            <option key={u.id} value={u.id}>
+                              {u.name}
+                            </option>
+                          ))}
+                        </select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              ) : null}
+            </div>
+          </section>
+
+          {/* 備考 */}
+          <section className="space-y-3">
+            <h2 className="text-mute-light border-hairline-light border-b pb-1.5 text-xs font-semibold">
+              {t.sections.note}
+            </h2>
+            <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="note"
+                render={({ field }) => (
+                  <FormItem className="sm:col-span-2">
+                    <FormLabel>{t.fields.note}</FormLabel>
+                    <FormControl>
+                      <textarea
+                        rows={4}
+                        className="border-ash-light text-ink focus:ring-primary/40 focus:border-primary w-full rounded-md border bg-white px-3 py-2 text-sm transition-colors placeholder:text-slate-400 focus:outline-none focus:ring-2"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </section>
+        </Card>
 
         {serverError ? (
           <p role="alert" className="text-destructive text-sm font-medium">

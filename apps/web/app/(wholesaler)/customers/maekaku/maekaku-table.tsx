@@ -20,13 +20,13 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import { LIST_ROW, LIST_TD, LIST_TH } from "@/components/list/list-shell";
+import { LIST_ROW, LIST_TD, LIST_TD_STRONG, LIST_TH } from "@/components/list/list-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { labels } from "@/lib/i18n/labels";
 
 import { saveProjectCallStatusAction } from "../actions";
-import { CALL_STATUS_VALUES, MAEKAKU_STATUS_VALUES, callStatusVariant } from "./constants";
+import { CALL_STATUS_VALUES, MAEKAKU_STATUS_VALUES } from "./constants";
 
 import type { CallListItem, CallSectionCell, NextTaskCell } from "./constants";
 import type { ReactNode } from "react";
@@ -63,11 +63,16 @@ function PhoneItem({ label, value }: { label: string; value: string | null }) {
 
 // 4 コール列 + 展開列は px-6 だと 1366px 幅で溢れるため px-3 に詰める
 // （行高・字送り・色は LIST_TH / LIST_TD と同じまま）。
-const TH_COMPACT =
-  "whitespace-nowrap px-3 py-3 text-left text-xs font-medium text-mute-light uppercase tracking-wider";
+const TH_COMPACT = "whitespace-nowrap px-3 py-3 text-left text-xs font-semibold text-mute-light";
 const TD_COMPACT = "whitespace-nowrap px-3 py-3 text-body-light";
 
-/** ステータスバッジ。未設定はバッジを出さず "—"（顧客詳細と同じ値域ラベルを引く）。 */
+/**
+ * コール 1 種類の状況。
+ *
+ * 4 種類ぶん並ぶ列なので、バッジではなく文字で出す（1 行に色付きバッジが 4 つ並ぶと
+ * どれが要対応なのか読み取れなくなる）。この一覧で強調するのは右端の「次回対応」だけ。
+ * 未設定は "—"（顧客詳細と同じ値域ラベルを引く）。
+ */
 function StatusCell({
   cell,
   labelMap,
@@ -78,9 +83,7 @@ function StatusCell({
   return (
     <td className={TD_COMPACT}>
       {cell.status ? (
-        <Badge variant={callStatusVariant(cell.status)}>
-          {labelMap[cell.status] ?? cell.status}
-        </Badge>
+        (labelMap[cell.status] ?? cell.status)
       ) : (
         <span className="text-mute-light">{NONE}</span>
       )}
@@ -94,29 +97,26 @@ function StatusCell({
  */
 function NextTaskCellView({ task }: { task: NextTaskCell | null }) {
   const t = labels.customer.calls;
-  if (!task) {
-    return (
-      <td className={LIST_TD}>
-        <span className="text-mute-light">{NONE}</span>
-      </td>
-    );
-  }
+  // 予定の有無で行高が変わらないよう、どちらの場合も 1 行目 + 2 行目の
+  // 2 行構成を必ず描く（対応が無い行は 2 行目を "—" にする）。
   return (
-    <td className="text-body-light px-6 py-3">
+    <td className={LIST_TD}>
       <div className="flex items-center gap-2">
         <span className="text-mute-light truncate text-xs">
-          {t.nextTaskKindLabels[task.kind] ?? task.kind}
+          {task ? (t.nextTaskKindLabels[task.kind] ?? task.kind) : t.nextTaskNone}
         </span>
-        {task.overdue && (
+        {task?.overdue && (
           <Badge variant="destructive" className="shrink-0">
             {t.overdue}
           </Badge>
         )}
       </div>
       <div
-        className={`whitespace-nowrap tabular-nums ${task.overdue ? "text-destructive font-medium" : "text-ink"}`}
+        className={`whitespace-nowrap tabular-nums ${
+          task ? (task.overdue ? "text-destructive font-medium" : "text-ink") : "text-mute-light"
+        }`}
       >
-        {fmtDateTime(task.at)}
+        {task ? fmtDateTime(task.at) : NONE}
       </div>
     </td>
   );
@@ -129,7 +129,7 @@ function NextTaskCellView({ task }: { task: NextTaskCell | null }) {
 function DetailBlock({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="min-w-0 space-y-2">
-      <h4 className="border-hairline-light text-mute-light border-b pb-1 text-xs font-semibold uppercase tracking-wider">
+      <h4 className="border-hairline-light text-mute-light border-b pb-1 text-xs font-semibold">
         {title}
       </h4>
       <dl className="space-y-2">{children}</dl>
@@ -455,32 +455,42 @@ export function CallTable({ rows }: CallTableProps) {
   // 一覧性を優先してアコーディオン方式にする（1 行開くと他は閉じる）。
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  // 列幅は固定（table-fixed）。コール状況の文字数で列位置が動かないようにする。
+  // 「誰に」「何が済んでいて」「次に何をするか」の順で左から読める配分にする。
+  const W = {
+    name: "w-[20%]",
+    assignee: "w-[10%]",
+    call: "w-[10%]",
+    nextTask: "w-[26%]",
+    chevron: "w-[4%]",
+  } as const;
+
   return (
-    <table className="w-full text-sm">
+    <table className="w-full table-fixed text-sm">
       <thead>
         <tr className="border-hairline-light bg-surface-soft/50 border-b">
-          <th scope="col" className={LIST_TH}>
+          <th scope="col" className={`${LIST_TH} ${W.name}`}>
             {t.columns.name}
           </th>
-          <th scope="col" className={LIST_TH}>
+          <th scope="col" className={`${LIST_TH} ${W.assignee}`}>
             {t.columns.assignee}
           </th>
-          <th scope="col" className={TH_COMPACT}>
+          <th scope="col" className={`${TH_COMPACT} ${W.call}`}>
             {t.columns.maekaku}
           </th>
-          <th scope="col" className={TH_COMPACT}>
+          <th scope="col" className={`${TH_COMPACT} ${W.call}`}>
             {t.columns.thankYouCall}
           </th>
-          <th scope="col" className={TH_COMPACT}>
+          <th scope="col" className={`${TH_COMPACT} ${W.call}`}>
             {t.columns.loanCompletionCall}
           </th>
-          <th scope="col" className={TH_COMPACT}>
+          <th scope="col" className={`${TH_COMPACT} ${W.call}`}>
             {t.columns.postCompletionCall}
           </th>
-          <th scope="col" className={LIST_TH}>
+          <th scope="col" className={`${LIST_TH} ${W.nextTask}`}>
             {t.columns.nextTask}
           </th>
-          <th className="w-12 px-3 py-3" aria-hidden />
+          <th className={W.chevron} aria-hidden />
         </tr>
       </thead>
       <tbody className="divide-hairline-light divide-y">
@@ -492,11 +502,11 @@ export function CallTable({ rows }: CallTableProps) {
           return [
             <tr
               key={row.id}
-              className={`group ${LIST_ROW} ${isExpanded ? "bg-mist-light" : ""}`}
+              className={`group ${LIST_ROW} ${isExpanded ? "bg-page" : ""}`}
               onClick={toggle}
             >
               {/* 顧客名だけは遷移リンク。行クリック（= 展開）と取り違えないよう伝播を止める。 */}
-              <td className="text-ink px-6 py-3 font-medium">
+              <td className={LIST_TD_STRONG}>
                 <Link
                   href={`/customers/${row.id}?tab=calls`}
                   onClick={(e) => e.stopPropagation()}
@@ -507,7 +517,7 @@ export function CallTable({ rows }: CallTableProps) {
               </td>
               <td className={LIST_TD}>{orNone(row.assigneeName)}</td>
 
-              {/* 4 種のコールステータス — 通常行はバッジのみ（希望日時・メモは展開側）。 */}
+              {/* 4 種のコール状況 — 通常行は状態の文字だけ（希望日時・メモは展開側）。 */}
               <StatusCell cell={row.maekaku} labelMap={p.maekakuStatusDisplayLabels} />
               <StatusCell cell={row.thankYouCall} labelMap={p.callPhaseStatusLabels} />
               <StatusCell cell={row.loanCompletionCall} labelMap={p.callPhaseStatusLabels} />
@@ -515,7 +525,7 @@ export function CallTable({ rows }: CallTableProps) {
 
               <NextTaskCellView task={row.nextTask} />
 
-              <td className="px-3 py-3 text-right">
+              <td className={`${LIST_TD} text-right`}>
                 <button
                   type="button"
                   aria-expanded={isExpanded}

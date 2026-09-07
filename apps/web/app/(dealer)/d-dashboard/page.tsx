@@ -1,15 +1,17 @@
 // S-058 — 二次店ダッシュボード (docs/04 §1.5).
 //
 // 二次店ロール (dealer_admin / dealer_staff) の共通ホーム。
-// 今日のイベント・マエカク未対応・今月の契約件数を KPI カードで表示。
+// 卸業者ホームと同じ構成 —— 最上段に要対応キュー、その下に当月実績。
+// ロールが変わっても画面の読み方が変わらないよう、同じ部品を使う。
 
+import { withTenant } from "@solar/db";
 import Link from "next/link";
 
 import { auth } from "@/auth";
+import { Metric, SectionLabel, TodoRow } from "@/components/home/home-sections";
 import { Card } from "@/components/ui/card";
 import { labels } from "@/lib/i18n/labels";
 import { getTenantContext } from "@/lib/tenancy/context";
-import { withTenant } from "@solar/db";
 
 export const dynamic = "force-dynamic";
 
@@ -64,61 +66,60 @@ export default async function DealerDashboardPage() {
 
   const summary = await getDealerDashboardSummary();
   const t = labels.dealerDashboard;
+  const s = t.sections;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-medium text-carbon-dark">{t.title}</h1>
-        <p className="text-pewter text-sm mt-1">{t.subtitle}</p>
+        <h1 className="text-ink text-xl font-bold">{t.title}</h1>
+        <p className="text-mute-light mt-0.5 text-[13px]">{t.subtitle}</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Card data-section="today-events" className="p-6">
-          <p className="text-pewter text-sm">{t.sections.todayEvents.title}</p>
-          <p className="text-carbon-dark text-3xl font-medium tabular-nums mt-2">
-            {summary.todayEventCount}
-          </p>
-          <Link
-            href="/d-events"
-            className="text-electric-blue text-xs mt-3 inline-block hover:underline underline-offset-4"
-          >
-            {t.sections.todayEvents.cta}
-          </Link>
-        </Card>
-
-        <Card data-section="pending-precall" className="p-6">
-          <p className="text-pewter text-sm">{t.sections.pendingPreCall.title}</p>
-          <p className="text-carbon-dark text-3xl font-medium tabular-nums mt-2">
-            {summary.pendingPreCallCount}
-            <span className="text-pewter ml-1 text-sm font-normal">
-              {t.sections.pendingPreCall.unitSuffix}
-            </span>
-          </p>
-          <p className="text-pewter text-xs mt-2">{t.sections.pendingPreCall.description}</p>
-          <Link
+      {/* 二次店側で売上を落とす原因はマエカクの取りこぼし。最上段はここだけに使う。 */}
+      <section>
+        <SectionLabel>{t.todoTitle}</SectionLabel>
+        <Card className="p-0" data-section="pending-precall">
+          <TodoRow
+            title={s.pendingPreCall.title}
+            count={summary.pendingPreCallCount}
+            unit={s.pendingPreCall.unitSuffix}
+            hint={s.pendingPreCall.description}
+            clearedHint={t.todoAllClear}
             href="/d-appointments"
-            className="text-electric-blue text-xs mt-3 inline-block hover:underline underline-offset-4"
-          >
-            {t.sections.pendingPreCall.cta}
-          </Link>
+            linkLabel={s.pendingPreCall.cta}
+          />
         </Card>
+      </section>
 
-        <Card data-section="monthly-contracts" className="p-6">
-          <p className="text-pewter text-sm">{t.sections.monthlyContracts.title}</p>
-          <p className="text-carbon-dark text-3xl font-medium tabular-nums mt-2">
-            {summary.monthlyContractCount}
-            <span className="text-pewter ml-1 text-sm font-normal">
-              {t.sections.monthlyContracts.unitSuffix}
-            </span>
-          </p>
-          <Link
-            href="/d-contracts"
-            className="text-electric-blue text-xs mt-3 inline-block hover:underline underline-offset-4"
-          >
-            {t.sections.monthlyContracts.cta}
-          </Link>
+      <section>
+        <SectionLabel>{t.resultTitle}</SectionLabel>
+        <Card className="p-0">
+          <div className="divide-hairline-light flex flex-col divide-y sm:flex-row sm:divide-y-0">
+            <Metric
+              label={s.todayEvents.title}
+              value={`${summary.todayEventCount}${s.todayEvents.unitSuffix}`}
+            />
+            <Metric
+              label={s.monthlyContracts.title}
+              value={`${summary.monthlyContractCount}${s.monthlyContracts.unitSuffix}`}
+            />
+          </div>
+          <div className="border-hairline-light flex flex-wrap gap-x-5 gap-y-1 border-t px-4 py-2.5">
+            <Link
+              href="/d-events"
+              className="text-link-light text-xs underline-offset-4 hover:underline"
+            >
+              {s.todayEvents.cta}
+            </Link>
+            <Link
+              href="/d-contracts"
+              className="text-link-light text-xs underline-offset-4 hover:underline"
+            >
+              {s.monthlyContracts.cta}
+            </Link>
+          </div>
         </Card>
-      </div>
+      </section>
     </div>
   );
 }

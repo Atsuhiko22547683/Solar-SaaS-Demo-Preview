@@ -1,21 +1,21 @@
 import { expect, test, type Page } from "@playwright/test";
 
-// F-060 二次店レーン希望（ボトムアップ構造）卸業者側一覧確認 (docs/02 §F-060 / docs/05 §3.4.5).
+// F-060 取引先レーン希望（ボトムアップ構造）卸業者側一覧確認 (docs/02 §F-060 / docs/05 §3.4.5).
 //
-// 構造変更後の振る舞いを検証する。従来「既存レーンを優先順位付け」から、二次店が
+// 構造変更後の振る舞いを検証する。従来「既存レーンを優先順位付け」から、取引先が
 // 希望レーン数を宣言し、レーンごとに「希望場所ラベル(venueLabel) + 週単位の希望開催日
 // (desiredDates)」を提出する形へ移行した。卸業者側一覧 (/lane-preferences) が確認すべきもの:
-//   - 二次店ごとのアコーディオン行（二次店名 + 提出日時 + 希望レーン数バッジ）。
+//   - 取引先ごとのアコーディオン行（取引先名 + 提出日時 + 希望レーン数バッジ）。
 //   - バッジ「希望レーン {n}件」= 明細件数。
 //   - 展開時、希望順位カード（第一希望 / 第二希望…）が priority 昇順で並ぶ。
 //   - 各カードに希望場所ラベル（例「カインズ 大宮店」「コメリ 大宮店」）が表示される。
 //   - 各カードに週単位の希望開催日チップ（連続日が "M/D~D" の帯チップにグルーピング）。
 //   - 全体の特記事項(note)が表示される。
-//   - 二次店ロール (dealer_admin) は本一覧を閲覧不可（卸業者ロールのみ／URL 直叩きは 403）。
+//   - 取引先ロール (dealer_admin) は本一覧を閲覧不可（卸業者ロールのみ／URL 直叩きは 403）。
 //
 // 認証:
 //   - 卸業者デモ: demo@solar-saas.demo / Demo1234!（WHOLESALER_ADMIN, 2FA off）
-//   - 二次店: alpha-admin@solar-saas.dev / Pilot!2026（DEALER_ADMIN）
+//   - 取引先: alpha-admin@solar-saas.dev / Pilot!2026（DEALER_ADMIN）
 //
 // Seed (tests/e2e/global-setup.ts → pnpm db:seed) は LANE_PREFERENCE_SEEDS を当月
 // (lineMonth = 現在月) × 各 relationship で投入する。ページの既定対象月も当月なので、
@@ -48,7 +48,7 @@ async function signInWith(page: Page, email: string, password: string): Promise<
   await page.waitForLoadState("networkidle");
 }
 
-test.describe("F-060 二次店レーン希望 一覧確認（卸業者側）", () => {
+test.describe("F-060 取引先レーン希望 一覧確認（卸業者側）", () => {
   // dev サーバの cold-compile（/login → /lane-preferences）を吸収するため 30s 既定を拡張。
   test.describe.configure({ timeout: 120_000 });
 
@@ -61,7 +61,7 @@ test.describe("F-060 二次店レーン希望 一覧確認（卸業者側）", (
 
     // 画面見出し（labels.lanePreference.title）。title は h1（ページ見出し）と
     // h2（カードヘッダ）の双方に出るため h1 に限定する。
-    await expect(page.getByRole("heading", { name: "二次店希望一覧", level: 1 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "取引先希望一覧", level: 1 })).toBeVisible();
 
     // 既定対象月は当月。月フィルタ <input type="month"> が当月で初期化されている。
     await expect(page.locator("input[type=month]")).toHaveValue(currentMonth());
@@ -153,11 +153,11 @@ test.describe("F-060 二次店レーン希望 一覧確認（卸業者側）", (
     // 件数表示が 0 件（labels.lanePreference.filter.resultCount = "件"）。
     await expect(page.getByText("0件", { exact: false })).toBeVisible();
 
-    // アコーディオン行（二次店名 + 希望レーン数バッジ）は出ない。
+    // アコーディオン行（取引先名 + 希望レーン数バッジ）は出ない。
     await expect(page.getByText("希望レーン", { exact: false })).toHaveCount(0);
   });
 
-  test("二次店ロール(dealer_admin)は本一覧を閲覧不可（URL 直叩きで 403 サーフェス）", async ({
+  test("取引先ロール(dealer_admin)は本一覧を閲覧不可（URL 直叩きで 403 サーフェス）", async ({
     page,
   }) => {
     await signInWith(page, DEALER_EMAIL, PILOT_PASSWORD);
@@ -173,13 +173,13 @@ test.describe("F-060 二次店レーン希望 一覧確認（卸業者側）", (
     } else {
       // 同一 URL に留まる場合は group error boundary の 403 サーフェスに切替わる。
       // 通常の一覧見出しは出ず、forbidden 見出し（labels.common.forbidden）が出る。
-      await expect(page.getByRole("heading", { name: "二次店希望一覧" })).toHaveCount(0);
+      await expect(page.getByRole("heading", { name: "取引先希望一覧" })).toHaveCount(0);
       await expect(
         page.getByRole("heading", { name: "この情報にアクセスできません" }),
       ).toBeVisible();
     }
 
-    // どちらのパターンでも、二次店他社の希望明細（カインズ 大宮店 等）が露出しないこと。
+    // どちらのパターンでも、取引先他社の希望明細（カインズ 大宮店 等）が露出しないこと。
     await expect(page.getByText("カインズ 大宮店")).toHaveCount(0);
   });
 });

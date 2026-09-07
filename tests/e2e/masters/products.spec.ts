@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+
 import { signIn } from "../fixtures/auth";
 
 // E2E spec for T-02-03 — product master (F-012).
@@ -34,7 +35,7 @@ test("wholesaler_admin can create a product, list it, revise its prices, and see
   await page.getByLabel("商品名", { exact: false }).fill(productName);
   await page.getByLabel("単位", { exact: false }).fill("枚");
   await page.getByLabel("仕入値（円）").fill("30000");
-  await page.getByLabel("二次店向け卸値（円）").fill("40000");
+  await page.getByLabel("取引先向け卸値（円）").fill("40000");
   await page.getByLabel("参考売価（円）").fill("55000");
   // The default effectiveFrom is today; just submit.
 
@@ -61,7 +62,7 @@ test("wholesaler_admin can create a product, list it, revise its prices, and see
   // "strictly after" check in `reviseProductRatesAction`.
   const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   await page.getByLabel("適用開始日", { exact: false }).fill(tomorrow);
-  await page.getByLabel("二次店向け卸値（円）").fill("38000");
+  await page.getByLabel("取引先向け卸値（円）").fill("38000");
   await page.getByLabel("改定理由").fill("E2E テスト改定");
 
   await page.getByRole("button", { name: "価格改定を確定" }).click();

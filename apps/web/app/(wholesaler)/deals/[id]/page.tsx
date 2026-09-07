@@ -13,6 +13,7 @@ import { notFound } from "next/navigation";
 
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
+import { formatDate } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
 import { changeStatusAction } from "../actions";
@@ -51,7 +52,7 @@ export default async function WholesalerDealDetailPage({ params }: PageProps) {
         <Button asChild variant="outline" size="sm">
           <Link href={`/customers/${deal.customerId}?tab=history`}>{c.back}</Link>
         </Button>
-        <h1 className="text-2xl font-semibold tracking-tight">{t.detailTitle}</h1>
+        <h1 className="text-ink text-xl font-bold">{t.detailTitle}</h1>
       </div>
 
       {/* Basic info */}
@@ -77,7 +78,7 @@ export default async function WholesalerDealDetailPage({ params }: PageProps) {
           {deal.firstVisitAt && (
             <>
               <dt className="text-muted-foreground">{t.fields.firstVisitAt}</dt>
-              <dd>{new Date(deal.firstVisitAt).toLocaleDateString("ja-JP")}</dd>
+              <dd>{formatDate(deal.firstVisitAt)}</dd>
             </>
           )}
 
@@ -100,7 +101,7 @@ export default async function WholesalerDealDetailPage({ params }: PageProps) {
           {deal.expectedContractDate && (
             <>
               <dt className="text-muted-foreground">{t.fields.expectedContractDate}</dt>
-              <dd>{new Date(deal.expectedContractDate).toLocaleDateString("ja-JP")}</dd>
+              <dd>{formatDate(deal.expectedContractDate)}</dd>
             </>
           )}
 
@@ -126,7 +127,7 @@ export default async function WholesalerDealDetailPage({ params }: PageProps) {
           )}
 
           <dt className="text-muted-foreground">{t.fields.createdAt}</dt>
-          <dd>{new Date(deal.createdAt).toLocaleDateString("ja-JP")}</dd>
+          <dd>{formatDate(deal.createdAt)}</dd>
         </dl>
       </div>
 

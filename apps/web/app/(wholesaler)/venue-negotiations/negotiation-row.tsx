@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+
 import type { KeyboardEvent, MouseEvent, ReactNode } from "react";
 
 // Row wrapper that makes the whole <tr> behave like a link to the detail page.
@@ -47,7 +48,7 @@ export function NegotiationRow({ href, children }: NegotiationRowProps) {
       tabIndex={0}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
-      className="hover:bg-mist-light focus-visible:bg-mist-light focus-visible:ring-electric-blue/40 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset"
+      className="hover:bg-page focus-visible:bg-page focus-visible:ring-primary/40 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset"
     >
       {children}
     </tr>

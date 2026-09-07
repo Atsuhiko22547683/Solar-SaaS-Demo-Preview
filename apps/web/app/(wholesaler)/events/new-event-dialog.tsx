@@ -130,15 +130,15 @@ export function NewEventDialog({ venueProviders, areas, stores }: NewEventDialog
       <DialogTrigger asChild>
         <Button>{tl.newEvent}</Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t.new}</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-5 mt-2" noValidate>
+        <form onSubmit={handleSubmit} className="mt-2 space-y-5" noValidate>
           {/* 場所提供元 */}
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-mute-light" htmlFor="ne-venue">
+            <label className="text-mute-light text-xs font-semibold" htmlFor="ne-venue">
               {t.fields.venueProvider}
             </label>
             <select
@@ -150,7 +150,8 @@ export function NewEventDialog({ venueProviders, areas, stores }: NewEventDialog
               <option value="">{c.notSet}</option>
               {venueProviders.map((v) => (
                 <option key={v.id} value={v.id}>
-                  {v.name}{v.area ? `（${v.area}）` : ""}
+                  {v.name}
+                  {v.area ? `（${v.area}）` : ""}
                 </option>
               ))}
             </select>
@@ -159,8 +160,8 @@ export function NewEventDialog({ venueProviders, areas, stores }: NewEventDialog
           {/* 店舗名 / エリア */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-mute-light" htmlFor="ne-store">
-                {t.fields.storeName} <span className="text-warning">*</span>
+              <label className="text-mute-light text-xs font-semibold" htmlFor="ne-store">
+                {t.fields.storeName} <span className="text-danger">*</span>
               </label>
               <select
                 id="ne-store"
@@ -177,7 +178,7 @@ export function NewEventDialog({ venueProviders, areas, stores }: NewEventDialog
               </select>
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-mute-light" htmlFor="ne-area">
+              <label className="text-mute-light text-xs font-semibold" htmlFor="ne-area">
                 {t.fields.area}
               </label>
               <select
@@ -198,22 +199,31 @@ export function NewEventDialog({ venueProviders, areas, stores }: NewEventDialog
 
           {/* 住所 */}
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-mute-light" htmlFor="ne-address">
+            <label className="text-mute-light text-xs font-semibold" htmlFor="ne-address">
               {t.fields.address}
             </label>
-            <Input id="ne-address" value={values.address} onChange={(e) => update("address", e.target.value)} />
+            <Input
+              id="ne-address"
+              value={values.address}
+              onChange={(e) => update("address", e.target.value)}
+            />
           </div>
 
           {/* 実施日 / ステータス */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-mute-light" htmlFor="ne-date">
-                {t.fields.scheduledDate} <span className="text-warning">*</span>
+              <label className="text-mute-light text-xs font-semibold" htmlFor="ne-date">
+                {t.fields.scheduledDate} <span className="text-danger">*</span>
               </label>
-              <Input id="ne-date" type="date" value={values.scheduledDate} onChange={(e) => update("scheduledDate", e.target.value)} />
+              <Input
+                id="ne-date"
+                type="date"
+                value={values.scheduledDate}
+                onChange={(e) => update("scheduledDate", e.target.value)}
+              />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-mute-light" htmlFor="ne-status">
+              <label className="text-mute-light text-xs font-semibold" htmlFor="ne-status">
                 {t.fields.status}
               </label>
               <select
@@ -230,54 +240,84 @@ export function NewEventDialog({ venueProviders, areas, stores }: NewEventDialog
           </div>
 
           {/* 契約条件（内部） */}
-          <div className="rounded-md border border-dashed border-hairline-light bg-surface-soft/40 p-4 space-y-3">
-            <p className="text-xs font-medium text-ink">{t.sections.contract}</p>
+          <div className="border-hairline-light bg-surface-soft/40 space-y-3 rounded-md border border-dashed p-4">
+            <p className="text-ink text-xs font-medium">{t.sections.contract}</p>
             <div className="space-y-1.5">
-              <label className="text-xs text-mute-light" htmlFor="ne-ct">{t.fields.contractType}</label>
+              <label className="text-mute-light text-xs" htmlFor="ne-ct">
+                {t.fields.contractType}
+              </label>
               <select
                 id="ne-ct"
                 value={values.contractType}
-                onChange={(e) => update("contractType", e.target.value as FormState["contractType"])}
+                onChange={(e) =>
+                  update("contractType", e.target.value as FormState["contractType"])
+                }
                 className={SELECT_CLASS}
               >
                 <option value="">{c.notSet}</option>
                 <option value="FIXED">{labels.venueProvider.contractTypes.FIXED}</option>
-                <option value="PERFORMANCE">{labels.venueProvider.contractTypes.PERFORMANCE}</option>
+                <option value="PERFORMANCE">
+                  {labels.venueProvider.contractTypes.PERFORMANCE}
+                </option>
                 <option value="OTHER">{labels.venueProvider.contractTypes.OTHER}</option>
               </select>
             </div>
 
             {values.contractType === "FIXED" ? (
               <div className="space-y-1.5">
-                <label className="text-xs text-mute-light" htmlFor="ne-fee">{t.fields.perDayFee}</label>
-                <Input id="ne-fee" inputMode="decimal" value={values.fixedFee} onChange={(e) => update("fixedFee", e.target.value)} />
+                <label className="text-mute-light text-xs" htmlFor="ne-fee">
+                  {t.fields.perDayFee}
+                </label>
+                <Input
+                  id="ne-fee"
+                  inputMode="decimal"
+                  value={values.fixedFee}
+                  onChange={(e) => update("fixedFee", e.target.value)}
+                />
               </div>
             ) : null}
 
             {values.contractType === "PERFORMANCE" ? (
               <div className="space-y-1.5">
-                <label className="text-xs text-mute-light" htmlFor="ne-rate">{t.fields.revenueRate}</label>
-                <Input id="ne-rate" inputMode="decimal" value={values.performanceRate} onChange={(e) => update("performanceRate", e.target.value)} />
+                <label className="text-mute-light text-xs" htmlFor="ne-rate">
+                  {t.fields.revenueRate}
+                </label>
+                <Input
+                  id="ne-rate"
+                  inputMode="decimal"
+                  value={values.performanceRate}
+                  onChange={(e) => update("performanceRate", e.target.value)}
+                />
               </div>
             ) : null}
 
             <div className="space-y-1.5">
-              <label className="text-xs text-mute-light" htmlFor="ne-cnote">{t.fields.contractNote}</label>
+              <label className="text-mute-light text-xs" htmlFor="ne-cnote">
+                {t.fields.contractNote}
+              </label>
               <textarea
                 id="ne-cnote"
                 rows={2}
                 value={values.contractNote}
                 onChange={(e) => update("contractNote", e.target.value)}
-                className="w-full rounded-md border border-hairline-light bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+                className="border-hairline-light focus:ring-primary/30 w-full resize-none rounded-md border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2"
               />
             </div>
           </div>
 
-          {error && <p role="alert" className="text-sm font-medium text-warning">{error}</p>}
+          {error && (
+            <p role="alert" className="text-danger text-sm font-medium">
+              {error}
+            </p>
+          )}
 
           <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>{c.cancel}</Button>
-            <Button type="submit" disabled={pending}>{pending ? c.saving : t.actions.createSubmit}</Button>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              {c.cancel}
+            </Button>
+            <Button type="submit" disabled={pending}>
+              {pending ? c.saving : t.actions.createSubmit}
+            </Button>
           </div>
         </form>
       </DialogContent>

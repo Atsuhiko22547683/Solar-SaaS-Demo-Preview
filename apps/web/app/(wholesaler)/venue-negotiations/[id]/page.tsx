@@ -28,7 +28,6 @@ export default async function VenueNegotiationDetailPage({ params }: PageProps) 
   }
   const venueProviders = await listActiveVenueProviders();
 
-  const t = labels.venueNegotiation;
   const c = labels.common;
   const bc = labels.breadcrumb.items;
 
@@ -43,17 +42,15 @@ export default async function VenueNegotiationDetailPage({ params }: PageProps) 
       <div>
         <Link
           href="/venue-negotiations"
-          className="text-sm text-pewter hover:text-carbon-dark flex items-center gap-1 mb-4"
+          className="text-mute-light hover:text-ink mb-4 flex items-center gap-1 text-sm"
         >
           ← {c.back}
         </Link>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-medium text-carbon-dark">
-              {row.venueProviderName}
-            </h1>
+            <h1 className="text-ink text-xl font-bold">{row.venueProviderName}</h1>
             {row.venueProviderArea ? (
-              <p className="text-pewter text-sm mt-1">{row.venueProviderArea}</p>
+              <p className="text-mute-light mt-1 text-sm">{row.venueProviderArea}</p>
             ) : null}
           </div>
           <StatusControl id={row.id} current={row.status} />

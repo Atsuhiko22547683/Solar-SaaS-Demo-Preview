@@ -18,13 +18,15 @@ import { auth } from "@/auth";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { UnauthorizedError } from "@/lib/errors";
+import { formatDate } from "@/lib/format/date";
+import { labels } from "@/lib/i18n/labels";
 import { assertCan } from "@/lib/permissions/can";
 import { getTenantContext } from "@/lib/tenancy/context";
 import { withTenant } from "@/lib/tenancy/with-tenant";
-import { labels } from "@/lib/i18n/labels";
-import type { ApplicationStatus } from "@solar/db";
 
 import { ApplicationForm } from "./ApplicationForm";
+
+import type { ApplicationStatus } from "@solar/db";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -153,39 +155,40 @@ export default async function ApplicationPage({ params }: PageProps) {
         <Button asChild variant="outline" size="sm">
           <Link href={`/contracts/${id}`}>{t.backToContract}</Link>
         </Button>
-        <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
+        <h1 className="text-ink text-xl font-bold">{t.title}</h1>
       </div>
 
       {/* Contract header */}
-      <div className="border-border rounded-md border p-4 space-y-2">
+      <div className="border-border space-y-2 rounded-md border p-4">
         <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
           <dt className="text-muted-foreground">{labels.contract.fields.contractDate}</dt>
-          <dd>{new Date(data.contractDate).toLocaleDateString("ja-JP")}</dd>
+          <dd>{formatDate(data.contractDate)}</dd>
           <dt className="text-muted-foreground">{labels.contract.fields.totalAmount}</dt>
           <dd>
             {Number(data.contractAmount).toLocaleString("ja-JP")} {c.currencySuffix}
           </dd>
           <dt className="text-muted-foreground">{labels.contract.fields.status}</dt>
           <dd>
-            {labels.contract.statuses[data.contractStatus as keyof typeof labels.contract.statuses] ??
-              data.contractStatus}
+            {labels.contract.statuses[
+              data.contractStatus as keyof typeof labels.contract.statuses
+            ] ?? data.contractStatus}
           </dd>
         </dl>
       </div>
 
       {/* Application list */}
       {data.applications.length === 0 ? (
-        <div className="border-border rounded-md border p-6 text-center space-y-2">
-          <p className="text-sm text-muted-foreground">{t.empty}</p>
-          <p className="text-sm text-muted-foreground">{t.emptyCta}</p>
+        <div className="border-border space-y-2 rounded-md border p-6 text-center">
+          <p className="text-muted-foreground text-sm">{t.empty}</p>
+          <p className="text-muted-foreground text-sm">{t.emptyCta}</p>
         </div>
       ) : (
         <div className="space-y-4">
           {data.applications.map((app) => (
-            <div key={app.id} className="border-border rounded-md border p-4 space-y-2">
+            <div key={app.id} className="border-border space-y-2 rounded-md border p-4">
               <div className="flex items-center gap-3">
-                <span className="font-medium text-sm">{app.type}</span>
-                <span className="text-xs rounded-full bg-secondary text-secondary-foreground px-2 py-0.5">
+                <span className="text-sm font-medium">{app.type}</span>
+                <span className="bg-secondary text-secondary-foreground rounded-full px-2 py-0.5 text-xs">
                   {t.statuses[app.status]}
                 </span>
               </div>
@@ -199,31 +202,35 @@ export default async function ApplicationPage({ params }: PageProps) {
                 {app.plannedDate && (
                   <>
                     <dt className="text-muted-foreground">{t.fields.plannedDate}</dt>
-                    <dd>{new Date(app.plannedDate).toLocaleDateString("ja-JP")}</dd>
+                    <dd>{formatDate(app.plannedDate)}</dd>
                   </>
                 )}
                 {app.submittedDate && (
                   <>
                     <dt className="text-muted-foreground">{t.fields.submittedDate}</dt>
-                    <dd>{new Date(app.submittedDate).toLocaleDateString("ja-JP")}</dd>
+                    <dd>{formatDate(app.submittedDate)}</dd>
                   </>
                 )}
                 {app.approvedDate && (
                   <>
                     <dt className="text-muted-foreground">{t.fields.approvedDate}</dt>
-                    <dd>{new Date(app.approvedDate).toLocaleDateString("ja-JP")}</dd>
+                    <dd>{formatDate(app.approvedDate)}</dd>
                   </>
                 )}
                 {app.estimatedAmount && (
                   <>
                     <dt className="text-muted-foreground">{t.fields.estimatedAmount}</dt>
-                    <dd>{Number(app.estimatedAmount).toLocaleString("ja-JP")} {c.currencySuffix}</dd>
+                    <dd>
+                      {Number(app.estimatedAmount).toLocaleString("ja-JP")} {c.currencySuffix}
+                    </dd>
                   </>
                 )}
                 {app.confirmedAmount && (
                   <>
                     <dt className="text-muted-foreground">{t.fields.confirmedAmount}</dt>
-                    <dd>{Number(app.confirmedAmount).toLocaleString("ja-JP")} {c.currencySuffix}</dd>
+                    <dd>
+                      {Number(app.confirmedAmount).toLocaleString("ja-JP")} {c.currencySuffix}
+                    </dd>
                   </>
                 )}
                 {app.note && (
@@ -240,10 +247,7 @@ export default async function ApplicationPage({ params }: PageProps) {
 
       {/* Form for create / edit / status change */}
       {data.contractStatus !== "CANCELLED" && (
-        <ApplicationForm
-          contractId={data.contractId}
-          applications={data.applications}
-        />
+        <ApplicationForm contractId={data.contractId} applications={data.applications} />
       )}
     </div>
   );

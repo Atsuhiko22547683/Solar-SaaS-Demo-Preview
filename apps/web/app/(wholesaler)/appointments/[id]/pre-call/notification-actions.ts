@@ -14,12 +14,8 @@
 //         - Otherwise create with status=PENDING.
 //   4. Return { created, skipped } counts.
 
+import { PreCallNotificationSendSchema, type PreCallNotificationSendInput } from "@solar/contracts";
 import { revalidatePath } from "next/cache";
-
-import {
-  PreCallNotificationSendSchema,
-  type PreCallNotificationSendInput,
-} from "@solar/contracts";
 
 import { NotFoundError } from "@/lib/errors";
 import { notificationService } from "@/lib/notifications/notification-service";
@@ -34,77 +30,74 @@ export interface SendNotificationResult {
 export const sendPreCallNotificationAction = withServerActionContext<
   PreCallNotificationSendInput,
   SendNotificationResult
->(
-  { action: "pre_call_notification.send" },
-  async ({ tx, ctx, input }) => {
-    const parsed = PreCallNotificationSendSchema.parse(input);
+>({ action: "pre_call_notification.send" }, async ({ tx, ctx, input }) => {
+  const parsed = PreCallNotificationSendSchema.parse(input);
 
-    // Verify the PreCall exists (RLS ensures it belongs to the caller's wholesaler).
-    const preCall = await tx.preCall.findUnique({
-      where: { id: parsed.preCallId },
-      select: {
-        id: true,
-        appointment: {
-          select: {
-            id: true,
-            customer: { select: { name: true } },
-          },
+  // Verify the PreCall exists (RLS ensures it belongs to the caller's wholesaler).
+  const preCall = await tx.preCall.findUnique({
+    where: { id: parsed.preCallId },
+    select: {
+      id: true,
+      appointment: {
+        select: {
+          id: true,
+          customer: { select: { name: true } },
         },
       },
-    });
-    if (!preCall) {
-      throw new NotFoundError("マエカクが見つかりません");
-    }
+    },
+  });
+  if (!preCall) {
+    throw new NotFoundError("マエカクが見つかりません");
+  }
 
-    // Fetch existing notifications for this preCall to implement idempotency.
-    const existing = await tx.preCallNotification.findMany({
-      where: {
+  // Fetch existing notifications for this preCall to implement idempotency.
+  const existing = await tx.preCallNotification.findMany({
+    where: {
+      preCallId: parsed.preCallId,
+      relationshipId: { in: parsed.relationshipIds },
+    },
+    select: { relationshipId: true, status: true },
+  });
+
+  const existingMap = new Map(existing.map((n) => [n.relationshipId, n.status]));
+
+  let created = 0;
+  let skipped = 0;
+
+  for (const relationshipId of parsed.relationshipIds) {
+    if (existingMap.has(relationshipId)) {
+      skipped++;
+      continue;
+    }
+    await tx.preCallNotification.create({
+      data: {
         preCallId: parsed.preCallId,
-        relationshipId: { in: parsed.relationshipIds },
+        relationshipId,
+        status: "PENDING",
       },
-      select: { relationshipId: true, status: true },
     });
+    created++;
+  }
 
-    const existingMap = new Map(existing.map((n) => [n.relationshipId, n.status]));
-
-    let created = 0;
-    let skipped = 0;
-
+  // Fire in-app / email notification to DEALER_ADMIN of each newly notified relationship.
+  if (created > 0 && ctx.wholesalerId) {
+    const customerName = preCall.appointment.customer?.name ?? "";
     for (const relationshipId of parsed.relationshipIds) {
-      if (existingMap.has(relationshipId)) {
-        skipped++;
-        continue;
-      }
-      await tx.preCallNotification.create({
-        data: {
-          preCallId: parsed.preCallId,
-          relationshipId,
-          status: "PENDING",
-        },
-      });
-      created++;
-    }
-
-    // Fire in-app / email notification to DEALER_ADMIN of each newly notified relationship.
-    if (created > 0 && ctx.wholesalerId) {
-      const customerName = preCall.appointment.customer?.name ?? "";
-      for (const relationshipId of parsed.relationshipIds) {
-        if (existingMap.has(relationshipId)) continue;
-        const dealerAdmins = await resolveDealerAdmins(tx, relationshipId);
-        if (dealerAdmins.length > 0) {
-          await notificationService.fire(tx, {
-            type: "PRE_CALL_RESULT_SHARED",
-            recipientUserIds: dealerAdmins,
-            tenantId: ctx.wholesalerId,
-            params: { customerName },
-            dedupKey: `PRE_CALL_RESULT_SHARED:${parsed.preCallId}:${relationshipId}`,
-          });
-        }
+      if (existingMap.has(relationshipId)) continue;
+      const dealerAdmins = await resolveDealerAdmins(tx, relationshipId);
+      if (dealerAdmins.length > 0) {
+        await notificationService.fire(tx, {
+          type: "PRE_CALL_RESULT_SHARED",
+          recipientUserIds: dealerAdmins,
+          tenantId: ctx.wholesalerId,
+          params: { customerName },
+          dedupKey: `PRE_CALL_RESULT_SHARED:${parsed.preCallId}:${relationshipId}`,
+        });
       }
     }
+  }
 
-    revalidatePath(`/appointments/${preCall.appointment.id}/pre-call`);
+  revalidatePath(`/appointments/${preCall.appointment.id}/pre-call`);
 
-    return { created, skipped };
-  },
-);
+  return { created, skipped };
+});

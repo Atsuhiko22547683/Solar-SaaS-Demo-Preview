@@ -11,6 +11,7 @@ import { UnauthorizedError } from "@/lib/errors";
 import { assertCan } from "@/lib/permissions/can";
 import { getTenantContext } from "@/lib/tenancy/context";
 import { withTenant } from "@/lib/tenancy/with-tenant";
+
 import type { IncentiveStatus } from "@solar/db";
 
 export const PAGE_SIZE = 50;

@@ -5,6 +5,7 @@
 
 import "server-only";
 
+import { formatDate } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
 import { listDealerMonthlyPerformance } from "./data";
@@ -26,7 +27,7 @@ export default async function DealerMonthlyPage({ searchParams }: Props) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
+        <h1 className="text-ink text-xl font-bold">{t.title}</h1>
         <p className="text-muted-foreground mt-1 text-sm">{t.subtitle}</p>
       </div>
 
@@ -40,7 +41,7 @@ export default async function DealerMonthlyPage({ searchParams }: Props) {
           name="month"
           type="month"
           defaultValue={targetMonth ?? ""}
-          className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring h-9 rounded-md border px-3 py-1 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+          className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring h-9 rounded-md border px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
           placeholder={t.filterPlaceholder}
         />
         <button
@@ -62,10 +63,7 @@ export default async function DealerMonthlyPage({ searchParams }: Props) {
             const statusLabel = t.statuses[item.status] ?? item.status;
 
             return (
-              <div
-                key={item.id}
-                className="border-border rounded-md border p-4"
-              >
+              <div key={item.id} className="border-border rounded-md border p-4">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                   <div className="space-y-0.5">
                     <p className="font-semibold tabular-nums">{item.targetMonth}</p>
@@ -113,7 +111,7 @@ export default async function DealerMonthlyPage({ searchParams }: Props) {
 
                 {item.finalizedAt && (
                   <p className="text-muted-foreground mt-3 text-xs">
-                    {t.fields.status}: {new Date(item.finalizedAt).toLocaleDateString("ja-JP")}
+                    {t.fields.status}: {formatDate(item.finalizedAt)}
                   </p>
                 )}
               </div>

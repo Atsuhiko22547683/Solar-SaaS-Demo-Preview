@@ -23,21 +23,17 @@ import { Label } from "@/components/ui/label";
 import { labels } from "@/lib/i18n/labels";
 
 import { updateCustomerAction } from "../actions";
-
 import { CONTRACT_STATUS_VALUES, SUBSIDY_STATUS_VALUES } from "../constants";
+
 import type {
   ContractStatusValue,
   ConstructionStatusValue,
   SubsidyStatusValue,
 } from "../constants";
-import type {
-  ContractStatusCard,
-  ConstructionStatusCard,
-  SubsidyStatusCard,
-} from "./data";
+import type { ContractStatusCard, ConstructionStatusCard, SubsidyStatusCard } from "./data";
 
 const SELECT_CLASS =
-  "border border-cloud-gray bg-white text-carbon-dark rounded-sm px-3 py-2 text-sm h-10 w-full focus:outline-none focus:ring-2 focus:ring-electric-blue/20 focus:border-electric-blue transition-colors";
+  "border border-hairline-light bg-white text-ink rounded-sm px-3 py-2 text-sm h-10 w-full focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors";
 
 // ISO → YYYY-MM-DD using the date's LOCAL Y/M/D so JST never shifts the day.
 function isoToDateInput(iso: string | null): string {
@@ -76,7 +72,7 @@ function StatusDialogShell({
           type="button"
           variant="ghost"
           size="icon"
-          className="size-7 text-mute-light hover:text-ink"
+          className="text-mute-light hover:text-ink size-7"
           aria-label={trigger}
         >
           <Pencil className="size-4" />
@@ -88,7 +84,12 @@ function StatusDialogShell({
         </DialogHeader>
         <div className="space-y-4">{children}</div>
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isPending}
+          >
             {d.cancel}
           </Button>
           <Button type="button" onClick={onSave} disabled={isPending}>

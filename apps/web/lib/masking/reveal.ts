@@ -14,8 +14,9 @@
 
 import { withTenant, type TenantContext } from "@solar/db";
 
-import type { ViewerContext } from "@solar/contracts/services/masking";
 import { recordAudit } from "@/lib/audit/audit-service";
+
+import type { ViewerContext } from "@solar/contracts/services/masking";
 
 export interface RevealedPii {
   phone: string;

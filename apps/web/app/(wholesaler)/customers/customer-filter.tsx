@@ -70,8 +70,11 @@ export function CustomerFilter({
     >
       {/* 顧客名 — 単一ボーダー入力（アイコンなし・二重枠/ネイティブ枠を排除） */}
       <div className="space-y-1">
-        <label className="text-mute-light text-xs font-medium">{t.filters.customerName}</label>
+        <label htmlFor="customer-filter-name" className="text-mute-light text-xs font-medium">
+          {t.filters.customerName}
+        </label>
         <input
+          id="customer-filter-name"
           type="search"
           value={searchValue}
           onChange={(e) => setSearchValue(e.target.value)}
@@ -82,8 +85,11 @@ export function CustomerFilter({
       </div>
 
       <div className="space-y-1">
-        <label className="text-mute-light text-xs font-medium">{t.filters.assignee}</label>
+        <label htmlFor="customer-filter-assignee" className="text-mute-light text-xs font-medium">
+          {t.filters.assignee}
+        </label>
         <select
+          id="customer-filter-assignee"
           value={assigneeValue}
           onChange={(e) => setAssigneeValue(e.target.value)}
           className={SELECT_CLASS}
@@ -98,8 +104,11 @@ export function CustomerFilter({
       </div>
 
       <div className="space-y-1">
-        <label className="text-mute-light text-xs font-medium">{t.filters.contractStatus}</label>
+        <label htmlFor="customer-filter-status" className="text-mute-light text-xs font-medium">
+          {t.filters.contractStatus}
+        </label>
         <select
+          id="customer-filter-status"
           value={contractValue}
           onChange={(e) => setContractValue(e.target.value)}
           className={SELECT_CLASS}

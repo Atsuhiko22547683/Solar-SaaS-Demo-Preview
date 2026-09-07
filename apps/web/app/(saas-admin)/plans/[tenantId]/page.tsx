@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { formatDate, formatDateTime } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
 import { getPlanDetail } from "../data";
@@ -37,7 +38,7 @@ export default async function PlanDetailPage({ params }: PageProps) {
       </div>
 
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">{detail.name}</h1>
+        <h1 className="text-ink text-xl font-bold">{detail.name}</h1>
         <span className="text-muted-foreground text-sm">{tt.statuses[detail.status]}</span>
       </div>
 
@@ -81,14 +82,14 @@ export default async function PlanDetailPage({ params }: PageProps) {
                 {detail.history.map((h) => (
                   <tr key={h.id} className="border-border border-t">
                     <td className="text-muted-foreground px-3 py-2 text-xs">
-                      {new Date(h.createdAt).toLocaleString("ja-JP")}
+                      {formatDateTime(h.createdAt)}
                     </td>
                     <td className="px-3 py-2">
                       {h.planBefore ? tt.plans[h.planBefore] : c.notSet}
                     </td>
                     <td className="px-3 py-2">{tt.plans[h.planAfter]}</td>
                     <td className="text-muted-foreground px-3 py-2 text-xs">
-                      {new Date(h.effectiveFrom).toLocaleDateString("ja-JP")}
+                      {formatDate(h.effectiveFrom)}
                     </td>
                     <td className="px-3 py-2 text-xs">{h.note ?? "—"}</td>
                   </tr>

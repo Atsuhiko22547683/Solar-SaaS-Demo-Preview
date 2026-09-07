@@ -11,12 +11,12 @@ export default function BtCatalogPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-ink">{t.bt.title}</h1>
-        <p className="mt-1 text-sm text-mute-light">{t.bt.subtitle}</p>
+        <h1 className="text-ink text-xl font-bold">{t.bt.title}</h1>
+        <p className="text-mute-light mt-1 text-sm">{t.bt.subtitle}</p>
       </div>
       <Card className="p-12 text-center">
-        <p className="font-medium text-ink">{t.placeholderTitle}</p>
-        <p className="mt-2 text-sm text-mute-light">{t.placeholderBody}</p>
+        <p className="text-ink font-medium">{t.placeholderTitle}</p>
+        <p className="text-mute-light mt-2 text-sm">{t.placeholderBody}</p>
       </Card>
     </div>
   );

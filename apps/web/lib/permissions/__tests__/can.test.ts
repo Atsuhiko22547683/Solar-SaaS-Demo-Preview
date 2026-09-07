@@ -172,3 +172,53 @@ describe("assertCan()", () => {
     ).toThrow(ForbiddenError);
   });
 });
+
+// ---------------------------------------------------------------------------
+// 設定配下の管理画面 — WHOLESALER_ADMIN が読み書きできること。
+//
+// assertCan は未定義アクションを fail-closed で 403 にするため、Server Action が
+// 使う action 名を can.ts に定義し忘れると「画面は開けるが保存だけ必ず失敗する」
+// という分かりにくい不具合になる（masters.update が実際にそうなっていた）。
+// ---------------------------------------------------------------------------
+
+describe("設定配下の管理操作（WHOLESALER_ADMIN）", () => {
+  const SETTINGS_ACTIONS = [
+    // スタッフ一覧
+    "salesperson.read",
+    "salesperson.create",
+    "salesperson.update",
+    // 二次店管理 / エリア・場所管理（マスタハブ）
+    "masters.read",
+    "masters.update",
+    // システムユーザー
+    "member.read",
+    "user.invite_wholesaler_member",
+    // エリア・場所
+    "area.read",
+    "area.create",
+    "area.update",
+    "venue_provider.read",
+    "venue_provider.create",
+    "venue_provider.update",
+  ] as const;
+
+  it.each(SETTINGS_ACTIONS)("%s を自テナントで実行できる", (action) => {
+    expect(() =>
+      assertCan({
+        user: wholesalerAdmin,
+        action,
+        resource: { wholesalerId: "tenant_ws_a" },
+      }),
+    ).not.toThrow();
+  });
+
+  it("二次店管理の更新は二次店ロールには許可しない", () => {
+    expect(() =>
+      assertCan({
+        user: dealerAdmin,
+        action: "masters.update",
+        resource: { wholesalerId: "tenant_ws_a" },
+      }),
+    ).toThrow(ForbiddenError);
+  });
+});

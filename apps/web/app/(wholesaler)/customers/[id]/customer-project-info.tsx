@@ -91,7 +91,6 @@ function fmtYen(n: number | null): string {
   return n == null ? EMPTY : `¥${n.toLocaleString("ja-JP")}`;
 }
 
-
 function fmtBool(b: boolean | null): string {
   if (b == null) return EMPTY;
   return b ? p.yes : p.no;
@@ -111,8 +110,8 @@ function attrString(attrs: Record<string, unknown> | null, key: string): string 
 function MetaItem({ label, value }: { label: string; value: string | null }) {
   return (
     <div className="min-w-0">
-      <dt className="text-[11px] text-mute-light">{label}</dt>
-      <dd className="mt-0.5 text-sm font-medium text-ink">
+      <dt className="text-mute-light text-[11px]">{label}</dt>
+      <dd className="text-ink mt-0.5 text-sm font-medium">
         {value && value.length > 0 ? value : EMPTY}
       </dd>
     </div>
@@ -131,13 +130,13 @@ function Section({
   return (
     <section>
       <div className="mb-2 flex items-center gap-2">
-        <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-600">
-          <span aria-hidden className="h-3.5 w-0.5 rounded-full bg-primary" />
+        <h3 className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+          <span aria-hidden className="bg-primary h-3.5 w-0.5 rounded-full" />
           {title}
         </h3>
         {editSlot}
       </div>
-      <dl className="grid grid-cols-2 gap-x-6 gap-y-3 rounded-md border border-hairline-light p-4 sm:grid-cols-3">
+      <dl className="border-hairline-light grid grid-cols-2 gap-x-6 gap-y-3 rounded-md border p-4 sm:grid-cols-3">
         {children}
       </dl>
     </section>
@@ -156,9 +155,9 @@ function EquipmentCard({
   editSlot?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-md border border-hairline-light p-4">
+    <div className="border-hairline-light rounded-md border p-4">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <p className="text-sm font-semibold text-ink">{title}</p>
+        <p className="text-ink text-sm font-semibold">{title}</p>
         <div className="flex items-center gap-1">
           <Badge variant={item.contracted ? "success" : "secondary"}>
             {item.contracted ? p.contracted : p.notContracted}
@@ -170,8 +169,8 @@ function EquipmentCard({
         <dl className="grid grid-cols-2 gap-x-5 gap-y-2.5 sm:grid-cols-3">
           {/* 商材ごとの金額（顧客向け・原価ではない）を右揃えで先頭表示。 */}
           <div className="min-w-0">
-            <dt className="text-[11px] text-mute-light">{e.amount}</dt>
-            <dd className="mt-0.5 text-right text-sm font-semibold tabular-nums text-ink">
+            <dt className="text-mute-light text-[11px]">{e.amount}</dt>
+            <dd className="text-ink mt-0.5 text-right text-sm font-semibold tabular-nums">
               {item.amount != null ? `¥${item.amount.toLocaleString("ja-JP")}` : EMPTY}
             </dd>
           </div>
@@ -310,7 +309,11 @@ function EquipmentGrid({
   equipment: AnyEquipment;
   // 代表設備行（firstOrEmpty）に対する追加/編集トリガー。category と代表行 item
   // （空カテゴリは id=""）を受け取り、追加（item.id 無し）/ 編集（item.id 有り）を分岐する。
-  editSlotFor?: (category: EquipmentCategoryKey, item: AnyEquipmentItem, title: string) => React.ReactNode;
+  editSlotFor?: (
+    category: EquipmentCategoryKey,
+    item: AnyEquipmentItem,
+    title: string,
+  ) => React.ReactNode;
 }) {
   return (
     <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
@@ -366,13 +369,15 @@ function EquipmentInlineGrid({
       </div>
 
       {/* 付帯商材（ACCESSORY）— 複数行 + 追加（contractId 確定時のみ追加導線を出す）。 */}
-      <div className="space-y-3 rounded-md border border-hairline-light p-4">
+      <div className="border-hairline-light space-y-3 rounded-md border p-4">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-sm font-semibold text-ink">{ct.accessoryTitle}</p>
-          {contractId ? <AddAccessoryButton customerId={customerId} contractId={contractId} /> : null}
+          <p className="text-ink text-sm font-semibold">{ct.accessoryTitle}</p>
+          {contractId ? (
+            <AddAccessoryButton customerId={customerId} contractId={contractId} />
+          ) : null}
         </div>
         {contractId == null || accessoryRows.length === 0 ? (
-          <p className="text-sm text-mute-light">{ct.accessoryEmpty}</p>
+          <p className="text-mute-light text-sm">{ct.accessoryEmpty}</p>
         ) : (
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             {accessoryRows.map((row) => (
@@ -391,9 +396,8 @@ function EquipmentInlineGrid({
 }
 
 // F-063 既設設備（現況）1 行（ContractEquipment とは別概念のカード）。
-type AnyExistingEquipment =
-  ProjectHearingDto["existingEquipments"][number] &
-    Partial<ProjectHearingForDealerDto["existingEquipments"][number]>;
+type AnyExistingEquipment = ProjectHearingDto["existingEquipments"][number] &
+  Partial<ProjectHearingForDealerDto["existingEquipments"][number]>;
 
 const h = p.hearing;
 
@@ -404,9 +408,11 @@ function ExistingEquipmentCard({ eq }: { eq: AnyExistingEquipment }) {
   const hasDetail =
     "installDate" in eq || "maker" in eq || "capacityKw" in eq || "panelCount" in eq;
   return (
-    <div className="rounded-md border border-hairline-light p-4">
+    <div className="border-hairline-light rounded-md border p-4">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <p className="text-sm font-semibold text-ink">{h.categoryLabels[eq.category] ?? eq.category}</p>
+        <p className="text-ink text-sm font-semibold">
+          {h.categoryLabels[eq.category] ?? eq.category}
+        </p>
         <Badge variant={variant}>{h.presenceLabels[presence] ?? presence}</Badge>
       </div>
       {presence === "YES" && hasDetail ? (
@@ -442,7 +448,7 @@ export function ExistingEquipmentDisplay({
 }) {
   if (hearing.existingEquipments.length === 0) {
     return (
-      <p className="rounded-md border border-hairline-light p-4 text-sm text-mute-light">
+      <p className="border-hairline-light text-mute-light rounded-md border p-4 text-sm">
         {h.noExisting}
       </p>
     );
@@ -466,16 +472,18 @@ function HearingSection({
   editForm?: React.ReactNode;
 }) {
   const badges = deriveCrossSellBadges(hearing.existingEquipments);
-  const guide = hearing.guideAttendee ? h.guideAttendeeLabels[hearing.guideAttendee] ?? null : null;
+  const guide = hearing.guideAttendee
+    ? (h.guideAttendeeLabels[hearing.guideAttendee] ?? null)
+    : null;
 
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-mute-light">{h.title}</h3>
+        <h3 className="text-mute-light text-xs font-semibold">{h.title}</h3>
         {/* クロスセル候補バッジ（判定材料の可視化のみ・自動提案はしない） */}
         {badges.length > 0 ? (
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[11px] text-mute-light">{p.crossSellTitle}:</span>
+            <span className="text-mute-light text-[11px]">{p.crossSellTitle}:</span>
             {badges.map((b) => (
               <Badge key={b} variant="warning">
                 {p.crossSellLabels[b] ?? b}
@@ -487,12 +495,12 @@ function HearingSection({
 
       {/* 既設設備（現況）— 契約設備とは別カテゴリ */}
       <div>
-        <h4 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-mute-light">
+        <h4 className="text-mute-light mb-1.5 text-[11px] font-semibold">
           {h.existingTitle}
-          <span className="ml-2 font-normal normal-case text-mute-light">{h.existingHint}</span>
+          <span className="text-mute-light ml-2 font-normal normal-case">{h.existingHint}</span>
         </h4>
         {hearing.existingEquipments.length === 0 ? (
-          <p className="rounded-md border border-hairline-light p-4 text-sm text-mute-light">
+          <p className="border-hairline-light text-mute-light rounded-md border p-4 text-sm">
             {h.noExisting}
           </p>
         ) : (
@@ -511,10 +519,8 @@ function HearingSection({
         <>
           {/* 家族属性（年齢は年代マスキング表示済み） */}
           <div>
-            <h4 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-mute-light">
-              {h.familyTitle}
-            </h4>
-            <dl className="grid grid-cols-2 gap-x-6 gap-y-3 rounded-md border border-hairline-light p-4 sm:grid-cols-3">
+            <h4 className="text-mute-light mb-1.5 text-[11px] font-semibold">{h.familyTitle}</h4>
+            <dl className="border-hairline-light grid grid-cols-2 gap-x-6 gap-y-3 rounded-md border p-4 sm:grid-cols-3">
               <MetaItem label={h.husbandAge} value={hearing.husbandAge} />
               <MetaItem label={h.wifeAge} value={hearing.wifeAge} />
               <MetaItem label={h.childAge} value={hearing.childAge} />
@@ -526,10 +532,8 @@ function HearingSection({
 
           {/* 連絡先（下4桁マスキング）。マエカク希望日時は基本情報ページでは非表示。 */}
           <div>
-            <h4 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-mute-light">
-              {h.contactTitle}
-            </h4>
-            <dl className="grid grid-cols-2 gap-x-6 gap-y-3 rounded-md border border-hairline-light p-4 sm:grid-cols-3">
+            <h4 className="text-mute-light mb-1.5 text-[11px] font-semibold">{h.contactTitle}</h4>
+            <dl className="border-hairline-light grid grid-cols-2 gap-x-6 gap-y-3 rounded-md border p-4 sm:grid-cols-3">
               <MetaItem label={h.landlinePhone} value={hearing.landlinePhone} />
               <MetaItem label={h.mobilePhone} value={hearing.mobilePhone} />
               <MetaItem label={h.proposedProduct} value={hearing.proposedProduct} />
@@ -587,28 +591,21 @@ function CallLogList({
   const canEdit = customerId != null;
   return (
     <div className="mt-4 space-y-3">
-      <h4 className="text-[11px] font-semibold uppercase tracking-wide text-mute-light">
-        {s.callLogTitle}
-      </h4>
+      <h4 className="text-mute-light text-[11px] font-semibold">{s.callLogTitle}</h4>
       {canEdit ? <CallLogAddForm customerId={customerId!} users={users} /> : null}
       {logs.length === 0 ? (
-        <p className="text-sm text-mute-light">{s.callLogEmpty}</p>
+        <p className="text-mute-light text-sm">{s.callLogEmpty}</p>
       ) : (
         <ul className="space-y-2">
           {logs.map((l) => (
-            <li
-              key={l.id}
-              className="rounded-md border border-hairline-light bg-surface-soft p-3"
-            >
+            <li key={l.id} className="border-hairline-light bg-surface-soft rounded-md border p-3">
               <div className="flex items-start justify-between gap-2">
                 <dl className="grid flex-1 grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-3">
                   <MetaItem label={s.callLogCalledAt} value={fmtDateTime(l.calledAt)} />
                   <MetaItem label={s.callLogHandler} value={l.handlerName} />
                   <MetaItem label={s.callLogNote} value={l.note} />
                 </dl>
-                {canEdit ? (
-                  <CallLogDeleteButton customerId={customerId!} callLogId={l.id} />
-                ) : null}
+                {canEdit ? <CallLogDeleteButton customerId={customerId!} callLogId={l.id} /> : null}
               </div>
             </li>
           ))}
@@ -642,19 +639,17 @@ export function ProjectCallStatusSection({
     <div className="space-y-6">
       {/* 電話番号ヘッダ（コール業務向けにタブ上部へ固定/携帯電話を表示。マスク済み・全幅） */}
       <section>
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-mute-light">
-          {s.phoneHeaderTitle}
-        </h3>
-        <dl className="grid grid-cols-1 gap-x-6 gap-y-3 rounded-md border border-hairline-light bg-surface-soft/40 p-4 sm:grid-cols-2">
+        <h3 className="text-mute-light mb-2 text-xs font-semibold">{s.phoneHeaderTitle}</h3>
+        <dl className="border-hairline-light bg-surface-soft/40 grid grid-cols-1 gap-x-6 gap-y-3 rounded-md border p-4 sm:grid-cols-2">
           <div className="min-w-0">
-            <dt className="text-[11px] text-mute-light">{s.landlinePhone}</dt>
-            <dd className="mt-0.5 text-base font-semibold tabular-nums text-ink">
+            <dt className="text-mute-light text-[11px]">{s.landlinePhone}</dt>
+            <dd className="text-ink mt-0.5 text-base font-semibold tabular-nums">
               {calls.landlinePhone && calls.landlinePhone.length > 0 ? calls.landlinePhone : EMPTY}
             </dd>
           </div>
           <div className="min-w-0">
-            <dt className="text-[11px] text-mute-light">{s.mobilePhone}</dt>
-            <dd className="mt-0.5 text-base font-semibold tabular-nums text-ink">
+            <dt className="text-mute-light text-[11px]">{s.mobilePhone}</dt>
+            <dd className="text-ink mt-0.5 text-base font-semibold tabular-nums">
               {calls.mobilePhone && calls.mobilePhone.length > 0 ? calls.mobilePhone : EMPTY}
             </dd>
           </div>
@@ -665,19 +660,15 @@ export function ProjectCallStatusSection({
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
         {/* 左カラム: コール履歴（CustomerCallLog） */}
         <section>
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-mute-light">
-            {s.historyColumnTitle}
-          </h3>
-          <div className="rounded-md border border-hairline-light p-4">
+          <h3 className="text-mute-light mb-2 text-xs font-semibold">{s.historyColumnTitle}</h3>
+          <div className="border-hairline-light rounded-md border p-4">
             <CallLogList data={data} customerId={canEdit ? customerId : null} users={users} />
           </div>
         </section>
 
         {/* 右カラム: 各ステータス（コンパクト・縦積み） */}
         <section>
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-mute-light">
-            {s.statusColumnTitle}
-          </h3>
+          <h3 className="text-mute-light mb-2 text-xs font-semibold">{s.statusColumnTitle}</h3>
           <div className="space-y-3">
             {/* マエカクコール（編集 + 次回アポ担当者/次回アクション read-only） */}
             <CompactCallBlock title={s.maekakuCall}>
@@ -689,7 +680,7 @@ export function ProjectCallStatusSection({
                     label={f.callMaekakuStatus}
                     value={
                       calls.maekakuStatus
-                        ? p.maekakuStatusDisplayLabels[calls.maekakuStatus] ?? calls.maekakuStatus
+                        ? (p.maekakuStatusDisplayLabels[calls.maekakuStatus] ?? calls.maekakuStatus)
                         : null
                     }
                   />
@@ -702,7 +693,7 @@ export function ProjectCallStatusSection({
               )}
 
               {/* 次回アポ担当者 / 次回アクション（+ 日程）。編集は商談タブのみ・ここは read-only。 */}
-              <div className="mt-3 border-t border-hairline-light pt-3">
+              <div className="border-hairline-light mt-3 border-t pt-3">
                 <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
                   <MetaItem
                     label={s.nextAppointmentAt}
@@ -784,10 +775,8 @@ export function ProjectCallStatusSection({
 // 子は read-only MetaItem 群 or インライン編集フォーム（編集 UI はそのまま流用）。
 function CompactCallBlock({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-md border border-hairline-light p-3">
-      <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-mute-light">
-        {title}
-      </h4>
+    <div className="border-hairline-light rounded-md border p-3">
+      <h4 className="text-mute-light mb-2 text-[11px] font-semibold">{title}</h4>
       {children}
     </div>
   );
@@ -827,10 +816,10 @@ function ConstructionBlock({
   const cs = p.constructionSections;
   // fee キー自体が存在するのは wholesaler/saas のみ（二次店 DTO は物理除外）。
   const showFee = "fee" in con;
-  const sectionHeading = "mb-2 text-[11px] font-semibold uppercase tracking-wide text-mute-light";
+  const sectionHeading = "mb-2 text-[11px] font-semibold text-mute-light";
   const grid = "grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3";
   return (
-    <div className="space-y-5 rounded-md border border-hairline-light p-4">
+    <div className="border-hairline-light space-y-5 rounded-md border p-4">
       {customerId && editConstruction ? (
         <div className="flex justify-end">
           <EditConstructionDialog customerId={customerId} initial={editConstruction} />
@@ -899,13 +888,13 @@ export function ProjectConstructionList({
     if (customerId) {
       return (
         <div className="flex items-center justify-between gap-2">
-          <p className="text-sm text-mute-light">{ct.emptyEditable}</p>
+          <p className="text-mute-light text-sm">{ct.emptyEditable}</p>
           <AddConstructionButton customerId={customerId} />
         </div>
       );
     }
     return (
-      <p className="rounded-md border border-hairline-light p-4 text-sm text-mute-light">
+      <p className="border-hairline-light text-mute-light rounded-md border p-4 text-sm">
         {ct.empty}
       </p>
     );
@@ -941,7 +930,7 @@ export function ProjectConstructionList({
 
   if (withConstruction.length === 0) {
     return (
-      <p className="rounded-md border border-hairline-light p-4 text-sm text-mute-light">
+      <p className="border-hairline-light text-mute-light rounded-md border p-4 text-sm">
         {ct.empty}
       </p>
     );
@@ -950,8 +939,8 @@ export function ProjectConstructionList({
   return (
     <div className="space-y-4">
       {withConstruction.map((c, idx) => (
-        <div key={c.contractId} className="space-y-3 rounded-md border border-hairline-light p-4">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-mute-light">
+        <div key={c.contractId} className="border-hairline-light space-y-3 rounded-md border p-4">
+          <h3 className="text-mute-light text-xs font-semibold">
             {`${ct.contractHeading} #${idx + 1}`}
           </h3>
           {(byContract.get(c.contractId) ?? []).map((con) => (
@@ -1007,13 +996,13 @@ export function ProjectApplicationList({
     if (customerId) {
       return (
         <div className="flex items-center justify-between gap-2">
-          <p className="text-sm text-mute-light">{at.emptyEditable}</p>
+          <p className="text-mute-light text-sm">{at.emptyEditable}</p>
           <AddApplicationButton customerId={customerId} />
         </div>
       );
     }
     return (
-      <p className="rounded-md border border-hairline-light p-4 text-sm text-mute-light">
+      <p className="border-hairline-light text-mute-light rounded-md border p-4 text-sm">
         {at.empty}
       </p>
     );
@@ -1042,8 +1031,11 @@ export function ProjectApplicationList({
   return (
     <div className="space-y-4">
       {applications.map((app, idx) => (
-        <div key={app.applicationId} className="space-y-3 rounded-md border border-hairline-light p-4">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-mute-light">
+        <div
+          key={app.applicationId}
+          className="border-hairline-light space-y-3 rounded-md border p-4"
+        >
+          <h3 className="text-mute-light text-xs font-semibold">
             {app.tabLabel ?? `${at.subtabHeading} #${idx + 1}`}
           </h3>
           <ApplicationReadonly app={app} />
@@ -1078,14 +1070,14 @@ export function ProjectLoanInfoList({
       return (
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-sm text-mute-light">{lt.empty}</p>
+            <p className="text-mute-light text-sm">{lt.empty}</p>
             <AddLoanReviewButton customerId={customerId} />
           </div>
         </div>
       );
     }
     return (
-      <p className="rounded-md border border-hairline-light p-4 text-sm text-mute-light">
+      <p className="border-hairline-light text-mute-light rounded-md border p-4 text-sm">
         {lt.empty}
       </p>
     );
@@ -1100,9 +1092,7 @@ export function ProjectLoanInfoList({
       content: (
         <div className="space-y-5">
           <div>
-            <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-mute-light">
-              {lt.summaryTitle}
-            </h4>
+            <h4 className="text-mute-light mb-2 text-[11px] font-semibold">{lt.summaryTitle}</h4>
             {customerId && edit ? (
               <LoanReviewInlineEdit customerId={customerId} initial={edit} />
             ) : (
@@ -1110,9 +1100,7 @@ export function ProjectLoanInfoList({
             )}
           </div>
           <div>
-            <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-mute-light">
-              {lt.defectTitle}
-            </h4>
+            <h4 className="text-mute-light mb-2 text-[11px] font-semibold">{lt.defectTitle}</h4>
             <div className="space-y-3">
               <LoanReviewDefectList
                 customerId={customerId}
@@ -1129,9 +1117,7 @@ export function ProjectLoanInfoList({
             </div>
           </div>
           <div>
-            <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-mute-light">
-              {lt.historyTitle}
-            </h4>
+            <h4 className="text-mute-light mb-2 text-[11px] font-semibold">{lt.historyTitle}</h4>
             <div className="space-y-3">
               {customerId ? (
                 <>
@@ -1140,21 +1126,24 @@ export function ProjectLoanInfoList({
                     loanReviewId={review.loanReviewId}
                     logs={review.logs}
                   />
-                  <LoanReviewLogAddForm customerId={customerId} loanReviewId={review.loanReviewId} />
+                  <LoanReviewLogAddForm
+                    customerId={customerId}
+                    loanReviewId={review.loanReviewId}
+                  />
                 </>
               ) : review.logs.length === 0 ? (
-                <p className="text-sm text-mute-light">{lt.historyEmpty}</p>
+                <p className="text-mute-light text-sm">{lt.historyEmpty}</p>
               ) : (
-                <ul className="divide-y divide-hairline-light">
+                <ul className="divide-hairline-light divide-y">
                   {review.logs.map((log) => (
-                    <li key={log.id} className="flex items-center gap-2 py-2 text-sm text-ink">
-                      <span className="tabular-nums">
-                        {fmtDate(log.reviewedAt)}
-                      </span>
-                      <span className="rounded-sm bg-surface-soft px-1.5 py-0.5 text-xs font-medium">
+                    <li key={log.id} className="text-ink flex items-center gap-2 py-2 text-sm">
+                      <span className="tabular-nums">{fmtDate(log.reviewedAt)}</span>
+                      <span className="bg-surface-soft rounded-sm px-1.5 py-0.5 text-xs font-medium">
                         {lt.resultLabels[log.result] ?? log.result}
                       </span>
-                      {log.note ? <span className="text-xs text-mute-light">{log.note}</span> : null}
+                      {log.note ? (
+                        <span className="text-mute-light text-xs">{log.note}</span>
+                      ) : null}
                       {log.defectContent ? (
                         <span className="text-xs text-amber-700">
                           {lt.logDefectContent}：{log.defectContent}
@@ -1179,10 +1168,8 @@ export function ProjectLoanInfoList({
   return (
     <div className="space-y-4">
       {tabs.map((t) => (
-        <div key={t.id} className="space-y-3 rounded-md border border-hairline-light p-4">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-mute-light">
-            {t.label}
-          </h3>
+        <div key={t.id} className="border-hairline-light space-y-3 rounded-md border p-4">
+          <h3 className="text-mute-light text-xs font-semibold">{t.label}</h3>
           {t.content}
         </div>
       ))}
@@ -1211,7 +1198,7 @@ export function ProjectContractList({
   const ct = labels.customer.detail.contractTab;
   const contracts = data.contracts as AnyContract[];
   // readOnly では編集トリガーを描画しないため customerId/editable 引き当ては無効化する。
-  const customerId = readOnly ? null : editable?.customerId ?? null;
+  const customerId = readOnly ? null : (editable?.customerId ?? null);
   // インライン編集は権限保持者（customerId 非 null）かつ inlineEquipment 指定時のみ。
   const useInline = inlineEquipment && !!customerId;
 
@@ -1220,17 +1207,23 @@ export function ProjectContractList({
     return (category: EquipmentCategoryKey): ProjectEquipmentEditable | null => {
       if (!editable || !contractId) return null;
       return (
-        (editable.equipmentByContract[contractId] ?? []).find((e) => e.category === category) ?? null
+        (editable.equipmentByContract[contractId] ?? []).find((e) => e.category === category) ??
+        null
       );
     };
   }
 
   const editContractById = new Map<string, ProjectContractEditable>(
-    (readOnly ? [] : editable?.contracts ?? []).map((ec) => [ec.contractId, ec]),
+    (readOnly ? [] : (editable?.contracts ?? [])).map((ec) => [ec.contractId, ec]),
   );
-  function editEquipmentById(contractId: string, equipmentId: string): ProjectEquipmentEditable | null {
+  function editEquipmentById(
+    contractId: string,
+    equipmentId: string,
+  ): ProjectEquipmentEditable | null {
     if (readOnly || !editable) return null;
-    return (editable.equipmentByContract[contractId] ?? []).find((e) => e.id === equipmentId) ?? null;
+    return (
+      (editable.equipmentByContract[contractId] ?? []).find((e) => e.id === equipmentId) ?? null
+    );
   }
   // 設備カードの追加/編集トリガー（権限保持者のみ）。空カテゴリ（item.id 無し）は追加、
   // 既存行は編集。contractId が null（契約 0 件）でも追加でき、保存時にサーバーが契約を生成する。
@@ -1256,7 +1249,9 @@ export function ProjectContractList({
   // 当該契約の ACCESSORY 全行（複数行運用）。
   function accessoryRowsFor(contractId: string): ProjectEquipmentEditable[] {
     if (!editable) return [];
-    return (editable.equipmentByContract[contractId] ?? []).filter((e) => e.category === "ACCESSORY");
+    return (editable.equipmentByContract[contractId] ?? []).filter(
+      (e) => e.category === "ACCESSORY",
+    );
   }
 
   // 1 契約分の詳細（契約日/金額=合計/支払/シリアル/契約書類）+ 商材ライン。サブタブ
@@ -1278,10 +1273,15 @@ export function ProjectContractList({
             <MetaItem label={f.contractDate} value={fmtDate(c.contractDate)} />
             {/* 契約金額は商材ライン合計（read-only・自動計算／要件B）。 */}
             <MetaItem label={ct.contractAmountAuto} value={fmtYen(c.contractAmount)} />
-            <MetaItem label={f.paymentCount} value={c.paymentCount != null ? `${c.paymentCount} 回` : null} />
+            <MetaItem
+              label={f.paymentCount}
+              value={c.paymentCount != null ? `${c.paymentCount} 回` : null}
+            />
             <MetaItem
               label={f.paymentStatus}
-              value={c.paymentStatus ? p.paymentStatusLabels[c.paymentStatus] ?? c.paymentStatus : null}
+              value={
+                c.paymentStatus ? (p.paymentStatusLabels[c.paymentStatus] ?? c.paymentStatus) : null
+              }
             />
             <MetaItem label={f.depositDate} value={fmtDate(c.depositDate)} />
             <MetaItem label={f.equipmentId} value={c.equipmentSerialId} />
@@ -1291,7 +1291,7 @@ export function ProjectContractList({
         {/* 商材ライン（PV/BT/付帯[複数]/施工）。契約状況タブはカード内インライン編集、
             基本情報タブ（readOnly）は読み取りカード。 */}
         <div>
-          <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-mute-light">
+          <h4 className="text-mute-light mb-2 text-[11px] font-semibold">
             {useInline ? ct.equipmentTitle : p.sections.equipment}
           </h4>
           {useInline ? (
@@ -1306,7 +1306,8 @@ export function ProjectContractList({
               equipment={c.equipment}
               editSlotFor={
                 customerId
-                  ? (category, item, title) => equipmentEditSlot(c.contractId, category, item, title)
+                  ? (category, item, title) =>
+                      equipmentEditSlot(c.contractId, category, item, title)
                   : undefined
               }
             />
@@ -1332,11 +1333,11 @@ export function ProjectContractList({
           // 契約 0 件のとき（ローン審査タブと同じ挙動）。タブは出さず、空メッセージ＋
           // 「契約を追加」のみ。追加を押すとサーバーが契約 #1 を生成しサブタブが現れる。
           <div className="flex items-center justify-between gap-2">
-            <p className="text-sm text-mute-light">{ct.empty}</p>
+            <p className="text-mute-light text-sm">{ct.empty}</p>
             <AddContractButton customerId={customerId} />
           </div>
         ) : (
-          <p className="rounded-md border border-hairline-light p-4 text-sm text-mute-light">
+          <p className="border-hairline-light text-mute-light rounded-md border p-4 text-sm">
             {p.noContract}
           </p>
         )
@@ -1354,9 +1355,9 @@ export function ProjectContractList({
         />
       ) : (
         contracts.map((c, idx) => (
-          <div key={c.contractId} className="space-y-4 rounded-md border border-hairline-light p-4">
+          <div key={c.contractId} className="border-hairline-light space-y-4 rounded-md border p-4">
             <div className="flex items-center gap-2">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-mute-light">
+              <h3 className="text-mute-light text-xs font-semibold">
                 {`${p.sections.contract} #${idx + 1}`}
               </h3>
             </div>
@@ -1368,20 +1369,18 @@ export function ProjectContractList({
       {/* 特記事項（フリーテキストメモ）。権限保持者はインライン textarea 編集、
           readOnly/二次店はテキスト表示（空なら空状態文）。 */}
       <section>
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-mute-light">
-          {p.sections.specialNote}
-        </h3>
+        <h3 className="text-mute-light mb-2 text-xs font-semibold">{p.sections.specialNote}</h3>
         {customerId && editable ? (
           <SpecialNoteInlineEdit
             customerId={customerId}
             initial={{ specialNote: editable.specialNote }}
           />
         ) : data.specialNote && data.specialNote.length > 0 ? (
-          <p className="whitespace-pre-wrap rounded-md border border-hairline-light p-4 text-sm text-ink">
+          <p className="border-hairline-light text-ink whitespace-pre-wrap rounded-md border p-4 text-sm">
             {data.specialNote}
           </p>
         ) : (
-          <p className="rounded-md border border-hairline-light p-4 text-sm text-mute-light">
+          <p className="border-hairline-light text-mute-light rounded-md border p-4 text-sm">
             {p.specialNoteEmpty}
           </p>
         )}
@@ -1452,11 +1451,9 @@ export function CustomerProjectInfo({
       {/* 工事・完工（施工コスト含む。embedded 時は専用「施工コスト」タブに集約するため抑制） */}
       {!embedded ? (
         <section>
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-mute-light">
-            {p.sections.construction}
-          </h3>
+          <h3 className="text-mute-light mb-2 text-xs font-semibold">{p.sections.construction}</h3>
           {constructions.length === 0 ? (
-            <p className="rounded-md border border-hairline-light p-4 text-sm text-mute-light">
+            <p className="border-hairline-light text-mute-light rounded-md border p-4 text-sm">
               {p.noConstruction}
             </p>
           ) : (
@@ -1485,10 +1482,8 @@ export function CustomerProjectInfo({
       {/* 備考（埋め込み時は上段のメモカードと重複するため非表示） */}
       {!embedded && (
         <div>
-          <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-mute-light">
-            {p.sections.note}
-          </h3>
-          <p className="whitespace-pre-wrap rounded-md bg-surface-soft/60 p-3 text-sm leading-relaxed text-body-light">
+          <h3 className="text-mute-light mb-1.5 text-xs font-semibold">{p.sections.note}</h3>
+          <p className="bg-surface-soft/60 text-body-light whitespace-pre-wrap rounded-md p-3 text-sm leading-relaxed">
             {data.note && data.note.length > 0 ? data.note : EMPTY}
           </p>
         </div>

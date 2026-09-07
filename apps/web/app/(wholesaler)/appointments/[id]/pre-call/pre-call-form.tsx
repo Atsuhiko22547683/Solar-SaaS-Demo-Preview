@@ -6,10 +6,12 @@
 // Shows the rescheduledAt date-time input only when result === RESCHEDULED.
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { PreCallResultEnum } from "@solar/contracts";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -23,11 +25,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { labels } from "@/lib/i18n/labels";
 
-import { PreCallResultEnum } from "@solar/contracts";
-import type { PreCallRecordInput, PreCallResult } from "@solar/contracts";
-import { z } from "zod";
-
 import type { recordPreCallAction } from "./actions";
+import type { PreCallRecordInput, PreCallResult } from "@solar/contracts";
 
 const RESULTS: PreCallResult[] = ["APPROVED", "ABSENT", "CALLBACK", "CANCELLED", "RESCHEDULED"];
 
@@ -78,9 +77,10 @@ export function PreCallForm({ appointmentId, action }: Props) {
           appointmentId,
           result: values.result,
           notes: values.notes || undefined,
-          rescheduledAt: values.result === "RESCHEDULED" && values.rescheduledAt
-            ? new Date(values.rescheduledAt).toISOString()
-            : undefined,
+          rescheduledAt:
+            values.result === "RESCHEDULED" && values.rescheduledAt
+              ? new Date(values.rescheduledAt).toISOString()
+              : undefined,
         };
         await action(input);
         toast.success(t.feedback.recorded);

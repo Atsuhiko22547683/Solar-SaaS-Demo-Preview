@@ -4,8 +4,8 @@
 // Renders a shadcn Dialog with email + role picker, then calls
 // inviteWholesalerMemberAction on submit.
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -24,13 +24,10 @@ import { labels } from "@/lib/i18n/labels";
 
 import { inviteWholesalerMemberAction } from "./actions";
 
-const WHOLESALER_ROLES = [
-  "WHOLESALER_ADMIN",
-  "WHOLESALER_EVENT_TEAM",
-  "WHOLESALER_CALL_TEAM",
-  "WHOLESALER_DIRECT_SALES",
-  "WHOLESALER_FIELD_STAFF",
-] as const;
+// 正式仕様の 3 ロール。旧ロール（管理者 / イベントチーム / コールチーム /
+// 直販営業 / 現場要員）は選択肢から外した。業務上の役割分担は
+// スタッフマスタ（Salesperson）側で表現する。
+const WHOLESALER_ROLES = ["OWNER", "SYSTEM_ADMIN", "GENERAL_USER"] as const;
 
 type WholesalerRole = (typeof WHOLESALER_ROLES)[number];
 
@@ -39,7 +36,7 @@ export function InviteMemberDialog() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<WholesalerRole>("WHOLESALER_EVENT_TEAM");
+  const [role, setRole] = useState<WholesalerRole>("GENERAL_USER");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,7 +53,7 @@ export function InviteMemberDialog() {
       toast.success(t.feedback.invited);
       setOpen(false);
       setEmail("");
-      setRole("WHOLESALER_EVENT_TEAM");
+      setRole("GENERAL_USER");
       router.refresh();
     } catch {
       toast.error(labels.common.unknownError);

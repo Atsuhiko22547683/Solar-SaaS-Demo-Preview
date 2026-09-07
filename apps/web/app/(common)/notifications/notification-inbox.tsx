@@ -13,8 +13,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { labels } from "@/lib/i18n/labels";
 import { Button } from "@/components/ui/button";
+import { formatDateTime } from "@/lib/format/date";
+import { labels } from "@/lib/i18n/labels";
 import { cn } from "@/lib/utils";
 
 interface NotificationItem {
@@ -45,29 +46,26 @@ export function NotificationInbox() {
   const [loadingMore, setLoadingMore] = useState(false);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const fetchPage = useCallback(
-    async (p: number, unread: boolean, append: boolean) => {
-      const params = new URLSearchParams({ page: String(p) });
-      if (unread) params.set("unreadOnly", "true");
+  const fetchPage = useCallback(async (p: number, unread: boolean, append: boolean) => {
+    const params = new URLSearchParams({ page: String(p) });
+    if (unread) params.set("unreadOnly", "true");
 
-      try {
-        const res = await fetch(`/api/notifications?${params.toString()}`, {
-          cache: "no-store",
-        });
-        if (!res.ok) {
-          if (!append) toast.error(labels.notifications.errors.loadFailed);
-          return;
-        }
-        const data = (await res.json()) as NotificationsResponse;
-        setTotal(data.total);
-        setTotalPages(data.totalPages);
-        setItems((prev) => (append ? [...prev, ...data.notifications] : data.notifications));
-      } catch {
+    try {
+      const res = await fetch(`/api/notifications?${params.toString()}`, {
+        cache: "no-store",
+      });
+      if (!res.ok) {
         if (!append) toast.error(labels.notifications.errors.loadFailed);
+        return;
       }
-    },
-    [],
-  );
+      const data = (await res.json()) as NotificationsResponse;
+      setTotal(data.total);
+      setTotalPages(data.totalPages);
+      setItems((prev) => (append ? [...prev, ...data.notifications] : data.notifications));
+    } catch {
+      if (!append) toast.error(labels.notifications.errors.loadFailed);
+    }
+  }, []);
 
   // Initial load + polling
   useEffect(() => {
@@ -150,7 +148,7 @@ export function NotificationInbox() {
             type="checkbox"
             checked={unreadOnly}
             onChange={(e) => setUnreadOnly(e.target.checked)}
-            className="h-4 w-4 rounded border-border"
+            className="border-border h-4 w-4 rounded"
           />
           {labels.notifications.filterUnreadOnly}
         </label>
@@ -169,7 +167,7 @@ export function NotificationInbox() {
           {unreadOnly ? labels.notifications.emptyUnreadOnly : labels.notifications.empty}
         </div>
       ) : (
-        <ul className="divide-y divide-border rounded-md border border-border">
+        <ul className="divide-border border-border divide-y rounded-md border">
           {items.map((n) => (
             <li
               key={n.id}
@@ -182,7 +180,7 @@ export function NotificationInbox() {
               {n.readAt == null && (
                 <span
                   aria-label={labels.notifications.readStatus.unread}
-                  className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary"
+                  className="bg-primary mt-1.5 h-2 w-2 shrink-0 rounded-full"
                 />
               )}
               {n.readAt != null && <span className="mt-1.5 h-2 w-2 shrink-0" />}
@@ -197,9 +195,7 @@ export function NotificationInbox() {
                   {n.title}
                 </p>
                 <p className="text-muted-foreground line-clamp-2 text-xs">{n.body}</p>
-                <p className="text-muted-foreground text-[10px]">
-                  {new Date(n.createdAt).toLocaleString("ja-JP")}
-                </p>
+                <p className="text-muted-foreground text-[10px]">{formatDateTime(n.createdAt)}</p>
               </div>
 
               {/* Mark read button (only when unread) */}

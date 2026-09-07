@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import { formatDateTime } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
 import { getSaasAdminDashboardSummary } from "../tenants/data";
@@ -29,7 +30,7 @@ export default async function SaasAdminDashboardPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t.dashboardTitle}</h1>
+          <h1 className="text-ink text-xl font-bold">{t.dashboardTitle}</h1>
           <p className="text-muted-foreground text-sm">{t.dashboardSubtitle}</p>
         </div>
         <Button asChild>
@@ -89,7 +90,7 @@ export default async function SaasAdminDashboardPage() {
                     <td className="px-3 py-2">{t.statuses[r.status]}</td>
                     <td className="px-3 py-2 tabular-nums">{r.userCount}</td>
                     <td className="text-muted-foreground px-3 py-2 text-xs">
-                      {new Date(r.createdAt).toLocaleString("ja-JP")}
+                      {formatDateTime(r.createdAt)}
                     </td>
                   </tr>
                 ))}

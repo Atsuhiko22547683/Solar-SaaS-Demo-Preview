@@ -1,63 +1,71 @@
 import { expect, test } from "@playwright/test";
+
 import { signIn } from "../fixtures/auth";
 
-// E2E spec for T-02-10 — masters hub (S-052).
+// E2E spec for /masters — エリア・場所管理（旧「マスタ管理」ハブ）。
 //
-// 5-tab 構成: 二次店関係 / 施工業者 / インセンティブ率 / キャンセル期限 /
-// 年度開始月 (docs/04 §1.3 S-052). wholesaler_admin がハブを開き、各タブを
-// クリックして対応するパネル内容が切り替わることを確認する。タブ切替は
-// shadcn Tabs (Radix) なので独立 URL への遷移は発生しない（同じ /masters
-// 配下で `role=tabpanel` の data-state が切り替わる）。
+// 現行仕様は 2 タブ構成（エリア設定 / 場所提供元）。
+//   - 取引先の管理は「設定 > 取引先管理」(/masters/relationships) へ責務分離済み。
+//     このハブに取引先一覧タブは無い。
+//   - 施工業者 / インセンティブ率 / キャンセル期限 / 年度開始月 は独立画面へ移動済みで、
+//     それぞれ専用 spec（installers / incentive-rates / wholesaler-settings）が担当する。
+//
+// タブ切替は shadcn Tabs (Radix) なので独立 URL への遷移は発生しない
+// （同じ /masters 配下で role=tabpanel の data-state が切り替わる）。
 //
 // Seed は `tests/e2e/global-setup.ts` で全 spec 起動前に 1 回だけ実行される。
 
 test.describe.configure({ timeout: 90_000 });
 
-test("wholesaler_admin sees the 5 tabs and can switch panels on the masters hub", async ({
+test("wholesaler_admin sees the 2 tabs and can switch panels on the area/venue hub", async ({
   page,
 }) => {
   await signIn(page, "wholesaler_admin@solar-saas.dev");
 
   await page.goto("/masters");
-  await expect(page.getByRole("heading", { name: "マスタ管理", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "エリア・場所管理", level: 1 })).toBeVisible();
 
-  // 5 タブのトリガーが全て描画されている (role=tab).
-  const tabTriggers = [
-    "二次店関係",
-    "施工業者",
-    "インセンティブ率",
-    "キャンセル期限",
-    "年度開始月",
-  ];
-  for (const label of tabTriggers) {
+  // 2 タブのトリガーが描画されている (role=tab)。
+  for (const label of ["エリア設定", "場所提供元"]) {
     await expect(page.getByRole("tab", { name: label })).toBeVisible();
   }
 
-  // デフォルトで「二次店関係」タブのパネルが表示されている（プレースホルダ）。
-  await expect(page.getByRole("heading", { name: "二次店関係", level: 2 })).toBeVisible();
-  await expect(page.getByText("二次店関係マスタは後続スプリントで実装予定です")).toBeVisible();
+  // 取引先一覧タブは削除済み（設定 > 取引先管理へ分離）。
+  await expect(page.getByRole("tab", { name: "取引先一覧" })).toHaveCount(0);
+  await expect(page.getByRole("tab", { name: "取引先関係" })).toHaveCount(0);
+  // 旧ハブに同居していた他マスタのタブも無い。
+  for (const gone of ["施工業者", "インセンティブ率", "キャンセル期限", "年度開始月"]) {
+    await expect(page.getByRole("tab", { name: gone })).toHaveCount(0);
+  }
 
-  // 施工業者タブへ切替。
-  await page.getByRole("tab", { name: "施工業者" }).click();
-  await expect(page.getByRole("heading", { name: "施工業者", level: 2 })).toBeVisible();
+  // 既定は「エリア設定」タブ。
+  await expect(page.getByRole("tab", { name: "エリア設定" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+
+  // 場所提供元タブへ切替 → パネルが入れ替わる。
+  await page.getByRole("tab", { name: "場所提供元" }).click();
+  await expect(page.getByRole("tab", { name: "場所提供元" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
   await expect(page.getByRole("link", { name: "一覧画面を開く" }).first()).toBeVisible();
+});
 
-  // インセンティブ率タブへ切替。
-  await page.getByRole("tab", { name: "インセンティブ率" }).click();
-  await expect(page.getByRole("heading", { name: "インセンティブ率", level: 2 })).toBeVisible();
+test("取引先管理は設定メニューから /masters/relationships へ遷移できる", async ({ page }) => {
+  await signIn(page, "wholesaler_admin@solar-saas.dev");
 
-  // キャンセル期限タブへ切替 — 単項目フォームが見える。
-  await page.getByRole("tab", { name: "キャンセル期限" }).click();
-  await expect(page.getByRole("heading", { name: "キャンセル期限", level: 2 })).toBeVisible();
-  // 「キャンセル期限（日数）」はフォーム input 1 個に固有のラベル。タブトリガー
-  // 「キャンセル期限」と曖昧にならないよう完全一致は避け substring で取る。
-  await expect(page.getByLabel("キャンセル期限（日数）", { exact: false })).toBeVisible();
+  // 設定配下のページから始めるとアコーディオンが開いた状態で描画される。
+  await page.goto("/masters");
+  await page.waitForLoadState("networkidle");
 
-  // 年度開始月タブへ切替 — 月セレクタが見える。
-  // 「年度開始月」というアクセシビリティ名はタブトリガー (role=tab)、
-  // タブパネル内見出し (h2)、フォーム select の <label> の 3 箇所で衝突する。
-  // フォーム select のみを掴むには role=combobox にスコープを絞る。
-  await page.getByRole("tab", { name: "年度開始月" }).click();
-  await expect(page.getByRole("heading", { name: "年度開始月", level: 2 })).toBeVisible();
-  await expect(page.getByRole("combobox", { name: "年度開始月" })).toBeVisible();
+  const link = page.getByRole("link", { name: "取引先管理" }).first();
+  await expect(link).toBeVisible({ timeout: 30_000 });
+  await link.click();
+
+  await page.waitForURL(/\/masters\/relationships/, { timeout: 60_000 });
+  await expect(page.getByRole("heading", { name: "取引先一覧", level: 1 })).toBeVisible({
+    timeout: 30_000,
+  });
 });

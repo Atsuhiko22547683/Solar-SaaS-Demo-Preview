@@ -36,11 +36,11 @@ export default async function AreasListPage({ searchParams }: PageProps) {
       <div>
         <Link
           href="/masters"
-          className="text-pewter hover:text-carbon-dark mb-2 inline-flex items-center gap-1 text-sm"
+          className="text-mute-light hover:text-ink mb-2 inline-flex items-center gap-1 text-sm"
         >
           ← {c.back}
         </Link>
-        <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
+        <h1 className="text-ink text-xl font-bold">{t.title}</h1>
         <p className="text-muted-foreground text-sm">
           イベント開催エリア / 顧客エリアをタブで切り替えて管理します
         </p>

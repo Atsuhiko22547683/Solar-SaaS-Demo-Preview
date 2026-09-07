@@ -6,17 +6,21 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { buildDemoResultReport } from "@/components/reports/result-report-data";
+import { ResultReportTrigger } from "@/components/reports/result-report-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
-import { ResultReportTrigger } from "@/components/reports/result-report-dialog";
-import { buildDemoResultReport } from "@/components/reports/result-report-data";
+import { formatDateTime } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
 import { getWholesalerEventDetail } from "./data";
 import { ReportButtons } from "./reports/report-buttons";
+import { ReportMetrics } from "./reports/report-metrics";
 import { ResultReportForm } from "./reports/result-form";
+import { SalespersonAssign } from "./salesperson-assign";
 import { StatusSelect } from "./status-select";
+import { canUpdateSalesperson, listActiveSalespeople } from "../../salespeople/data";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +38,21 @@ export default async function WholesalerEventDetailPage({ params }: PageProps) {
     notFound();
   }
 
+  // 販売員の選択肢（有効なマスタ）。参照権限が無いロールでは空にして描画を抑える。
+  let salespeopleOptions: Awaited<ReturnType<typeof listActiveSalespeople>> = [];
+  try {
+    salespeopleOptions = await listActiveSalespeople();
+  } catch {
+    salespeopleOptions = [];
+  }
+  // アサインの変更は salesperson.update（卸業者管理者）のみ。参照ロールには
+  // 保存ボタンを出さず、アサイン済みのバッジ表示に落とす。
+  const canAssignSalespeople = await canUpdateSalesperson();
+
   const t = labels.event;
+  // 追加集計項目は自社（卸業者）の成果報告にぶら下がる。未提出なら null。
+  const wholesalerResultReport =
+    data.reports.find((r) => r.type === "RESULT" && r.reporterOrgType === "WHOLESALER") ?? null;
   const c = labels.common;
   const bc = labels.breadcrumb.items;
 
@@ -42,16 +60,13 @@ export default async function WholesalerEventDetailPage({ params }: PageProps) {
 
   return (
     <div className="space-y-8">
-      <Breadcrumb
-        items={[
-          { label: bc.events, href: "/events" },
-          { label: venueName },
-        ]}
-      />
+      <Breadcrumb items={[{ label: bc.events, href: "/events" }, { label: venueName }]} />
 
       {/* Page header */}
-      <h1 className="text-2xl font-semibold tracking-tight">
-        {venueName}　{t.detailHeading}
+      <h1 className="text-ink text-xl font-bold">
+        {venueName}
+        {"　"}
+        {t.detailHeading}
       </h1>
 
       {/* Meta info grid */}
@@ -70,7 +85,7 @@ export default async function WholesalerEventDetailPage({ params }: PageProps) {
           </p>
         </div>
         <div>
-          <p className="text-muted-foreground text-xs mb-1">{t.fields.status}</p>
+          <p className="text-muted-foreground mb-1 text-xs">{t.fields.status}</p>
           <StatusSelect eventId={data.id} currentStatus={data.status} />
         </div>
         <div>
@@ -91,8 +106,8 @@ export default async function WholesalerEventDetailPage({ params }: PageProps) {
 
       {/* Basic info section */}
       <section aria-label={t.sections.basicInfo}>
-        <h2 className="text-base font-semibold mb-3">{t.sections.basicInfo}</h2>
-        <div className="border-border rounded-md border p-4 space-y-3">
+        <h2 className="mb-3 text-base font-semibold">{t.sections.basicInfo}</h2>
+        <div className="border-border space-y-3 rounded-md border p-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <p className="text-muted-foreground text-xs">{t.fields.area}</p>
@@ -107,7 +122,7 @@ export default async function WholesalerEventDetailPage({ params }: PageProps) {
               </p>
             </div>
           </div>
-          {(data.venueProvider?.note) ? (
+          {data.venueProvider?.note ? (
             <div>
               <p className="text-muted-foreground text-xs">{t.fields.note}</p>
               <p className="text-sm">{data.venueProvider.note}</p>
@@ -118,7 +133,7 @@ export default async function WholesalerEventDetailPage({ params }: PageProps) {
 
       {/* Contract conditions section */}
       <section aria-label={t.sections.contractConditions}>
-        <h2 className="text-base font-semibold mb-3">{t.sections.contractConditions}</h2>
+        <h2 className="mb-3 text-base font-semibold">{t.sections.contractConditions}</h2>
         <div className="border-border rounded-md border p-4">
           {data.venueProvider ? (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -126,7 +141,9 @@ export default async function WholesalerEventDetailPage({ params }: PageProps) {
                 <p className="text-muted-foreground text-xs">{t.fields.contractType}</p>
                 <p className="text-sm font-medium">
                   {data.venueProvider.contractType
-                    ? (t.contractTypes[data.venueProvider.contractType as keyof typeof t.contractTypes] ?? data.venueProvider.contractType)
+                    ? (t.contractTypes[
+                        data.venueProvider.contractType as keyof typeof t.contractTypes
+                      ] ?? data.venueProvider.contractType)
                     : c.notSet}
                 </p>
               </div>
@@ -155,18 +172,21 @@ export default async function WholesalerEventDetailPage({ params }: PageProps) {
 
       {/* Assign info section */}
       <section aria-label={t.sections.assignInfo}>
-        <h2 className="text-base font-semibold mb-3">{t.sections.assignInfo}</h2>
+        <h2 className="mb-3 text-base font-semibold">{t.sections.assignInfo}</h2>
 
         {/* DEALER or JOINT: show assigned dealers */}
         {(data.mode === "DEALER" || data.mode === "JOINT") && (
           <div className="mb-4">
-            <h3 className="text-sm font-medium mb-2">{t.sections.dealers}</h3>
+            <h3 className="mb-2 text-sm font-medium">{t.sections.dealers}</h3>
             {data.dealers.length === 0 ? (
               <p className="text-muted-foreground text-sm">{t.noDealers}</p>
             ) : (
               <ul className="space-y-2">
                 {data.dealers.map((d) => (
-                  <li key={d.relationshipId} className="border-border rounded-md border p-3 text-sm">
+                  <li
+                    key={d.relationshipId}
+                    className="border-border rounded-md border p-3 text-sm"
+                  >
                     <span className="font-medium">{d.dealerName}</span>
                     {d.scopeOverride ? (
                       <Badge variant="secondary" className="ml-2 text-xs">
@@ -183,7 +203,7 @@ export default async function WholesalerEventDetailPage({ params }: PageProps) {
         {/* SELF or JOINT: show shifts table */}
         {(data.mode === "SELF" || data.mode === "JOINT") && (
           <div>
-            <div className="flex items-center justify-between mb-2">
+            <div className="mb-2 flex items-center justify-between">
               <h3 className="text-sm font-medium">{t.sections.shifts}</h3>
               <Button asChild size="sm" variant="outline">
                 <Link href={`/events/${data.id}/shifts`}>{t.manageShifts}</Link>
@@ -196,9 +216,15 @@ export default async function WholesalerEventDetailPage({ params }: PageProps) {
                 <table className="w-full text-sm">
                   <thead className="bg-muted/30">
                     <tr>
-                      <th className="px-3 py-2 text-left font-medium">{labels.eventShift.fields.user}</th>
-                      <th className="px-3 py-2 text-left font-medium">{labels.eventShift.fields.role}</th>
-                      <th className="px-3 py-2 text-left font-medium">{labels.eventShift.fields.status}</th>
+                      <th className="px-3 py-2 text-left font-medium">
+                        {labels.eventShift.fields.user}
+                      </th>
+                      <th className="px-3 py-2 text-left font-medium">
+                        {labels.eventShift.fields.role}
+                      </th>
+                      <th className="px-3 py-2 text-left font-medium">
+                        {labels.eventShift.fields.status}
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-border divide-y">
@@ -206,11 +232,15 @@ export default async function WholesalerEventDetailPage({ params }: PageProps) {
                       <tr key={s.id} className="hover:bg-muted/20">
                         <td className="px-3 py-2 font-medium">{s.userName}</td>
                         <td className="px-3 py-2">
-                          {labels.eventShift.roles[s.role as keyof typeof labels.eventShift.roles] ?? s.role}
+                          {labels.eventShift.roles[
+                            s.role as keyof typeof labels.eventShift.roles
+                          ] ?? s.role}
                         </td>
                         <td className="px-3 py-2">
                           <Badge variant="secondary">
-                            {labels.eventShift.statuses[s.status as keyof typeof labels.eventShift.statuses] ?? s.status}
+                            {labels.eventShift.statuses[
+                              s.status as keyof typeof labels.eventShift.statuses
+                            ] ?? s.status}
                           </Badge>
                         </td>
                       </tr>
@@ -221,6 +251,17 @@ export default async function WholesalerEventDetailPage({ params }: PageProps) {
             )}
           </div>
         )}
+
+        {/* 販売員アサイン — 認証 User のシフトとは別概念（Salesperson マスタから選ぶ）。 */}
+        <div className="mt-6">
+          <h3 className="mb-2 text-sm font-medium">{labels.salespersonList.assign.title}</h3>
+          <SalespersonAssign
+            eventId={data.id}
+            assignedIds={data.salespeople.map((s) => s.salespersonId)}
+            candidates={salespeopleOptions}
+            canEdit={canAssignSalespeople}
+          />
+        </div>
 
         {/* DEALER only: no shifts needed, show shift management link anyway */}
         {data.mode === "DEALER" && (
@@ -234,7 +275,7 @@ export default async function WholesalerEventDetailPage({ params }: PageProps) {
 
       {/* Reports */}
       <section aria-label={t.sections.reports}>
-        <h2 className="text-base font-semibold mb-3">{t.sections.reports}</h2>
+        <h2 className="mb-3 text-base font-semibold">{t.sections.reports}</h2>
         {data.reports.length === 0 ? (
           <p className="text-muted-foreground text-sm">{t.noReports}</p>
         ) : (
@@ -260,7 +301,7 @@ export default async function WholesalerEventDetailPage({ params }: PageProps) {
                     {t.reportOrgTypes[r.reporterOrgType] ?? r.reporterOrgType}
                   </Badge>
                   <span className="text-muted-foreground ml-2 text-xs">
-                    {new Date(r.createdAt).toLocaleString("ja-JP")}
+                    {formatDateTime(r.createdAt)}
                   </span>
                 </li>
               );
@@ -271,7 +312,7 @@ export default async function WholesalerEventDetailPage({ params }: PageProps) {
 
       {/* Report actions (T-04-03) */}
       <section aria-label={labels.eventReport.sections.actions}>
-        <h2 className="text-base font-semibold mb-3">{labels.eventReport.sections.actions}</h2>
+        <h2 className="mb-3 text-base font-semibold">{labels.eventReport.sections.actions}</h2>
         <ReportButtons
           eventId={data.id}
           hasWholesalerStart={data.reports.some(
@@ -285,18 +326,22 @@ export default async function WholesalerEventDetailPage({ params }: PageProps) {
 
       {/* Result report (T-04-04 / F-030) */}
       <section aria-label={labels.eventReport.sections.result}>
-        <h2 className="text-base font-semibold mb-3">{labels.eventReport.sections.result}</h2>
-        <ResultReportForm
-          eventId={data.id}
-          hasWholesalerResult={data.reports.some(
-            (r) => r.type === "RESULT" && r.reporterOrgType === "WHOLESALER",
-          )}
+        <h2 className="mb-3 text-base font-semibold">{labels.eventReport.sections.result}</h2>
+        <ResultReportForm eventId={data.id} hasWholesalerResult={wholesalerResultReport != null} />
+      </section>
+
+      {/* 追加集計項目 — 固定集計項目とは別枠で、成果報告にぶら下げて管理する */}
+      <section aria-label={labels.eventReport.sections.metrics}>
+        <h2 className="mb-3 text-base font-semibold">{labels.eventReport.sections.metrics}</h2>
+        <ReportMetrics
+          reportId={wholesalerResultReport?.id ?? null}
+          metrics={wholesalerResultReport?.metrics ?? []}
         />
       </section>
 
       {/* Customers */}
       <section aria-label={t.sections.customers}>
-        <h2 className="text-base font-semibold mb-3">{t.sections.customers}</h2>
+        <h2 className="mb-3 text-base font-semibold">{t.sections.customers}</h2>
         {data.customerCount === 0 ? (
           <p className="text-muted-foreground text-sm">{t.noCustomers}</p>
         ) : (
@@ -304,6 +349,10 @@ export default async function WholesalerEventDetailPage({ params }: PageProps) {
             {data.customerCount} {t.customerCountSuffix}
           </p>
         )}
+        {/* このイベントから顧客登録へ。催事 ID と販売チャネル（催事）を前埋めする。 */}
+        <Button asChild size="sm" variant="outline" className="mt-3">
+          <Link href={`/customers/new?eventId=${data.id}`}>{t.registerCustomer}</Link>
+        </Button>
       </section>
     </div>
   );

@@ -6,8 +6,9 @@
 // they never hard-code Japanese text.
 
 export const labels = {
-  brand: "Solar SaaS",
-  brandTagline: "太陽光卸・二次店営業管理 SaaS",
+  // 画面上のロゴ表記に合わせる（ロゴ画像の alt / オンボーディング見出しに使われる）。
+  brand: "BizOrch",
+  brandTagline: "太陽光卸・取引先営業管理 SaaS",
 
   // 製品カタログ（PV / 蓄電池）。MVP ではプレースホルダ。
   productCatalog: {
@@ -29,7 +30,7 @@ export const labels = {
     saasAdmin: "SaaS 運営者",
     wholesaler: "卸業者本部",
     field: "現場要員",
-    dealer: "二次店",
+    dealer: "取引先",
     common: "共通",
     onboarding: "オンボーディング",
     auth: "認証",
@@ -42,6 +43,8 @@ export const labels = {
     profile: "プロフィール",
     signOut: "サインアウト",
     menu: "メニュー",
+    // 未実装画面への導線に付ける印。押す前に分かるようにする。
+    upcoming: "準備中",
   },
 
   // Auth — S-001 sign-in (docs/04 §4.1)
@@ -55,7 +58,7 @@ export const labels = {
     submit: "サインイン",
     submitting: "サインイン中…",
     forgotPassword: "パスワードを忘れた方",
-    dealerInviteCode: "招待コード入力（新規二次店）",
+    dealerInviteCode: "招待コード入力（新規取引先）",
     invalidCredentials: "メールアドレスまたはパスワードが正しくありません",
     lockedTitle: "アカウントは一時的にロックされています",
     lockedSuffix: "後に再度お試しください",
@@ -172,8 +175,8 @@ export const labels = {
     venueNegotiations: "場所取り対応状況",
     bi: "BIダッシュボード",
     biAnalysis: "市況分析",
-    masters: "マスタ管理",
-    members: "メンバー管理",
+    masters: "エリア・場所管理",
+    members: "システムユーザー",
     relationships: "取引先管理",
     auditLogs: "監査ログ",
   },
@@ -184,7 +187,9 @@ export const labels = {
   // field_staff) の共通ホーム。5 KPI カード + 直近イベント + 売上推移。
   dashboard: {
     title: "ホーム",
-    subtitle: "主要な成績指標と直近のアクティビティを確認できます",
+    // 催事営業は「期限」と「担当の割当」で売上が決まる。ホームの役割は
+    // 実績の閲覧ではなく、滞留している対応を拾わせること。
+    subtitle: "対応待ちの案件と今週の催事を確認できます",
     breadcrumbHome: "ホーム",
     kpi: {
       contractCount: "今月の契約件数",
@@ -204,6 +209,45 @@ export const labels = {
       incentive: "インセンティブ見込み",
     },
     sections: {
+      // 要対応キュー。放置すると売上が落ちる 3 つの滞留を、件数と遷移先だけの
+      // 最小構成で並べる。数字を大きく見せることが目的ではなく、
+      // 「今日どこを開くか」を 1 秒で決めさせることが目的。
+      todo: {
+        title: "要対応",
+        allClear: "対応待ちはありません",
+        unread: {
+          title: "未読通知",
+          hint: "確認していない通達があります",
+          link: "通知一覧を開く",
+          unit: "件",
+        },
+        preference: {
+          title: "取引先希望提出状況",
+          hint: "希望が未提出のため開催体制を決められません",
+          link: "イベント体制決定画面を開く",
+          unit: "社",
+        },
+        precall: {
+          title: "マエカク未対応",
+          hint: "アポ取得済みで事前確認コールが未実施です",
+          link: "マエカク一覧を開く",
+          unit: "件",
+        },
+      },
+      // 実績は「見に行くもの」であって「最初に目に入るもの」ではないため、
+      // 大きな KPI カードではなく 1 行のメトリクス帯に降格する。
+      monthlySummary: {
+        title: "当月成績サマリ",
+        link: "月次レポートを開く",
+        contractCount: "契約件数",
+        revenue: "売上",
+        grossProfit: "粗利",
+        appointments: "今週のアポ",
+        prevMonthPrefix: "前月",
+      },
+      thisWeek: {
+        title: "今週の催事",
+      },
       recentEvents: {
         title: "直近イベント",
         viewAll: "すべて見る →",
@@ -214,7 +258,7 @@ export const labels = {
         title: "通達状況",
         viewAll: "すべて見る →",
         unread: "未読通知",
-        pendingPreference: "希望未提出二次店",
+        pendingPreference: "希望未提出取引先",
         pendingPrecall: "マエカク未対応",
       },
       salesTrend: {
@@ -229,7 +273,7 @@ export const labels = {
           name: "イベント名",
           venue: "場所",
           mode: "体制",
-          dealers: "担当二次店数",
+          dealers: "担当取引先数",
         },
       },
     },
@@ -237,13 +281,13 @@ export const labels = {
 
   // S-052 — マスタ管理ハブ (T-02-10 / docs/04 §1.3).
   // 卸業者本部の `wholesaler_admin` 専用ナビゲーション。shadcn Tabs で
-  // 5 タブ（二次店関係 / 施工業者 / インセンティブ率 / キャンセル期限 /
+  // 5 タブ（取引先関係 / 施工業者 / インセンティブ率 / キャンセル期限 /
   // 年度開始月）を統合表示する。各タブの中身は T-02-05〜T-02-07 の既存
   // 画面コンテンツを埋め込む。場所提供元 (S-019/S-020) と商品・価格
   // (S-042/S-043) は S-052 のスコープ外（独立画面 /masters/venue-providers
   // /masters/products で実装済）。
   masters: {
-    title: "マスタ管理",
+    title: "エリア・場所管理",
     subtitle: "業務で参照する各種マスタを一覧・編集できます",
     sectionTitle: "マスタ一覧",
     summary: {
@@ -254,8 +298,8 @@ export const labels = {
     },
     tabs: {
       dealerRelationships: {
-        label: "二次店関係",
-        description: "二次店との関係 / 招待コード / スコープデフォルト（後続スプリントで実装）",
+        label: "取引先関係",
+        description: "取引先との関係 / 招待コード / スコープデフォルト（後続スプリントで実装）",
       },
       installers: {
         label: "施工業者",
@@ -271,7 +315,7 @@ export const labels = {
       },
       incentiveRates: {
         label: "インセンティブ率",
-        description: "二次店ごとのインセンティブ率（粗利配分）マスタ",
+        description: "取引先ごとのインセンティブ率（粗利配分）マスタ",
       },
       cancelDeadline: {
         label: "キャンセル期限",
@@ -283,7 +327,7 @@ export const labels = {
       },
     },
     dealerRelationshipsPlaceholder: {
-      title: "二次店関係マスタは後続スプリントで実装予定です",
+      title: "取引先関係マスタは後続スプリントで実装予定です",
       description:
         "F-009（関係一覧 / スコープデフォルト）と F-010（招待コード発行）は SP-03 以降で実装されます。本タブは現時点ではプレースホルダです。",
       currentCount: "現在の関係数",
@@ -299,17 +343,17 @@ export const labels = {
     },
   },
 
-  // /masters/relationships — 二次店一覧マスタ（卸業者管理者向け）
+  // /masters/relationships — 取引先一覧マスタ（卸業者管理者向け）
   dealerRelationships: {
-    title: "二次店一覧",
-    subtitle: "卸業者と取引のある二次店の一覧。ステータスとスコープ既定値を管理します。",
-    empty: "二次店との関係はまだ登録されていません",
-    emptyCta: "招待コードを発行して二次店にサインアップしてもらうと、ここに表示されます",
+    title: "取引先一覧",
+    subtitle: "卸業者と取引のある取引先の一覧。ステータスとスコープ既定値を管理します。",
+    empty: "取引先との関係はまだ登録されていません",
+    emptyCta: "招待コードを発行して取引先にサインアップしてもらうと、ここに表示されます",
     fields: {
-      dealerName: "二次店名",
+      dealerName: "取引先名",
       franchiseNo: "加盟店番号",
       status: "ステータス",
-      defaultScope: "既定スコープ",
+      defaultScope: "対応範囲",
       note: "備考",
       createdAt: "登録日",
       updatedAt: "最終更新",
@@ -318,6 +362,30 @@ export const labels = {
     statuses: {
       ACTIVE: "有効",
       SUSPENDED: "停止中",
+      // 取引終了（論理削除）。一覧には出さないので、履歴表示用の呼称。
+      TERMINATED: "取引終了",
+    },
+    // 取引先の追加・削除。
+    create: {
+      trigger: "取引先を追加",
+      title: "取引先を追加",
+      description: "取引先名を登録すると、この卸業者との取引関係が作成されます。",
+      nameLabel: "取引先名",
+      namePlaceholder: "例: 株式会社サンプル電設",
+      submit: "追加",
+      cancel: "キャンセル",
+      submitting: "追加中…",
+      nameRequired: "取引先名を入力してください",
+    },
+    remove: {
+      trigger: "削除",
+      confirmTitle: "この取引先を削除しますか",
+      confirmBody:
+        "一覧から外れ、新規の担当先として選べなくなります。過去の顧客・契約・スタッフからの参照は残ります。",
+      submit: "削除する",
+      cancel: "キャンセル",
+      submitting: "削除中…",
+      columnLabel: "操作",
     },
     scopes: {
       APPOINTMENT_ONLY: "アポ取りまで",
@@ -434,7 +502,7 @@ export const labels = {
     promote: {
       title: "イベント候補に昇格",
       description:
-        "確定した場所提供元対応をイベント候補として登録します。回答期限までに二次店の希望を募集します。",
+        "確定した場所提供元対応をイベント候補として登録します。回答期限までに取引先の希望を募集します。",
       targetMonth: "対象年月（YYYY-MM）",
       scheduledDate: "実施予定日",
       storeName: "店舗名",
@@ -467,7 +535,7 @@ export const labels = {
   // S-023 / S-024 — F-018 イベント候補登録・編集
   //
   // 卸業者本部 (wholesaler_admin / wholesaler_event_team) 専用画面。
-  // 内部メモ・固定費・成果報酬率は二次店から不可視（DTO 物理除外、T-03-03）。
+  // 内部メモ・固定費・成果報酬率は取引先から不可視（DTO 物理除外、T-03-03）。
   eventCandidate: {
     title: "イベント候補",
     listTitle: "イベント候補一覧",
@@ -478,7 +546,7 @@ export const labels = {
     filterByStatus: "ステータスで絞り込み",
     filterByTargetMonth: "対象年月で絞り込み",
     allStatuses: "すべてのステータス",
-    internalOnlyNotice: "このセクションは卸業者専用です（二次店には公開されません）",
+    internalOnlyNotice: "このセクションは卸業者専用です（取引先には公開されません）",
     fields: {
       venueProvider: "場所提供元",
       venueNegotiation: "場所提供元対応",
@@ -499,7 +567,30 @@ export const labels = {
       perDayFee: "日当たりの報酬額（円）",
       revenueRate: "売上に対する報酬率（%）",
       contractNote: "メモ",
+      venueChain: "催事種別",
+      boothArea: "ブース場所",
+      boothAreaNote: "ブース場所（その他の内容）",
+      productCategory: "商材種別",
     },
+    // 催事種別（店舗チェーン）
+    venueChains: {
+      CAINZ_W: "カインズW",
+      CAINZ_V: "カインズV",
+      SHIMACHU: "島忠",
+      KOMERI: "コメリ",
+      OTHER: "その他",
+    },
+    // ブース場所（施設内エリア）。エリア（地域）とは別項目。
+    boothAreas: {
+      ENTRANCE: "店頭入口付近",
+      REFORM_CORNER: "リフォームコーナー付近",
+      OTHER: "その他",
+    },
+    productCategories: {
+      HOUSING_EQUIPMENT: "住設設備",
+      REAL_ESTATE: "不動産",
+    },
+    boothAreaNotePlaceholder: "例）園芸コーナー横 特設スペース",
     statuses: {
       DRAFT: "下書き",
       OPEN: "希望受付中",
@@ -513,7 +604,7 @@ export const labels = {
       contract: "場所提供元との契約条件",
       internal: "卸業者内部メモ",
       status: "ステータス",
-      visibility: "二次店共有設定",
+      visibility: "取引先共有設定",
       history: "対応履歴",
     },
     actions: {
@@ -529,15 +620,15 @@ export const labels = {
       cancelling: "中止処理中…",
     },
     visibility: {
-      heading: "二次店共有設定",
+      heading: "取引先共有設定",
       description:
-        "公開する二次店をチェックして「公開する」ボタンを押すと、対象の二次店にイベント候補が表示されます。固定費・成果報酬率・卸業者内部メモは二次店には公開されません。",
+        "公開する取引先をチェックして「公開する」ボタンを押すと、対象の取引先にイベント候補が表示されます。固定費・成果報酬率・卸業者内部メモは取引先には公開されません。",
       draftDisabledNotice:
         "下書き状態では公開できません。先にイベント候補を「希望受付を開始（公開）」してください。",
       noRelationships:
-        "アクティブな二次店関係がありません。先に二次店を登録・関係を有効化してください。",
+        "アクティブな取引先関係がありません。先に取引先を登録・関係を有効化してください。",
       tableHeaderSelect: "選択",
-      tableHeaderDealer: "二次店",
+      tableHeaderDealer: "取引先",
       tableHeaderStatus: "現在の公開状態",
       published: "公開中",
       notPublished: "未公開",
@@ -548,9 +639,9 @@ export const labels = {
       publishing: "公開処理中…",
       unpublishSelected: "公開取消",
       unpublishing: "公開取消処理中…",
-      publishedToast: "対象の二次店に公開しました",
+      publishedToast: "対象の取引先に公開しました",
       unpublishedToast: "公開を取り消しました",
-      selectAtLeastOne: "対象の二次店を 1 件以上選択してください",
+      selectAtLeastOne: "対象の取引先を 1 件以上選択してください",
     },
     errors: {
       targetMonthRequired: "対象年月を入力してください",
@@ -563,17 +654,17 @@ export const labels = {
     },
   },
 
-  // S-025 / S-026 — F-022 二次店希望状況確認 (T-03-07 / docs/04 §1.3).
+  // S-025 / S-026 — F-022 取引先希望状況確認 (T-03-07 / docs/04 §1.3).
   //
   // 卸業者本部 (wholesaler_admin / wholesaler_event_team) 専用の集計画面。
-  // 「二次店別」「店舗別」の 2 ビュー。期限超過の未提出二次店は `destructive`
+  // 「取引先別」「店舗別」の 2 ビュー。期限超過の未提出取引先は `destructive`
   // バッジで強調表示する（docs/02 §F-022 受入基準）。
   eventCandidatePreferences: {
-    title: "二次店希望状況",
-    subtitle: "公開対象の二次店ごとに提出状況を一覧表示します。",
+    title: "取引先希望状況",
+    subtitle: "公開対象の取引先ごとに提出状況を一覧表示します。",
     backToCandidate: "イベント候補詳細へ戻る",
     deadlineLine: "回答期限",
-    deadlinePassedBanner: "回答期限を過ぎました。未提出の二次店は提出できません。",
+    deadlinePassedBanner: "回答期限を過ぎました。未提出の取引先は提出できません。",
     storeLine: "対象店舗",
     targetMonthLine: "対象年月",
     scheduledDateLine: "実施予定日",
@@ -584,14 +675,14 @@ export const labels = {
       overdue: "未提出（期限超過）",
     },
     tabs: {
-      byDealer: "二次店別",
+      byDealer: "取引先別",
       byStore: "店舗別",
     },
     byDealer: {
-      heading: "二次店別 提出状況",
-      empty: "公開対象の二次店がありません。先にイベント候補詳細から二次店共有を行ってください。",
+      heading: "取引先別 提出状況",
+      empty: "公開対象の取引先がありません。先にイベント候補詳細から取引先共有を行ってください。",
       columns: {
-        dealer: "二次店",
+        dealer: "取引先",
         status: "提出状況",
         priority: "優先順位",
         availablePeople: "対応可能人数",
@@ -620,10 +711,10 @@ export const labels = {
     none: "—",
   },
 
-  // S-059 — F-020 二次店向けイベント候補閲覧 (T-03-05 / docs/04 §1.5).
+  // S-059 — F-020 取引先向けイベント候補閲覧 (T-03-05 / docs/04 §1.5).
   //
-  // 二次店メンバ (dealer_admin / dealer_staff) のみが参照する画面。卸業者の
-  // 内部情報 (固定費 / 成果報酬率 / 内部メモ / 他社二次店の希望状況) は
+  // 取引先メンバ (dealer_admin / dealer_staff) のみが参照する画面。卸業者の
+  // 内部情報 (固定費 / 成果報酬率 / 内部メモ / 他社取引先の希望状況) は
   // `EventCandidateForDealerDto` で物理除外しているため、表示する文字列も
   // 卸業者画面と完全に分離する（同じ "イベント候補" でも視点が異なるため）。
   eventCandidateDealer: {
@@ -649,9 +740,9 @@ export const labels = {
     deadlinePassed: "希望提出期限を過ぎています",
   },
 
-  // S-060 — F-021 二次店希望店舗回答 (T-03-06 / docs/04 §1.5).
+  // S-060 — F-021 取引先希望店舗回答 (T-03-06 / docs/04 §1.5).
   //
-  // 二次店 (dealer_admin / dealer_staff) が公開中イベント候補に対して希望を
+  // 取引先 (dealer_admin / dealer_staff) が公開中イベント候補に対して希望を
   // 提出するフォーム。本画面は単一 EventCandidate に対する希望の submit /
   // update / withdraw に責務を限定し、F-021 「1 件以上の候補」要件は複数候補
   // を順に経由する形で UI 側で担保する。期限超過 / 候補 status NOT OPEN 時は
@@ -724,7 +815,7 @@ export const labels = {
       capacity: "容量",
       unit: "単位",
       purchasePrice: "仕入値（円）",
-      dealerPrice: "二次店向け卸値（円）",
+      dealerPrice: "取引先向け卸値（円）",
       listPrice: "参考売価（円）",
       effectiveFrom: "適用開始日",
       effectiveTo: "適用終了日",
@@ -773,17 +864,17 @@ export const labels = {
   // S-052 サブ — F-014 インセンティブ率マスタ
   incentiveRate: {
     title: "インセンティブ率マスタ",
-    listTitle: "二次店ごとのインセンティブ率",
+    listTitle: "取引先ごとのインセンティブ率",
     new: "インセンティブ率を新規登録",
     edit: "インセンティブ率を編集",
     empty: "インセンティブ率未登録",
     emptyCta: "最初のインセンティブ率を登録しましょう",
-    groupBy: "二次店",
-    relationshipColumn: "対象関係（二次店）",
+    groupBy: "取引先",
+    relationshipColumn: "対象関係（取引先）",
     currentRate: "現在の率",
     noCurrentRate: "現在有効な率はありません",
     fields: {
-      relationship: "対象関係（二次店）",
+      relationship: "対象関係（取引先）",
       targetType: "対象粗利種別",
       rate: "率（%）",
       effectiveFrom: "適用開始日",
@@ -807,11 +898,11 @@ export const labels = {
       updateSubmit: "保存",
     },
     errors: {
-      relationshipRequired: "関係（二次店）を選択してください",
+      relationshipRequired: "関係（取引先）を選択してください",
       rateRequired: "率（%）を入力してください",
       effectiveFromRequired: "適用開始日を入力してください",
       effectiveOrderInvalid: "適用終了日は適用開始日より後にしてください",
-      noActiveRelationships: "有効な二次店との関係が未登録です。先に関係を登録してください。",
+      noActiveRelationships: "有効な取引先との関係が未登録です。先に関係を登録してください。",
     },
     notices: {
       overlapClose:
@@ -842,7 +933,7 @@ export const labels = {
       fiscalYearStartMonth:
         "年度集計の起点月を設定します（4 月始まり、1 月始まり等）。月次集計は暦月固定です。",
       piiMaskingMode:
-        "二次店メンバ向けの顧客 PII（電話・住所・氏名）の表示制御。MASKED は常時マスク、FULL は非マスク、PARTIAL は部分マスク（電話下 4 桁可視・住所と氏名はマスク）です。",
+        "取引先メンバ向けの顧客 PII（電話・住所・氏名）の表示制御。MASKED は常時マスク、FULL は非マスク、PARTIAL は部分マスク（電話下 4 桁可視・住所と氏名はマスク）です。",
     },
     piiMaskingModes: {
       MASKED: "マスク（既定）",
@@ -907,7 +998,7 @@ export const labels = {
     },
     types: {
       WHOLESALER: "卸業者",
-      DEALER: "二次店",
+      DEALER: "取引先",
     },
     plans: {
       PILOT: "パイロット",
@@ -1117,28 +1208,28 @@ export const labels = {
     fields: {
       mode: "開催体制",
       requiredPeople: "必要人数",
-      dealerRelationshipIds: "担当二次店",
+      dealerRelationshipIds: "担当取引先",
       reason: "中止理由",
       note: "備考",
     },
     modes: {
       SELF: "自社開催",
-      DEALER: "二次店開催",
+      DEALER: "取引先開催",
       JOINT: "共同開催",
       CANCELLED: "中止",
     },
     modeDescriptions: {
       SELF: "自社スタッフのみで開催します。必要人数を入力してください。",
-      DEALER: "担当二次店が単独で開催します。担当二次店を選択してください。",
-      JOINT: "自社と担当二次店が共同で開催します。必要人数と担当二次店を入力してください。",
+      DEALER: "担当取引先が単独で開催します。担当取引先を選択してください。",
+      JOINT: "自社と担当取引先が共同で開催します。必要人数と担当取引先を入力してください。",
       CANCELLED: "このイベント候補を中止します。イベントは作成されません。",
     },
     preferenceStatus: {
       submitted: "提出済み",
       notSubmitted: "未提出",
       heading: "希望提出状況サマリ",
-      submittedDealers: "提出済み二次店",
-      notSubmittedDealers: "未提出二次店",
+      submittedDealers: "提出済み取引先",
+      notSubmittedDealers: "未提出取引先",
       noPreferences: "希望提出がありません",
     },
     actions: {
@@ -1161,7 +1252,7 @@ export const labels = {
     decideLinkText: "開催体制を決定する",
     errors: {
       requiredPeopleRequired: "自社開催・共同開催では必要人数（1以上）を入力してください",
-      dealerRequired: "二次店開催・共同開催では担当二次店を 1 件以上選択してください",
+      dealerRequired: "取引先開催・共同開催では担当取引先を 1 件以上選択してください",
       reasonRequired: "中止の場合は理由を入力してください",
       invalidStatus: "OPEN または CLOSED 状態のイベント候補のみ開催体制を決定できます",
     },
@@ -1174,9 +1265,9 @@ export const labels = {
       confirmDescription: "変更前後の差分は変更履歴に記録されます。",
     },
     scopeOverride: {
-      title: "二次店スコープ上書き",
+      title: "取引先スコープ上書き",
       subtitle:
-        "このイベントの担当二次店のスコープを個別に上書きできます。未設定の場合は関係のデフォルトスコープが適用されます。",
+        "このイベントの担当取引先のスコープを個別に上書きできます。未設定の場合は関係のデフォルトスコープが適用されます。",
       fields: {
         scope: "スコープ",
         reason: "変更理由",
@@ -1194,7 +1285,7 @@ export const labels = {
       },
       errors: {
         reasonRequired: "変更理由を入力してください",
-        eventDealerNotFound: "指定した担当二次店がこのイベントに存在しません",
+        eventDealerNotFound: "指定した担当取引先がこのイベントに存在しません",
       },
       success: {
         updated: "スコープ上書きを保存しました",
@@ -1379,6 +1470,9 @@ export const labels = {
     confirmed: "開催確定",
     prospective: "開催見込み",
     unassigned: "未アサイン",
+    // 週次カレンダーの日セル。人が足りている日／催事が無い日を静かに示す。
+    allAssigned: "アサイン済",
+    noEvents: "—",
     prevWeek: "前週",
     nextWeek: "次週",
     thisWeek: "今週",
@@ -1420,15 +1514,15 @@ export const labels = {
     addAssign: "アサイン設定",
     assignNotAvailable: "開催体制が決定されると担当者をアサインできます",
     affiliationSelf: "自社",
-    affiliationDealer: "二次店",
+    affiliationDealer: "取引先",
     assignNamePlaceholder: "担当者名を入力",
     assignDialogTitle: "アサイン設定",
     assignModeLabel: "開催体制",
     assignModeSelf: "自社開催",
-    assignModeDealer: "二次店開催",
+    assignModeDealer: "取引先開催",
     assignModeJoint: "混合開催",
     assignSelectStaff: "自社要員を選択",
-    assignDealerName: "二次店事業者名",
+    assignDealerName: "取引先事業者名",
     assignDealerNamePlaceholder: "事業者名を入力",
     assignOverallStatus: "アサインステータス",
     assignMemo: "メモ",
@@ -1543,10 +1637,10 @@ export const labels = {
     },
   },
 
-  // S-089 — F-060 二次店レーン希望一覧（アコーディオン）。卸業者ビュー。
+  // S-089 — F-060 取引先レーン希望一覧（アコーディオン）。卸業者ビュー。
   lanePreference: {
-    title: "二次店希望一覧",
-    subtitle: "二次店ごとのレーン希望を月単位で確認できます",
+    title: "取引先希望一覧",
+    subtitle: "取引先ごとのレーン希望を月単位で確認できます",
     empty: "該当する希望提出はありません",
     csvExport: "CSV出力",
     submittedAtLabel: "提出日時",
@@ -1555,8 +1649,8 @@ export const labels = {
     laneCountBadge: "希望レーン {n}件",
     filter: {
       month: "対象月",
-      dealer: "二次店",
-      allDealers: "すべての二次店",
+      dealer: "取引先",
+      allDealers: "すべての取引先",
       search: "検索",
       clear: "クリア",
       resultCount: "件",
@@ -1585,21 +1679,21 @@ export const labels = {
   commission: {
     list: {
       title: "手数料一覧",
-      subtitle: "二次店ごとの手数料を確認できます",
+      subtitle: "取引先ごとの手数料を確認できます",
     },
     settings: {
       title: "手数料設定",
       subtitle: "手数料の計算ルールを設定できます",
     },
     placeholder: "この画面は準備中です。",
-    // 手数料設定ページ専用ラベル（二次店一覧 / インセンティブ率カード /
+    // 手数料設定ページ専用ラベル（取引先一覧 / インセンティブ率カード /
     // 適用期間 / 計算プレビュー / 変更履歴）。値は全てクライアント側のサンプル
     // で、保存はプレースホルダ（永続化なし）。
     settingsPage: {
-      listTitle: "二次店一覧",
+      listTitle: "取引先一覧",
       addRule: "ルール追加",
       columns: {
-        dealerName: "二次店名",
+        dealerName: "取引先名",
         tossUpRate: "トスアップ率",
         closingRate: "クロージング率",
       },
@@ -1635,16 +1729,16 @@ export const labels = {
       },
       historyEmpty: "変更履歴はまだありません。",
       save: "保存",
-      empty: "二次店が登録されていません",
+      empty: "取引先が登録されていません",
       percentSuffix: "%",
     },
     // 手数料一覧ページ専用ラベル（フィルタ・列見出し・支払状況・件数）。
     listPage: {
-      sectionTitle: "二次店別 手数料",
+      sectionTitle: "取引先別 手数料",
       filter: {
         targetMonth: "対象月",
-        dealer: "二次店",
-        allDealers: "すべての二次店",
+        dealer: "取引先",
+        allDealers: "すべての取引先",
         paymentStatus: "支払状況",
         all: "すべて",
         search: "検索",
@@ -1652,7 +1746,7 @@ export const labels = {
         csvExport: "CSV出力",
       },
       columns: {
-        dealerName: "二次店名",
+        dealerName: "取引先名",
         targetMonth: "対象月",
         customerCount: "対象顧客数",
         totalFee: "手数料合計",
@@ -1707,6 +1801,126 @@ export const labels = {
   },
 
   // 施工一覧 / 申請一覧（サイドバー導線。ページ内要素は後続で定義するプレースホルダ）。
+  // スタッフ一覧（設定配下のマスタ画面）。
+  // スタッフは認証 User とは別概念で、ログインしない催事販売員も含めて管理する。
+  // 所属は Salesperson.relationshipId の有無で判定し、会社名は Relationship /
+  // 自テナントから導出する（加盟店名を文字列で複製しない）。
+  salespersonList: {
+    title: "スタッフ一覧",
+    // スタッフ（Salesperson）とシステムユーザー（User）は別管理。
+    subtitle: "催事に立つスタッフの管理です（ログインアカウントはシステムユーザー）",
+    // スタッフの削除。物理削除ではなく isActive = false の論理削除。
+    remove: {
+      trigger: "削除",
+      confirmTitle: "このスタッフを削除しますか",
+      confirmBody:
+        "一覧から外れ、新規の担当者として選べなくなります。過去の顧客担当実績やイベントアサインは残ります。",
+      submit: "削除する",
+      cancel: "キャンセル",
+      submitting: "削除中…",
+    },
+    empty: "該当するスタッフがいません",
+    emptyCta: "検索条件を変更するか、「スタッフを登録」から追加してください。",
+    new: "スタッフを登録",
+    newTitle: "スタッフを登録",
+    editTitle: "スタッフを編集",
+    backToList: "スタッフ一覧へ戻る",
+    /** 所属タブ。既存 UI の affiliationSelf/Dealer（自社 / 取引先）と揃える。 */
+    tabs: {
+      self: "自社スタッフ",
+      dealer: "取引先スタッフ",
+    },
+    filters: {
+      name: "氏名・カナ",
+      searchPlaceholder: "氏名・カナで検索",
+      company: "所属取引先",
+      employmentType: "雇用形態",
+      all: "すべて",
+      resultCount: "表示件数: {total}件",
+    },
+    /** 【並び替え項目】の選択肢。所属会社は Relationship 側の名称で並べる。 */
+    sortFieldLabels: {
+      name: "氏名",
+      company: "加盟店名",
+      created_at: "登録日時",
+    } as Record<string, string>,
+    // 通常行に出す列。PII（生年月日・性別・住所）は展開バナー側。
+    columns: {
+      name: "氏名",
+      kana: "カナ",
+      companyName: "加盟店名",
+      systemUser: "システム利用",
+      employmentType: "雇用形態",
+      phone: "電話番号",
+      email: "メールアドレス",
+    },
+    // 行の展開（詳細バナー）。文言は他一覧と揃える。
+    expand: {
+      open: "詳細を開く",
+      close: "詳細を閉じる",
+      detailLink: "編集",
+    },
+    /** 展開バナー / 編集フォームの項目名。 */
+    fields: {
+      name: "氏名（漢字）",
+      kana: "氏名（カナ）",
+      companyName: "加盟店名",
+      relationship: "所属取引先",
+      linkedUser: "ログインユーザー",
+      roles: "ロール",
+      staffProfile: "スタッフ情報",
+      tossUpCustomerCount: "トスアップ担当",
+      closingCustomerCount: "クロージング担当",
+      eventAssignmentCount: "イベント担当",
+      gender: "性別",
+      birthDate: "生年月日（任意）",
+      phone: "電話番号",
+      email: "メールアドレス",
+      address: "現住所",
+      employmentType: "雇用形態",
+      note: "備考",
+      isActive: "有効",
+    },
+    /** 生年月日は任意入力。未入力（DB は null）はこの文言で表示する。 */
+    birthDateUnset: "未登録",
+    customerCountSuffix: "件",
+    /** ログイン User が紐づいているか（= 本アプリを使える人物か）。 */
+    systemUserYes: "あり",
+    systemUserNo: "なし",
+    /** Salesperson（スタッフ業務プロフィール）行の有無。 */
+    staffProfileSet: "登録済",
+    staffProfileUnset: "スタッフ情報未登録",
+    /** User だけの人物からスタッフ情報を登録するときのフォーム見出し。 */
+    newFromUserTitle: "スタッフ情報を登録",
+    selfCompanyHint: "自社スタッフの所属会社は自テナント名から表示します",
+    relationshipUnset: "自社（取引先に所属しない）",
+    linkedUserUnset: "紐付けなし",
+    linkedUserHint: "同一人物の自社ログインユーザーがいれば紐付けます（取引先スタッフは対象外）",
+    linkedUserTaken: "（別のスタッフに紐付け済み）",
+    genderLabels: {
+      MALE: "男性",
+      FEMALE: "女性",
+      OTHER: "その他",
+    } as Record<string, string>,
+    employmentTypeLabels: {
+      EMPLOYEE: "正社員",
+      CONTRACT: "契約社員",
+      PART_TIME: "アルバイト・パート",
+      SUBCONTRACT: "業務委託",
+      OTHER: "その他",
+    } as Record<string, string>,
+    inactiveBadge: "無効",
+    /** イベント詳細の販売員アサインセクション。 */
+    assign: {
+      title: "販売員",
+      hint: "この催事に立つスタッフを選択します（自社社員のシフトとは別管理）。",
+      empty: "販売員が未アサインです",
+      save: "アサインを保存",
+      saving: "保存中…",
+      noCandidates: "登録済みのスタッフがいません。設定 > スタッフ一覧から登録してください。",
+    },
+  },
+
   constructionList: {
     title: "施工一覧",
     subtitle: "施工予定・現地調査・完工状況を一覧で確認できます。",
@@ -1887,7 +2101,7 @@ export const labels = {
       mode: "開催体制",
       status: "ステータス",
       requiredPeople: "必要人数",
-      dealerCount: "担当二次店数",
+      dealerCount: "担当取引先数",
       reportStatus: "報告状況",
       updatedAt: "最終更新",
       lastUpdated: "最終更新日",
@@ -1899,7 +2113,7 @@ export const labels = {
     },
     modes: {
       SELF: "自社開催",
-      DEALER: "二次店開催",
+      DEALER: "取引先開催",
       JOINT: "共同開催",
       CANCELLED: "中止",
     },
@@ -1922,23 +2136,24 @@ export const labels = {
     },
     reportOrgTypes: {
       WHOLESALER: "自社",
-      DEALER: "二次店",
+      DEALER: "取引先",
     },
     sections: {
       info: "イベント情報",
       basicInfo: "基本情報",
       contractConditions: "契約条件",
       assignInfo: "アサイン情報",
-      dealers: "担当二次店",
+      dealers: "担当取引先",
       shifts: "シフト",
       reports: "報告状況",
       customers: "関連顧客",
     },
     noReports: "報告はまだありません",
-    noDealers: "担当二次店はありません",
+    noDealers: "担当取引先はありません",
     noShifts: "シフトは未設定です",
     noCustomers: "関連顧客はまだ登録されていません",
     customerCountSuffix: "件の顧客が登録されています。",
+    registerCustomer: "このイベントから顧客を登録",
     manageShifts: "シフト管理",
     table: {
       columns: {
@@ -1946,7 +2161,7 @@ export const labels = {
         scheduledDate: "実施日",
         mode: "開催体制",
         status: "ステータス",
-        dealers: "担当二次店数",
+        dealers: "担当取引先数",
         reports: "報告",
         actions: "操作",
       },
@@ -1954,7 +2169,7 @@ export const labels = {
   },
 
   // S-061 / S-062 — F-027 配属済みイベント一覧・詳細 (T-04-02)
-  // 二次店ビュー (dealer_admin / dealer_staff)
+  // 取引先ビュー (dealer_admin / dealer_staff)
   eventDealer: {
     title: "担当イベント",
     listTitle: "担当イベント一覧",
@@ -1981,7 +2196,7 @@ export const labels = {
     },
     modes: {
       SELF: "自社開催",
-      DEALER: "二次店開催",
+      DEALER: "取引先開催",
       JOINT: "共同開催",
       CANCELLED: "中止",
     },
@@ -2022,7 +2237,7 @@ export const labels = {
 
   // S-032 / S-033 / S-057 / S-064 / S-065 — F-031 顧客登録・編集 (T-04-06).
   //
-  // 卸業者と二次店の両ロールが使う顧客管理ラベル。PII マスキング表示は
+  // 卸業者と取引先の両ロールが使う顧客管理ラベル。PII マスキング表示は
   // MaskingService が適用した後の文字列がここのラベルと組み合わさる。
   customer: {
     title: "顧客管理",
@@ -2114,6 +2329,8 @@ export const labels = {
         postCompletionCall: "施工完了",
         nextTask: "次回対応",
       },
+      // 予定が無い行の 1 行目。行高を揃えるため、空欄にせずこの文言を出す。
+      nextTaskNone: "予定なし",
       // 「次回対応」に出す対応項目名（NEXT_TASK_KIND_VALUES と 1:1）。
       nextTaskKindLabels: {
         maekaku: "マエカク",
@@ -2154,6 +2371,11 @@ export const labels = {
       },
     },
     new: "顧客を新規登録",
+    // イベント詳細から登録したときの補足（販売チャネルは催事で固定される）。
+    eventSalesChannelLocked: "イベントからの登録のため、販売チャネルは「催事」で固定されます",
+    // 催事 ID は内部識別子。人が手入力する値ではないので、どこから入るのかを書く。
+    sourceEventIdFromEvent: "イベント画面から登録したため自動で入りました",
+    sourceEventIdHint: "イベント詳細の「顧客を登録」から開くと自動で入ります",
     newShort: "＋ 新規顧客登録",
     honorific: "様",
     openDetail: "詳細を開く",
@@ -2195,6 +2417,38 @@ export const labels = {
       contractStatus: "契約状況",
       constructionStatus: "施工状況",
       subsidyStatus: "設置申請状況",
+      // 一覧を「顧客 / 進捗 / 次アクション / 後工程」の 4 つの意味の塊に
+      // まとめたときの見出し。
+      customer: "顧客",
+      progress: "進捗",
+      nextAction: "次アクション",
+      downstream: "後工程",
+    },
+    // 次アクション（既存フィールドからの表示上の導出。next-action.ts）。
+    // 全行を「何をするか（label）／いつ・何が不足か（detail）」の 2 段に揃える。
+    // 日付そのものを label にしない — 予定か期限か督促かが読み取れなくなるため。
+    nextActions: {
+      closed: "—",
+      appointmentSet: "アポ設定",
+      appointmentMissing: "未設定",
+      appointmentNext: "次回アポ",
+      maekaku: "マエカク実施",
+      maekakuPending: "未実施",
+      survey: "現地調査",
+      surveyPending: "未実施",
+      construction: "施工",
+      constructionPending: "着工待ち",
+      constructionRunning: "進行中",
+      subsidySubmit: "申請提出",
+      subsidyUnsubmitted: "未提出",
+      subsidyResult: "申請結果",
+      subsidyInReview: "審査中",
+      completed: "完了",
+      none: "—",
+    },
+    // ステータスのクイック絞り込み（既存の contractStatus パラメータのみを使う）。
+    quickFilters: {
+      all: "すべて",
     },
     maekakuLabels: {
       present: "済",
@@ -2248,15 +2502,21 @@ export const labels = {
       editAssignee: "担当者を変更",
       changeAssignee: "変更",
       assigneeLabel: "担当者",
+      /** 取引先を選んだあとに選ぶ「その取引先に所属するスタッフ」。 */
+      assigneeStaffLabel: "担当スタッフ",
+      /** 既存データは会社までしか記録が無いことがあるので、その場合の表示。 */
+      assigneeStaffUnset: "未登録",
+      /** 過去データ（*UserId のみ）で残っている担当者の現在値表示。新規候補には出さない。 */
+      assigneeLegacyUserOption: (name: string) => `${name}（過去データ）`,
       unassigned: "未設定",
       ownStaffBadge: "自社",
-      dealerBadge: "二次店",
+      dealerBadge: "取引先",
       // 担当者変更ダイアログの 1 段目（所属区分）。2 段目の担当者候補を
-      // 自社社員(User) / 二次店(Relationship) のどちらから出すかを決める。
+      // 自社社員(User) / 取引先(Relationship) のどちらから出すかを決める。
       // 区分そのものは保存せず、どちらの ID 列に値が入るかで復元する。
       assigneeKind: "所属区分",
       ownStaffGroup: "自社社員",
-      dealerGroup: "二次店",
+      dealerGroup: "取引先",
       areaUnset: "未設定",
       // ヘッダー直下の at-a-glance ステータス帯用の短縮ラベル。
       glance: {
@@ -2854,6 +3114,8 @@ export const labels = {
         buildYear: "築年日",
         tossDept: "トス部署",
         belongDept: "所属部署",
+        salesChannel: "販売チャネル",
+        faceToFace: "対面者",
         electricContractStatus: "電気契約状況",
         electricAccountNo: "お客様番号",
         supplyPointNo: "供給地点番号",
@@ -2865,6 +3127,20 @@ export const labels = {
         OUTBOUND_CALL: "アウトバウンドコール",
         DIRECT_VISIT: "直訪問",
       },
+      // 販売チャネル。獲得チャネル (channel: AcquisitionChannel) とは別項目。
+      salesChannelLabels: {
+        VISIT_SALES: "訪問販売",
+        INBOUND: "反響",
+        EVENT: "催事",
+        REFERRAL: "紹介",
+        OTHER: "その他",
+      },
+      // 対面者は Customer.faceToFace（true/false/null）の 3 状態を言い換えたもの。
+      faceToFaceLabels: {
+        sovereign: "主権者",
+        nonSovereign: "非主権者",
+      },
+      salesSection: "販売情報",
       quoteSection: {
         title: "見積",
         record: "見積を記録",
@@ -3006,7 +3282,7 @@ export const labels = {
       sourceEventId: "催事 ID",
       status: "ステータス",
       note: "備考",
-      ownerRelationshipId: "担当二次店",
+      ownerRelationshipId: "担当取引先",
       createdAt: "登録日時",
       updatedAt: "最終更新",
     },
@@ -3052,7 +3328,7 @@ export const labels = {
 
   // S-034 / S-074 / S-075 — F-033 / F-034 アポ登録・編集・一覧 (T-04-08).
   //
-  // 卸業者と二次店双方が利用するアポ管理ラベル。
+  // 卸業者と取引先双方が利用するアポ管理ラベル。
   appointment: {
     title: "アポ管理",
     listTitle: "アポ一覧",
@@ -3112,7 +3388,7 @@ export const labels = {
       eventId: "催事 ID（任意）",
       scheduledAt: "訪問予定日時",
       location: "場所（任意）",
-      acquiredRelationshipId: "取得元二次店（任意）",
+      acquiredRelationshipId: "取得元取引先（任意）",
       appointmentType: "種別（任意）",
       status: "ステータス",
       note: "備考（任意）",
@@ -3162,7 +3438,7 @@ export const labels = {
   // S-035 — F-035 マエカク管理 (T-04-09 / docs/04 §1.3).
   //
   // 卸業者本部 (wholesaler_admin / wholesaler_call_team) 専用画面。
-  // 二次店ロールは URL 直叩きも含めて 403。
+  // 取引先ロールは URL 直叩きも含めて 403。
   preCall: {
     title: "マエカク管理",
     listTitle: "マエカク履歴",
@@ -3213,19 +3489,19 @@ export const labels = {
     },
   },
 
-  // S-036 / S-066 / S-077 — F-036 / F-037 マエカク結果連絡・二次店確認 (T-04-10).
+  // S-036 / S-066 / S-077 — F-036 / F-037 マエカク結果連絡・取引先確認 (T-04-10).
   //
-  // 卸業者側: 対象二次店チェックリスト + 連絡ボタン + 連絡済みステータス表示。
-  // 二次店側: マエカク結果通知一覧 + 確認ボタン → ACKNOWLEDGED に更新。
+  // 卸業者側: 対象取引先チェックリスト + 連絡ボタン + 連絡済みステータス表示。
+  // 取引先側: マエカク結果通知一覧 + 確認ボタン → ACKNOWLEDGED に更新。
   preCallNotification: {
     title: "マエカク結果連絡",
     listTitle: "マエカク結果通知一覧",
-    sendTitle: "二次店への結果連絡",
-    sendDescription: "マエカク結果を対象の二次店に通知します。",
+    sendTitle: "取引先への結果連絡",
+    sendDescription: "マエカク結果を対象の取引先に通知します。",
     ackTitle: "マエカク結果の確認",
     noNotifications: "通知はありません",
     fields: {
-      relationship: "二次店",
+      relationship: "取引先",
       status: "ステータス",
       notifiedAt: "連絡日時",
       acknowledgedAt: "確認日時",
@@ -3248,14 +3524,14 @@ export const labels = {
     },
     feedback: {
       sent: "マエカク結果を連絡しました",
-      alreadySent: "この二次店はすでに連絡済みです",
+      alreadySent: "この取引先はすでに連絡済みです",
       acknowledged: "確認済みにしました",
       alreadyAcknowledged: "すでに確認済みです",
     },
     errors: {
       preCallNotFound: "マエカクが見つかりません",
       notificationNotFound: "通知が見つかりません",
-      noRelationshipSelected: "通知対象の二次店を 1 件以上選択してください",
+      noRelationshipSelected: "通知対象の取引先を 1 件以上選択してください",
     },
     selectAll: "すべて選択",
     clearSelection: "選択を解除",
@@ -3298,7 +3574,7 @@ export const labels = {
 
   // S-037 / S-038 / S-067 — F-038 商談・クロージング管理 (T-05-03 / docs/04 §1.3 §1.5).
   //
-  // 卸業者 (S-037/S-038) と二次店 (S-067) の両側で利用する商談管理ラベル。
+  // 卸業者 (S-037/S-038) と取引先 (S-067) の両側で利用する商談管理ラベル。
   // ステータス遷移ボタン・スコープ制限バッジ・ページネーションを含む。
   deal: {
     title: "商談管理",
@@ -3344,7 +3620,7 @@ export const labels = {
     },
     ownerTypes: {
       WHOLESALER: "自社",
-      DEALER: "二次店",
+      DEALER: "取引先",
     },
     scopeCapabilities: {
       readOnly: "閲覧のみ（アポ獲得まで）",
@@ -3433,7 +3709,7 @@ export const labels = {
       cancelDeadline: "キャンセル期限",
       incentiveRateSnapshot: "インセンティブ率スナップショット（%）",
       incentiveTargetTypeSnapshot: "インセンティブ対象粗利種別スナップショット",
-      isSelfHosted: "自社開催案件（二次店インセンティブ対象外）",
+      isSelfHosted: "自社開催案件（取引先インセンティブ対象外）",
       status: "ステータス",
       createdAt: "登録日時",
       updatedAt: "最終更新",
@@ -3500,9 +3776,9 @@ export const labels = {
     },
   },
 
-  // S-065 — 二次店 契約一覧・詳細 (T-05-09 / F-040 / docs/04 §1.5).
+  // S-065 — 取引先 契約一覧・詳細 (T-05-09 / F-040 / docs/04 §1.5).
   //
-  // 二次店ロール (dealer_admin / dealer_staff) 向け契約一覧・詳細。
+  // 取引先ロール (dealer_admin / dealer_staff) 向け契約一覧・詳細。
   // snapshotPurchasePrice は DTO 物理除外。施工費・卸業者内部情報も非表示。
   // 自社関与 (ownerRelationshipId IN ctx.relationshipIds) のみ表示。
   dealerContract: {
@@ -3525,7 +3801,7 @@ export const labels = {
       totalAmount: "契約金額（円）",
       cancelDeadline: "キャンセル期限",
       status: "ステータス",
-      dealerPrice: "二次店卸値（円）",
+      dealerPrice: "取引先卸値（円）",
       listPrice: "参考売価（円）",
     },
     statuses: {
@@ -3545,22 +3821,22 @@ export const labels = {
     },
   },
 
-  // S-039 — F-039 二次店商談・クロージング報告一覧 (T-05-04 / docs/04 §1.3 S-039).
+  // S-039 — F-039 取引先商談・クロージング報告一覧 (T-05-04 / docs/04 §1.3 S-039).
   //
   // 卸業者 (wholesaler_admin / wholesaler_direct_sales) 専用。
-  // 二次店所有の商談更新（ownerType = DEALER）を一覧表示し、
+  // 取引先所有の商談更新（ownerType = DEALER）を一覧表示し、
   // 契約見込み行を強調。「商談詳細へ」で S-038 に遷移する。
   dealReport: {
-    listTitle: "二次店商談・クロージング報告",
-    subtitle: "二次店が更新した商談の最新ステータスを確認できます",
-    empty: "該当する二次店商談報告がありません",
+    listTitle: "取引先商談・クロージング報告",
+    subtitle: "取引先が更新した商談の最新ステータスを確認できます",
+    empty: "該当する取引先商談報告がありません",
     emptyCta: "フィルタ条件を変更するか、対象月を切り替えてください",
     filterByMonth: "対象月",
     goToDetail: "商談詳細へ",
     fields: {
       customer: "顧客",
       status: "ステータス",
-      dealer: "担当二次店",
+      dealer: "担当取引先",
       updatedAt: "最終更新",
     },
   },
@@ -3568,9 +3844,9 @@ export const labels = {
   // S-044 — F-041 契約明細登録（価格スナップショット）(T-05-07 / docs/04 §1.3 S-044).
   //
   // 卸業者 (WHOLESALER_ADMIN / WHOLESALER_DIRECT_SALES) 専用の契約明細管理画面。
-  // 価格スナップショット列（仕入値 / 二次店卸値 / 参考売価）を一括表示し、
+  // 価格スナップショット列（仕入値 / 取引先卸値 / 参考売価）を一括表示し、
   // 商品選択 + 数量入力で明細を全置換する。
-  // 二次店向け DTO では snapshotPurchasePrice を物理除外する（CLAUDE.md rule #5）。
+  // 取引先向け DTO では snapshotPurchasePrice を物理除外する（CLAUDE.md rule #5）。
   contractItem: {
     title: "契約明細",
     contractInfo: "契約情報",
@@ -3592,7 +3868,7 @@ export const labels = {
       qty: "数量",
       unit: "単位",
       purchasePrice: "仕入値（円）",
-      dealerPrice: "二次店卸値（円）",
+      dealerPrice: "取引先卸値（円）",
       listPrice: "参考売価（円）",
       subtotal: "小計（円）",
     },
@@ -3616,7 +3892,7 @@ export const labels = {
   //
   // 卸業者 (WHOLESALER_ADMIN / WHOLESALER_DIRECT_SALES) 専用。
   // 契約明細スナップショットから自動計算し、必要に応じて手動調整する。
-  // snapshotPurchasePrice は DTO 物理除外対象なので二次店には表示しない。
+  // snapshotPurchasePrice は DTO 物理除外対象なので取引先には表示しない。
   grossProfit: {
     title: "粗利計算",
     subtitle: "契約明細スナップショットをもとに粗利を計算します",
@@ -3630,7 +3906,7 @@ export const labels = {
     fields: {
       salesPrice: "売上（円）",
       purchaseTotal: "仕入合計（円）",
-      dealerTotal: "二次店向け卸値合計（円）",
+      dealerTotal: "取引先向け卸値合計（円）",
       constructionFee: "施工費（円）",
       otherCost: "その他費用（円）",
       discount: "値引き（円）",
@@ -3801,10 +4077,10 @@ export const labels = {
   // S-050 タブ — F-047 共同開催インセンティブ手動調整 (T-06-03 / docs/05 §4.8 §6.1).
   //
   // 卸業者 (WHOLESALER_ADMIN) 専用。eventModeAtContract=JOINT の契約の
-  // インセンティブを二次店ごとに手動分配し FINALIZED にする。
+  // インセンティブを取引先ごとに手動分配し FINALIZED にする。
   incentiveAdjust: {
     title: "インセンティブ調整",
-    subtitle: "共同開催インセンティブの二次店への手動分配",
+    subtitle: "共同開催インセンティブの取引先への手動分配",
     backToContract: "契約詳細へ戻る",
     notJointMode: "この契約は共同開催ではないため、手動分配は不要です",
     noIncentives: "インセンティブ情報がありません。先に粗利を確定してください",
@@ -3814,7 +4090,7 @@ export const labels = {
       history: "調整履歴",
     },
     columns: {
-      relationship: "対象二次店",
+      relationship: "対象取引先",
       currentAmount: "現在の金額（円）",
       status: "ステータス",
       adjustAmount: "分配金額（円）",
@@ -3853,6 +4129,7 @@ export const labels = {
     sections: {
       actions: "報告操作",
       result: "成果報告",
+      metrics: "追加集計項目",
     },
     submitStart: "開始報告を提出",
     submitEnd: "終了報告を提出",
@@ -3868,7 +4145,7 @@ export const labels = {
     conflictError: "すでに同じ種別の報告が提出済みです",
     unknownError: "報告の提出に失敗しました。時間を置いて再度お試しください",
     wholesalerLabel: "自社",
-    dealerLabel: "二次店",
+    dealerLabel: "取引先",
     commentLabel: "コメント（任意）",
     commentPlaceholder: "コメントを入力…",
     result: {
@@ -3879,6 +4156,25 @@ export const labels = {
       invalidAppts: "無効アポ数",
       apptsSumError: "有効アポ数 + 無効アポ数 はアポ取得数以下にしてください",
       negativeError: "0 以上の値を入力してください",
+    },
+    // 固定集計項目（声かけ数 / アンケート数 / アポ数 / コメント）とは別に、
+    // 催事ごとに増える数値だけを追加登録するセクション。
+    metrics: {
+      description:
+        "固定の集計項目に加えて、この催事だけで集計したい数値を追加できます（項目名と 0 以上の整数）。",
+      empty: "追加集計項目は登録されていません",
+      needsResultReport: "成果報告を提出すると、追加集計項目を登録できます",
+      name: "項目名",
+      value: "数値",
+      namePlaceholder: "例）カインズPay対応数",
+      valuePlaceholder: "例）12",
+      addAction: "項目を追加",
+      editAction: "を編集",
+      deleteAction: "を削除",
+      deleteConfirm: "「{name}」を削除します。よろしいですか？",
+      deleted: "追加集計項目を削除しました",
+      nameRequired: "項目名を入力してください",
+      valueInvalid: "数値は 0 以上の整数で入力してください",
     },
   },
 
@@ -3982,7 +4278,7 @@ export const labels = {
     scopes: {
       ALL: "全体",
       SELF: "自社開催",
-      DEALER: "二次店開催",
+      DEALER: "取引先開催",
       JOINT: "共同開催",
     } as Record<string, string>,
     statuses: {
@@ -4049,7 +4345,7 @@ export const labels = {
         improvements: "改善アクション",
         nextMonthFocusStores: "翌月重点店舗",
         nextMonthMeasures: "翌月施策",
-        dealerComment: "二次店コメント",
+        dealerComment: "取引先コメント",
         reviewComment: "卸業者コメント",
       },
       submitButton: "コメントを提出する",
@@ -4062,7 +4358,7 @@ export const labels = {
       alreadySubmitted: "コメント提出済み",
       alreadyReviewed: "確認済み",
       finalized: "確定済みのため変更できません",
-      dealerCommentLabel: "二次店からのコメント",
+      dealerCommentLabel: "取引先からのコメント",
       wholesalerCommentLabel: "卸業者からのコメント（任意）",
     },
     // S-068 — dealer monthly reports list
@@ -4081,7 +4377,7 @@ export const labels = {
     },
   },
 
-  // S-069 — F-051 二次店向け成績確認 (T-06-10 / docs/04 §1.5)
+  // S-069 — F-051 取引先向け成績確認 (T-06-10 / docs/04 §1.5)
   dealerPerformance: {
     title: "成績確認",
     subtitle: "卸業者ごとの月次成績を確認できます",
@@ -4143,30 +4439,30 @@ export const labels = {
     } as Record<string, string>,
     currencySuffix: "円",
     percentSuffix: "%",
-    // purchasePrice は二次店向け画面に一切表示しない (CLAUDE.md rule #5)
+    // purchasePrice は取引先向け画面に一切表示しない (CLAUDE.md rule #5)
   },
 
   // S-051 — F-056 BI ダッシュボード (T-06-11 / docs/04 §4.3 S-051).
   //
   // 卸業者本部 (wholesaler_admin / wholesaler_event_team / wholesaler_direct_sales)
-  // 専用。期間・体制・二次店フィルタ付きの時系列グラフ + 二次店ランキング。
+  // 専用。期間・体制・取引先フィルタ付きの時系列グラフ + 取引先ランキング。
   // dealer ロールには表示しない（他社情報が混入するため）。
   bi: {
     title: "BI ダッシュボード",
-    subtitle: "売上・粗利・契約数の時系列推移と二次店ランキングを確認できます",
+    subtitle: "売上・粗利・契約数の時系列推移と取引先ランキングを確認できます",
     filters: {
       fromMonth: "集計開始月",
       toMonth: "集計終了月",
       scope: "体制区分",
       allScopes: "すべての体制",
-      dealerRelationship: "二次店",
-      allDealers: "すべての二次店",
+      dealerRelationship: "取引先",
+      allDealers: "すべての取引先",
       apply: "絞り込む",
     },
     scopes: {
       ALL: "全体",
       SELF: "自社開催",
-      DEALER: "二次店開催",
+      DEALER: "取引先開催",
       JOINT: "共同開催",
     } as Record<string, string>,
     kpi: {
@@ -4188,9 +4484,9 @@ export const labels = {
       conversionRateLabel: "成約率",
     },
     ranking: {
-      title: "二次店ランキング（Top 10）",
+      title: "取引先ランキング（Top 10）",
       rankLabel: "順位",
-      dealerLabel: "二次店",
+      dealerLabel: "取引先",
       contractCountLabel: "契約件数",
       totalSalesLabel: "売上合計（円）",
       totalGrossProfitLabel: "粗利合計（円）",
@@ -4201,8 +4497,8 @@ export const labels = {
   // Notification type labels — used in notification inbox, settings, and email
   // subject lines (T-07-02 / T-07-04 / T-07-06 / docs/05 §6.7).
   notificationTypes: {
-    DEALER_PREFERENCE_SUBMITTED: "二次店から希望が提出されました",
-    DEALER_PREFERENCE_MISSING: "希望未提出の二次店があります",
+    DEALER_PREFERENCE_SUBMITTED: "取引先から希望が提出されました",
+    DEALER_PREFERENCE_MISSING: "希望未提出の取引先があります",
     EVENT_DECISION_PENDING: "開催体制決定が保留中です",
     EVENT_SHIFT_SHORTAGE: "シフト人数が不足しています",
     EVENT_START_REPORTED: "イベント開始が報告されました",
@@ -4346,10 +4642,108 @@ export const labels = {
     ariaLabel: "サインアウト",
   },
 
-  // S-018 サブ — F-006 / F-008 メンバー管理 (卸業者・二次店共通ラベル)
+  // S-018 サブ — F-006 / F-008 メンバー管理 (卸業者・取引先共通ラベル)
   // WHOLESALER_ADMIN は /members、DEALER_ADMIN は /d-members で利用。
+  // 決済管理（/payments）。契約済み顧客の決済状況の確認と Stripe への導線。
+  // Stripe API はまだ接続していないので、操作系の文言は「Stripe を開く」だけ。
+  payment: {
+    title: "決済管理",
+    stripeLink: "Stripeを開く",
+    stripeManage: "Stripeで管理",
+    tabs: {
+      all: "すべて",
+      unpaid: "未決済",
+      paid: "決済済",
+      ariaLabel: "決済状態",
+    },
+    countSuffix: "件",
+    empty: "契約済みの顧客がまだいません",
+    columns: {
+      customer: "顧客",
+      contractDate: "契約日",
+      amount: "契約金額",
+      status: "決済状態",
+      lastPaidAt: "最終決済日",
+      method: "決済方法",
+      detail: "詳細",
+    },
+    detailLink: "詳細",
+    statuses: {
+      UNPAID: "未決済",
+      PARTIAL: "一部決済",
+      PAID: "決済済",
+    } as Record<string, string>,
+    /** ContractPayment そのものが無い契約。 */
+    statusUnset: "未設定",
+    methodUnset: "未設定",
+    notSet: "—",
+    detail: {
+      backToList: "決済管理へ戻る",
+      infoSection: "決済情報",
+      historySection: "決済履歴",
+      historyEmpty: "決済の記録はまだありません",
+      fields: {
+        customer: "顧客",
+        contract: "契約",
+        contractDate: "契約日",
+        amount: "契約金額",
+        method: "決済方法",
+        status: "現在の決済状態",
+        paymentCount: "支払い回数",
+        downPayment: "頭金",
+        loanNote: "備考",
+      },
+      contractLink: "契約詳細を開く",
+      historyColumns: {
+        occurredAt: "日時",
+        label: "内容",
+      },
+    },
+  },
+
   memberManagement: {
-    wholesalerTitle: "メンバー管理",
+    // 卸業者側は「本アプリへログインできる User」の管理なのでシステムユーザーと呼ぶ。
+    // 催事に立つスタッフ全般（Salesperson）は設定 > スタッフ一覧が担当する別概念。
+    wholesalerTitle: "システムユーザー",
+    wholesalerSubtitle: "本アプリにログインできるユーザーです（スタッフ一覧とは別管理）",
+    // 一覧上部に常設する権限の早見表。編集ダイアログの選択肢と同じ 3 ロール。
+    roleGuide: {
+      title: "権限について",
+      items: [
+        { role: "オーナー", scope: "全機能を利用できます" },
+        { role: "システム管理者", scope: "決済管理以外を利用できます" },
+        { role: "一般ユーザー", scope: "設定以外を利用できます" },
+      ],
+    },
+    resultCount: "表示件数: {total}件",
+    // 所属で 2 タブに分ける。自社は招待・ロール管理まで、取引先は閲覧のみ。
+    tabs: {
+      own: "自社",
+      dealer: "取引先",
+      ariaLabel: "システムユーザーの所属",
+    },
+    dealerTabEmpty: "取引先のシステムユーザーはまだいません",
+    dealerTabEmptyCta: "取引先が招待コードからアカウントを開設すると、ここに表示されます",
+    dealerTabNote: "取引先のアカウントはこの画面では編集できません（閲覧のみ）",
+    dealerNameColumn: "所属取引先",
+    actionsColumn: "操作",
+    // システムユーザー（User）の編集・削除。スタッフ（Salesperson）とは別管理。
+    edit: {
+      trigger: "編集",
+      title: "システムユーザーを編集",
+      description: "氏名・ロール・状態を変更します。",
+      submit: "保存",
+      cancel: "キャンセル",
+      submitting: "保存中…",
+    },
+    remove: {
+      trigger: "削除",
+      confirmTitle: "このシステムユーザーを削除しますか",
+      confirmBody: "一覧から外れ、ログインできなくなります。監査ログや過去の担当履歴は残ります。",
+      submit: "削除する",
+      cancel: "キャンセル",
+      submitting: "削除中…",
+    },
     dealerTitle: "メンバー管理",
     subtitle: "ユーザーの一覧と招待状況を確認できます",
     inviteButton: "招待",
@@ -4367,20 +4761,30 @@ export const labels = {
       lastLoginAt: "最終ログイン",
       inviteRole: "招待ロール",
       inviteEmail: "メールアドレス",
+      linkedStaff: "紐付くスタッフ",
     },
+    /** スタッフ一覧側から Salesperson.userId のリンクが無い場合の表示。 */
+    staffUnlinked: "紐付けなし",
     twoFactorEnabled: "有効",
     twoFactorDisabled: "無効",
     statuses: {
       ACTIVE: "有効",
       INVITED: "招待済み（未受諾）",
       SUSPENDED: "停止中",
+      // 論理削除済み。通常一覧には出ないが、履歴表示などのための呼称。
+      DELETED: "削除済み",
     },
     wholesalerRoles: {
-      WHOLESALER_ADMIN: "管理者",
-      WHOLESALER_EVENT_TEAM: "イベントチーム",
-      WHOLESALER_CALL_TEAM: "コールチーム",
-      WHOLESALER_DIRECT_SALES: "直販営業",
-      WHOLESALER_FIELD_STAFF: "現場要員",
+      // 正式仕様の 3 ロール。
+      OWNER: "オーナー",
+      SYSTEM_ADMIN: "システム管理者",
+      GENERAL_USER: "一般ユーザー",
+      // 旧ロール。新規付与はしないが、既存ユーザーの表示のために残す。
+      WHOLESALER_ADMIN: "管理者（旧）",
+      WHOLESALER_EVENT_TEAM: "イベントチーム（旧）",
+      WHOLESALER_CALL_TEAM: "コールチーム（旧）",
+      WHOLESALER_DIRECT_SALES: "直販営業（旧）",
+      WHOLESALER_FIELD_STAFF: "現場要員（旧）",
     } as Record<string, string>,
     dealerRoles: {
       DEALER_ADMIN: "管理者",
@@ -4401,22 +4805,22 @@ export const labels = {
     },
   },
 
-  // S-022 サブ — F-009 / F-010 取引先管理（卸業者 ↔ 二次店 関係）
+  // S-022 サブ — F-009 / F-010 取引先管理（卸業者 ↔ 取引先 関係）
   // WHOLESALER_ADMIN 専用。Relationship 一覧・スコープ編集・停止/再開・招待コード発行。
   relationshipManagement: {
     title: "取引先管理",
-    subtitle: "二次店との関係、デフォルトスコープ、招待コードを管理します",
-    empty: "取引先（二次店）がまだ登録されていません",
-    emptyCta: "招待コードを発行して二次店に渡してください",
+    subtitle: "取引先との関係、デフォルトスコープ、招待コードを管理します",
+    empty: "取引先（取引先）がまだ登録されていません",
+    emptyCta: "招待コードを発行して取引先に渡してください",
     inviteCodeSectionTitle: "新規招待コード発行",
     inviteCodeDialogTitle: "招待コードを発行",
     inviteCodeDialogDescription:
       "有効期限と最大使用回数を設定して招待コードを発行します。コードは画面に一度だけ表示されます。",
     inviteCodeResult: "発行した招待コード",
-    inviteCodeResultNote: "このコードは今後表示されません。二次店に安全な方法でお伝えください。",
+    inviteCodeResultNote: "このコードは今後表示されません。取引先に安全な方法でお伝えください。",
     inviteCodeCopied: "コードをコピーしました",
     fields: {
-      dealerName: "二次店名",
+      dealerName: "取引先名",
       status: "ステータス",
       defaultScope: "デフォルトスコープ",
       createdAt: "開始日",
@@ -4457,7 +4861,7 @@ export const labels = {
     },
   },
 
-  // S-077 — F-037 二次店マエカク結果確認 (dealer side pre-call notification list)
+  // S-077 — F-037 取引先マエカク結果確認 (dealer side pre-call notification list)
   // DEALER_ADMIN / DEALER_STAFF が確認する画面。
   dealerPreCallNotification: {
     title: "マエカク結果確認",
@@ -4497,6 +4901,9 @@ export const labels = {
     ariaLabel: "パンくずリスト",
     separator: "/",
     items: {
+      // サイドバーの最上位グループ名。パンくずの先頭はサイドバーの階層と
+      // 一致させる（画面がどこに属するかの主張を 2 箇所で食い違わせない）。
+      settings: "設定",
       eventCandidates: "イベント一覧",
       eventCandidateDetail: "詳細",
       eventCandidateDecide: "開催体制決定",
@@ -4525,7 +4932,7 @@ export const labels = {
       contractCancel: "キャンセル",
       monthlyReports: "月次報告",
       monthlyReportDetail: "詳細",
-      masters: "マスタ管理",
+      masters: "エリア・場所管理",
       masterProducts: "商品",
       masterProductDetail: "詳細",
       masterVenueProviders: "場所提供元",
@@ -4567,7 +4974,7 @@ export const labels = {
     // S-008 / S-009 / S-010 — Dealer self-signup (F-007)
     signup: {
       // Step 1 — invite code entry (S-008)
-      codeTitle: "新規二次店登録",
+      codeTitle: "新規取引先登録",
       codeSubtitle: "卸業者から発行された招待コードを入力してください。",
       codeLabel: "招待コード",
       codePlaceholder: "SOLAR-XXXX-YYYY",
@@ -4596,7 +5003,7 @@ export const labels = {
 
       // Success
       successTitle: "登録完了",
-      successBody: "二次店アカウントが作成されました。サインインしてください。",
+      successBody: "取引先アカウントが作成されました。サインインしてください。",
 
       errors: {
         codeRequired: "招待コードを入力してください",
@@ -4685,17 +5092,23 @@ export const labels = {
 
   // Dealer dashboard — S-058
   dealerDashboard: {
-    title: "ダッシュボード",
-    subtitle: "今日のイベント・マエカク・今月の契約を確認できます",
+    // 見出しはサイドバーの項目名と揃える（どちらも「ホーム」）。
+    title: "ホーム",
+    subtitle: "対応待ちの案件と本日の催事を確認できます",
+    todoTitle: "要対応",
+    todoAllClear: "対応待ちはありません",
+    resultTitle: "当月実績",
     sections: {
       todayEvents: {
         title: "本日のイベント",
         empty: "本日のイベントはありません",
         cta: "担当イベント一覧を開く",
+        // 卸業者ホームと同じく単位を明示する（従来ここだけ単位が無かった）。
+        unitSuffix: "件",
       },
       pendingPreCall: {
         title: "マエカク未対応",
-        description: "アポ取得後、マエカク結果通知の確認が未完了の件数",
+        description: "アポ取得後、マエカク結果通知の確認が未完了です",
         cta: "アポ一覧を開く",
         unitSuffix: "件",
       },
@@ -4718,7 +5131,7 @@ export const labels = {
     deals: "商談",
     contracts: "契約",
     monthlyReports: "月次報告",
-    masters: "マスタ管理",
+    masters: "エリア・場所管理",
     auditLogs: "監査ログ",
     bi: "BI ダッシュボード",
   },
@@ -4766,7 +5179,7 @@ export const labels = {
 
   // 卸業者インセンティブ一覧 (wholesaler/incentives/page.tsx).
   //
-  // 卸業者テナント全体のインセンティブ一覧。二次店単位・対象月・ステータスで絞り込み。
+  // 卸業者テナント全体のインセンティブ一覧。取引先単位・対象月・ステータスで絞り込み。
   wholesalerIncentive: {
     title: "インセンティブ一覧",
     subtitle: "テナント全体のインセンティブ確定状況を確認できます",
@@ -4777,7 +5190,7 @@ export const labels = {
     allStatuses: "すべてのステータス",
     goToContract: "契約詳細",
     columns: {
-      dealer: "二次店",
+      dealer: "取引先",
       contractDate: "契約日",
       settledMonth: "対象月",
       amount: "インセンティブ額",
@@ -4805,7 +5218,7 @@ export const labels = {
     subtitle: "市場動向・地域別需要・競合比較などを分析します（Phase 2 予定）",
     placeholderTitle: "この機能は準備中です",
     placeholderBody:
-      "市況分析（競合店分析・地域別需要トレンド・価格動向など）は Phase 2 で実装予定です。現在は BI ダッシュボード（/bi）で売上・粗利・二次店ランキングを確認できます。",
+      "市況分析（競合店分析・地域別需要トレンド・価格動向など）は Phase 2 で実装予定です。現在は BI ダッシュボード（/bi）で売上・粗利・取引先ランキングを確認できます。",
   },
 } as const;
 

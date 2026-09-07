@@ -10,13 +10,12 @@
 //   4. listDealerContracts — status filter is applied correctly.
 //   5. getDealerContractDetail — contract not found → returns null.
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import {
   toContractItemDealerDto,
   toContractItemWholesalerDto,
   type ContractItemForWholesalerDto,
 } from "@solar/contracts";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // ---------------------------------------------------------------------------
 // Mock layer
@@ -49,8 +48,7 @@ vi.mock("@solar/db", async (orig) => {
     // rawPrisma is used by getTenantContext for dealer relationship resolution.
     rawPrisma: {
       relationship: {
-        findMany: () =>
-          Promise.resolve([{ id: REL_ID_OWN }]),
+        findMany: () => Promise.resolve([{ id: REL_ID_OWN }]),
       },
     },
     withTenant: async <T>(_ctx: unknown, fn: (tx: unknown) => Promise<T>): Promise<T> => fn(tx),
@@ -166,9 +164,7 @@ describe("listDealerContracts", () => {
 describe("getDealerContractDetail", () => {
   it("2. snapshotPurchasePrice is physically absent from every item in the DTO", async () => {
     authMock.mockResolvedValue(DEALER_SESSION);
-    contractFindUniqueMock.mockResolvedValue(
-      makeContractRow({ items: [makeItemRow()] }),
-    );
+    contractFindUniqueMock.mockResolvedValue(makeContractRow({ items: [makeItemRow()] }));
 
     const detail = await getDealerContractDetail("contract_1");
 

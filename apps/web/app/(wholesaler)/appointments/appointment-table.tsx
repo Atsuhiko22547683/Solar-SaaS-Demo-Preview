@@ -19,6 +19,9 @@ import Link from "next/link";
 import { useState } from "react";
 
 import {
+  COL_LG,
+  COL_SM,
+  COL_XL,
   LIST_ROW,
   LIST_TD,
   LIST_TD_NUM,
@@ -27,18 +30,16 @@ import {
 } from "@/components/list/list-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { formatEventDateTime } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
-import { appointmentStatusVariant, preCallResultVariant } from "./constants";
+import { appointmentStatusVariant } from "./constants";
 
 import type { AppointmentListItem } from "./data";
 
 /** 顧客一覧の次回アポ列と同じ表記（YYYY/MM/DD (曜) HH:mm）。 */
 function formatScheduledAt(iso: string): string {
-  const d = new Date(iso);
-  const date = d.toLocaleDateString("ja-JP", { year: "numeric", month: "2-digit", day: "2-digit" });
-  const time = d.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit", hour12: false });
-  return `${date} (${labels.customer.weekdays[d.getDay()]}) ${time}`;
+  return formatEventDateTime(iso);
 }
 
 /** 顧客詳細の商談履歴タブ（アポイントに最も近い既存タブ）。 */
@@ -59,19 +60,55 @@ export function AppointmentTable({ appointments }: AppointmentTableProps) {
   // 一覧性を優先してアコーディオン方式にする（1 行開くと他は閉じる）。
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  // アポ一覧の主目的は「いつ誰に会うか」と「マエカクが済んでいるか」。
+  // 対応状況(マエカク)は未実施だとアポが無駄になるため常時表示する。
+  const COL = {
+    status: COL_SM,
+    type: COL_LG,
+    area: COL_LG,
+    assignee: COL_XL,
+  } as const;
+
+  // 列幅は固定（table-fixed）。顧客一覧と同じく、内容や絞り込み結果で
+  // 列の x 座標が動かないようにする。狭い画面では COL_* で列自体を落とす。
+  const W = {
+    scheduledAt: "w-[22%] lg:w-[15%]",
+    customer: "w-[38%] lg:w-[20%]",
+    area: "lg:w-[12%]",
+    assignee: "xl:w-[12%]",
+    type: "lg:w-[12%]",
+    status: "sm:w-[12%]",
+    preCall: "w-[34%] lg:w-[17%]",
+    chevron: "w-[6%] lg:w-[4%]",
+  } as const;
+
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+      <table className="w-full table-fixed text-sm">
         <thead>
           <tr className="border-hairline-light bg-surface-soft/50 border-b">
-            <th className={LIST_TH}>{t.columns.scheduledAt}</th>
-            <th className={LIST_TH}>{t.columns.customerName}</th>
-            <th className={LIST_TH}>{t.columns.area}</th>
-            <th className={LIST_TH}>{t.columns.assignee}</th>
-            <th className={LIST_TH}>{t.columns.appointmentType}</th>
-            <th className={LIST_TH}>{t.columns.status}</th>
-            <th className={LIST_TH}>{t.columns.preCall}</th>
-            <th className="w-12 px-3 py-3" aria-hidden />
+            <th scope="col" className={`${LIST_TH} ${W.scheduledAt}`}>
+              {t.columns.scheduledAt}
+            </th>
+            <th scope="col" className={`${LIST_TH} ${W.customer}`}>
+              {t.columns.customerName}
+            </th>
+            <th scope="col" className={`${LIST_TH} ${COL.area} ${W.area}`}>
+              {t.columns.area}
+            </th>
+            <th scope="col" className={`${LIST_TH} ${COL.assignee} ${W.assignee}`}>
+              {t.columns.assignee}
+            </th>
+            <th scope="col" className={`${LIST_TH} ${COL.type} ${W.type}`}>
+              {t.columns.appointmentType}
+            </th>
+            <th scope="col" className={`${LIST_TH} ${COL.status} ${W.status}`}>
+              {t.columns.status}
+            </th>
+            <th scope="col" className={`${LIST_TH} ${W.preCall}`}>
+              {t.columns.preCall}
+            </th>
+            <th className={W.chevron} aria-hidden />
           </tr>
         </thead>
         <tbody className="divide-hairline-light divide-y">
@@ -84,7 +121,7 @@ export function AppointmentTable({ appointments }: AppointmentTableProps) {
               <tr
                 key={row.id}
                 data-appointment-id={row.id}
-                className={`group ${LIST_ROW} ${isExpanded ? "bg-mist-light" : ""}`}
+                className={`group ${LIST_ROW} ${isExpanded ? "bg-page" : ""}`}
                 onClick={toggle}
               >
                 <td className={LIST_TD_NUM}>{formatScheduledAt(row.scheduledAt)}</td>
@@ -98,24 +135,27 @@ export function AppointmentTable({ appointments }: AppointmentTableProps) {
                     {row.customerName} {c.honorific}
                   </Link>
                 </td>
-                <td className={LIST_TD}>{row.area ?? c.none}</td>
-                <td className={LIST_TD}>{row.assigneeName ?? c.none}</td>
-                <td className={LIST_TD}>{row.appointmentType ?? row.location ?? c.none}</td>
-                <td className="whitespace-nowrap px-6 py-3">
+                <td className={`${LIST_TD} ${COL.area}`}>{row.area ?? c.none}</td>
+                <td className={`${LIST_TD} ${COL.assignee}`}>{row.assigneeName ?? c.none}</td>
+                <td className={`${LIST_TD} ${COL.type}`}>
+                  {row.appointmentType ?? row.location ?? c.none}
+                </td>
+                {/* 主 status はバッジ 1 つだけ。行に複数の色を並べない。 */}
+                <td className={`${LIST_TD} ${COL.status}`}>
                   <Badge variant={appointmentStatusVariant(row.status)}>
                     {labels.appointment.statuses[row.status]}
                   </Badge>
                 </td>
-                <td className="whitespace-nowrap px-6 py-3">
+                {/* マエカクは「未実施だとアポが無駄になる」要対応。色付きの文字で
+                    見つけやすくし、バッジは主 status に譲る。 */}
+                <td className={LIST_TD}>
                   {row.preCallResult ? (
-                    <Badge variant={preCallResultVariant(row.preCallResult)}>
-                      {labels.preCall.resultBadges[row.preCallResult]}
-                    </Badge>
+                    labels.preCall.resultBadges[row.preCallResult]
                   ) : (
-                    <span className="text-mute-light text-xs">{t.preCallNone}</span>
+                    <span className="text-danger font-medium">{t.preCallNone}</span>
                   )}
                 </td>
-                <td className="px-3 py-3 text-right">
+                <td className={`${LIST_TD} text-right`}>
                   <button
                     type="button"
                     aria-expanded={isExpanded}
@@ -140,7 +180,7 @@ export function AppointmentTable({ appointments }: AppointmentTableProps) {
                     <div className="space-y-4">
                       {/* 次に必要な対応 — 文章なので通常列には置かず、ここで全文を折り返す。 */}
                       <div className="min-w-0 space-y-1">
-                        <h4 className="border-hairline-light text-mute-light border-b pb-1 text-xs font-semibold uppercase tracking-wider">
+                        <h4 className="border-hairline-light text-mute-light border-b pb-1 text-xs font-semibold">
                           {t.columns.nextAction}
                         </h4>
                         {row.nextAction && row.nextAction.length > 0 ? (

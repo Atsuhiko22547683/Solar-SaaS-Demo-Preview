@@ -16,6 +16,7 @@ import { UnauthorizedError, ForbiddenError } from "@/lib/errors";
 import { assertCan } from "@/lib/permissions/can";
 import { getTenantContext } from "@/lib/tenancy/context";
 
+import { listDealerCustomers } from "../../(dealer)/d-customers/data";
 import {
   CONSTRUCTION_STATUS_VALUES,
   CONTRACT_STATUS_VALUES,
@@ -23,14 +24,13 @@ import {
   listCustomers,
   normalizePageSize,
 } from "../../(wholesaler)/customers/data";
+
 import type {
   ContractStatusValue,
   ConstructionStatusValue,
   MaekakuValue,
   SubsidyStatusValue,
 } from "../../(wholesaler)/customers/data";
-import { listDealerCustomers } from "../../(dealer)/d-customers/data";
-
 import type { AcquisitionChannel, CustomerStatus } from "@solar/db";
 
 export const runtime = "nodejs";
@@ -48,13 +48,7 @@ const VALID_STATUSES: CustomerStatus[] = [
   "COMPLETED",
 ];
 
-const VALID_CHANNELS: AcquisitionChannel[] = [
-  "EVENT",
-  "WALK_IN",
-  "TELE",
-  "REFERRAL",
-  "OTHER",
-];
+const VALID_CHANNELS: AcquisitionChannel[] = ["EVENT", "WALK_IN", "TELE", "REFERRAL", "OTHER"];
 
 const VALID_CONTRACT = CONTRACT_STATUS_VALUES;
 const VALID_CONSTRUCTION = CONSTRUCTION_STATUS_VALUES;

@@ -60,8 +60,11 @@ export function CommissionFilter({
       }}
     >
       <div className="space-y-1">
-        <label className="text-xs font-medium text-mute-light">{t.filter.targetMonth}</label>
+        <label htmlFor="commission-filter-month" className="text-mute-light text-xs font-semibold">
+          {t.filter.targetMonth}
+        </label>
         <input
+          id="commission-filter-month"
           type="month"
           value={monthValue}
           onChange={(e) => setMonthValue(e.target.value)}
@@ -70,8 +73,11 @@ export function CommissionFilter({
       </div>
 
       <div className="space-y-1">
-        <label className="text-xs font-medium text-mute-light">{t.filter.dealer}</label>
+        <label htmlFor="commission-filter-dealer" className="text-mute-light text-xs font-semibold">
+          {t.filter.dealer}
+        </label>
         <select
+          id="commission-filter-dealer"
           value={dealerValue}
           onChange={(e) => setDealerValue(e.target.value)}
           className={SELECT_CLASS}
@@ -86,8 +92,11 @@ export function CommissionFilter({
       </div>
 
       <div className="space-y-1">
-        <label className="text-xs font-medium text-mute-light">{t.filter.paymentStatus}</label>
+        <label htmlFor="commission-filter-status" className="text-mute-light text-xs font-semibold">
+          {t.filter.paymentStatus}
+        </label>
         <select
+          id="commission-filter-status"
           value={statusValue}
           onChange={(e) => setStatusValue(e.target.value)}
           className={SELECT_CLASS}

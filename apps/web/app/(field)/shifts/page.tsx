@@ -10,9 +10,9 @@ import { Suspense } from "react";
 
 import { labels } from "@/lib/i18n/labels";
 
+import { ShiftCard, thisWeekRange, todayIso } from "./_components/shift-card";
 import { fetchMyShifts } from "./data";
 import { ShiftFilterBar } from "./filter-bar";
-import { ShiftCard, thisWeekRange, todayIso } from "./_components/shift-card";
 
 async function ShiftList({ from, to }: { from: string; to: string }) {
   const l = labels.fieldShift;
@@ -76,13 +76,13 @@ export default async function ShiftListPage({
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-lg font-bold">{l.shiftListTitle}</h1>
-        <p className="text-muted-foreground text-sm mt-1">{l.shiftListSubtitle}</p>
+        <h1 className="text-ink text-xl font-bold">{l.shiftListTitle}</h1>
+        <p className="text-muted-foreground mt-1 text-sm">{l.shiftListSubtitle}</p>
       </div>
 
       <ShiftFilterBar currentFilter={filter} currentFrom={from} currentTo={to} />
 
-      <Suspense fallback={<p className="text-sm text-muted-foreground">{l.loading}</p>}>
+      <Suspense fallback={<p className="text-muted-foreground text-sm">{l.loading}</p>}>
         <ShiftList from={from} to={to} />
       </Suspense>
     </div>

@@ -44,16 +44,13 @@ export default async function StoreDetailPage({ params }: PageProps) {
           <Button asChild variant="outline" size="sm">
             <Link href="/masters/stores">{c.back}</Link>
           </Button>
-          <h1 className="text-2xl font-semibold tracking-tight">{t.edit}</h1>
+          <h1 className="text-ink text-xl font-bold">{t.edit}</h1>
         </div>
         <span className="text-muted-foreground text-sm">
           {row.isActive ? c.active : c.inactive}
         </span>
       </div>
-      <StoreForm
-        mode={{ kind: "edit", id: row.id, initial }}
-        venueProviders={venueProviders}
-      />
+      <StoreForm mode={{ kind: "edit", id: row.id, initial }} venueProviders={venueProviders} />
     </div>
   );
 }

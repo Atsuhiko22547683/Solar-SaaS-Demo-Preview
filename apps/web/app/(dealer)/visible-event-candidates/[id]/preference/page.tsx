@@ -12,6 +12,7 @@ import { notFound } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { NotFoundError } from "@/lib/errors";
+import { formatDate, formatDateTime } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
 import { getEventCandidateForPreference } from "./data";
@@ -59,7 +60,7 @@ export default async function DealerPreferencePage({ params }: PageProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
+        <h1 className="text-ink text-xl font-bold">{t.title}</h1>
         <p className="text-muted-foreground text-sm">{t.subtitle}</p>
       </div>
 
@@ -71,7 +72,7 @@ export default async function DealerPreferencePage({ params }: PageProps) {
           <dt className="text-muted-foreground">{t.targetMonthLine}</dt>
           <dd>{candidate.targetMonth}</dd>
           <dt className="text-muted-foreground">{t.scheduledDateLine}</dt>
-          <dd>{new Date(candidate.scheduledDate).toLocaleDateString("ja-JP")}</dd>
+          <dd>{formatDate(candidate.scheduledDate)}</dd>
           <dt className="text-muted-foreground">{t.storeNameLine}</dt>
           <dd>{candidate.storeName}</dd>
           {candidate.area ? (
@@ -88,7 +89,7 @@ export default async function DealerPreferencePage({ params }: PageProps) {
           ) : null}
           <dt className="text-muted-foreground">{t.deadlineLine}</dt>
           <dd className={deadlinePassed ? "text-destructive font-medium" : undefined}>
-            {new Date(candidate.deadlineAt).toLocaleString("ja-JP")}
+            {formatDateTime(candidate.deadlineAt)}
           </dd>
         </dl>
       </section>
@@ -97,7 +98,7 @@ export default async function DealerPreferencePage({ params }: PageProps) {
         <section className="border-border bg-muted/20 space-y-2 rounded-md border p-4">
           <h2 className="text-foreground text-base font-semibold">{t.existingHeader}</h2>
           <p className="text-muted-foreground text-xs">
-            {t.submittedAtLabel}: {new Date(existing.submittedAt).toLocaleString("ja-JP")}
+            {t.submittedAtLabel}: {formatDateTime(existing.submittedAt)}
           </p>
         </section>
       ) : (

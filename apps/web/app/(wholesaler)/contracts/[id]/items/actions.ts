@@ -16,13 +16,12 @@
 //
 // wholesalerId is always taken from ctx — never from input.
 
-import { revalidatePath } from "next/cache";
-
 import {
   ContractItemReplaceSchema,
   snapshotItems,
   type ContractItemReplaceInput,
 } from "@solar/contracts";
+import { revalidatePath } from "next/cache";
 
 import { InvalidStateTransitionError, NotFoundError } from "@/lib/errors";
 import { withServerActionContext } from "@/lib/tenancy/server-action";
@@ -30,105 +29,100 @@ import { withServerActionContext } from "@/lib/tenancy/server-action";
 export const replaceContractItemsAction = withServerActionContext<
   ContractItemReplaceInput,
   { contractId: string; itemCount: number }
->(
-  { action: "contract.update" },
-  async ({ tx, input }) => {
-    const parsed = ContractItemReplaceSchema.parse(input);
+>({ action: "contract.update" }, async ({ tx, input }) => {
+  const parsed = ContractItemReplaceSchema.parse(input);
 
-    // 1. Fetch Contract — must exist and be in CONTRACTED status.
-    const contract = await tx.contract.findUnique({
-      where: { id: parsed.contractId },
-      select: {
-        id: true,
-        status: true,
-        contractDate: true,
-        wholesalerId: true,
-      },
-    });
-    if (!contract) throw new NotFoundError("契約が見つかりません");
-    if (contract.status !== "CONTRACTED") {
-      throw new InvalidStateTransitionError(
-        `契約明細の変更は CONTRACTED 状態の契約のみ許可されます（現在: ${contract.status}）`,
-        { currentStatus: contract.status, requiredStatus: "CONTRACTED" },
-      );
-    }
+  // 1. Fetch Contract — must exist and be in CONTRACTED status.
+  const contract = await tx.contract.findUnique({
+    where: { id: parsed.contractId },
+    select: {
+      id: true,
+      status: true,
+      contractDate: true,
+      wholesalerId: true,
+    },
+  });
+  if (!contract) throw new NotFoundError("契約が見つかりません");
+  if (contract.status !== "CONTRACTED") {
+    throw new InvalidStateTransitionError(
+      `契約明細の変更は CONTRACTED 状態の契約のみ許可されます（現在: ${contract.status}）`,
+      { currentStatus: contract.status, requiredStatus: "CONTRACTED" },
+    );
+  }
 
-    const contractDate = contract.contractDate;
-    const productIds = [...new Set(parsed.items.map((i) => i.productId))];
+  const contractDate = contract.contractDate;
+  const productIds = [...new Set(parsed.items.map((i) => i.productId))];
 
-    // 2. Fetch all relevant Product rows (all history records for these IDs so
-    //    snapshotItems can find the version effective at contractDate).
-    const productRows = await tx.product.findMany({
-      where: {
-        id: { in: productIds },
-        wholesalerId: contract.wholesalerId,
-      },
-      select: {
-        id: true,
-        effectiveFrom: true,
-        effectiveTo: true,
-        isActive: true,
-        name: true,
-        maker: true,
-        modelNo: true,
-        unit: true,
-        purchasePrice: true,
-        dealerPrice: true,
-        listPrice: true,
-      },
-    });
+  // 2. Fetch all relevant Product rows (all history records for these IDs so
+  //    snapshotItems can find the version effective at contractDate).
+  const productRows = await tx.product.findMany({
+    where: {
+      id: { in: productIds },
+      wholesalerId: contract.wholesalerId,
+    },
+    select: {
+      id: true,
+      effectiveFrom: true,
+      effectiveTo: true,
+      isActive: true,
+      name: true,
+      maker: true,
+      modelNo: true,
+      unit: true,
+      purchasePrice: true,
+      dealerPrice: true,
+      listPrice: true,
+    },
+  });
 
-    // 3. Snapshot prices — pure function throws on missing effective row.
-    const snapshotInputProducts = productRows.map((p) => ({
-      productId: p.id,
-      effectiveFrom: p.effectiveFrom,
-      effectiveTo: p.effectiveTo,
-      isActive: p.isActive,
-      productName: p.name,
-      maker: p.maker,
-      modelNo: p.modelNo,
-      unit: p.unit,
-      purchasePrice: p.purchasePrice.toString(),
-      dealerPrice: p.dealerPrice.toString(),
-      listPrice: p.listPrice.toString(),
-    }));
+  // 3. Snapshot prices — pure function throws on missing effective row.
+  const snapshotInputProducts = productRows.map((p) => ({
+    productId: p.id,
+    effectiveFrom: p.effectiveFrom,
+    effectiveTo: p.effectiveTo,
+    isActive: p.isActive,
+    productName: p.name,
+    maker: p.maker,
+    modelNo: p.modelNo,
+    unit: p.unit,
+    purchasePrice: p.purchasePrice.toString(),
+    dealerPrice: p.dealerPrice.toString(),
+    listPrice: p.listPrice.toString(),
+  }));
 
-    const snapshots = snapshotItems(parsed.items, contractDate, snapshotInputProducts);
+  const snapshots = snapshotItems(parsed.items, contractDate, snapshotInputProducts);
 
-    // 4. Delete existing items.
-    await tx.contractItem.deleteMany({
-      where: { contractId: parsed.contractId },
-    });
+  // 4. Delete existing items.
+  await tx.contractItem.deleteMany({
+    where: { contractId: parsed.contractId },
+  });
 
-    // 5. Insert new items with snapshots.
-    await tx.contractItem.createMany({
-      data: snapshots.map((s) => ({
-        contractId: parsed.contractId,
-        productId: s.productId,
-        productName: s.productName,
-        maker: s.maker,
-        modelNo: s.modelNo ?? null,
-        qty: s.qty.toString(),
-        unit: s.unit,
-        snapshotPurchasePrice: s.snapshotPurchasePrice,
-        snapshotDealerPrice: s.snapshotDealerPrice,
-        snapshotListPrice: s.snapshotListPrice,
-      })),
-    });
+  // 5. Insert new items with snapshots.
+  await tx.contractItem.createMany({
+    data: snapshots.map((s) => ({
+      contractId: parsed.contractId,
+      productId: s.productId,
+      productName: s.productName,
+      maker: s.maker,
+      modelNo: s.modelNo ?? null,
+      qty: s.qty.toString(),
+      unit: s.unit,
+      snapshotPurchasePrice: s.snapshotPurchasePrice,
+      snapshotDealerPrice: s.snapshotDealerPrice,
+      snapshotListPrice: s.snapshotListPrice,
+    })),
+  });
 
-    // 6. Update Contract.contractAmount = sum of subtotals (qty × listPrice).
-    const totalAmount = snapshots
-      .reduce((acc, s) => acc + Number(s.subtotal), 0)
-      .toFixed(2);
+  // 6. Update Contract.contractAmount = sum of subtotals (qty × listPrice).
+  const totalAmount = snapshots.reduce((acc, s) => acc + Number(s.subtotal), 0).toFixed(2);
 
-    await tx.contract.update({
-      where: { id: parsed.contractId },
-      data: { contractAmount: totalAmount },
-    });
+  await tx.contract.update({
+    where: { id: parsed.contractId },
+    data: { contractAmount: totalAmount },
+  });
 
-    revalidatePath(`/contracts/${parsed.contractId}`);
-    revalidatePath(`/contracts/${parsed.contractId}/items`);
+  revalidatePath(`/contracts/${parsed.contractId}`);
+  revalidatePath(`/contracts/${parsed.contractId}/items`);
 
-    return { contractId: parsed.contractId, itemCount: snapshots.length };
-  },
-);
+  return { contractId: parsed.contractId, itemCount: snapshots.length };
+});

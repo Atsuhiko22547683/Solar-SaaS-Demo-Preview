@@ -12,8 +12,7 @@
 // The `tenantId` field is always required so audit rows are partitioned by tenant
 // and never cross RLS boundaries.
 
-import type { TxClient } from "@solar/db";
-import type { AuditAction } from "@solar/db";
+import type { TxClient, AuditAction } from "@solar/db";
 
 // Fields that must be redacted wherever they appear at the top level of
 // a before/after JSON object.  Extend here if additional PII fields are added.
@@ -60,10 +59,7 @@ export function redactPii(
  * The function is intentionally fire-and-forget from the caller's perspective:
  * if the broader transaction rolls back, this insert rolls back too.
  */
-export async function recordAudit(
-  tx: TxClient,
-  input: RecordAuditInput,
-): Promise<void> {
+export async function recordAudit(tx: TxClient, input: RecordAuditInput): Promise<void> {
   await tx.auditLog.create({
     data: {
       actorUserId: input.actorUserId,

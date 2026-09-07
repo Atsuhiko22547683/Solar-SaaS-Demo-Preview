@@ -27,9 +27,9 @@ import {
 } from "@solar/contracts";
 import { revalidatePath } from "next/cache";
 
+import { recordAudit } from "@/lib/audit/audit-service";
 import { NotFoundError, ValidationError } from "@/lib/errors";
 import { withServerActionContext } from "@/lib/tenancy/server-action";
-import { recordAudit } from "@/lib/audit/audit-service";
 
 const LIST_PATH = "/masters/products";
 

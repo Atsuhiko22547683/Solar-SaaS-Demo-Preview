@@ -46,6 +46,14 @@ interface DealerChoice {
   dealerName: string;
 }
 
+/** 担当者に指定できるスタッフ。relationshipId が null なら自社スタッフ。 */
+export interface StaffChoice {
+  id: string;
+  name: string;
+  relationshipId: string | null;
+  userId: string | null;
+}
+
 interface EditAssigneeDialogProps {
   customerId: string;
   currentTossUpUserId: string | null;
@@ -54,36 +62,70 @@ interface EditAssigneeDialogProps {
   currentClosingRelationshipId: string | null;
   users: UserChoice[];
   dealers: DealerChoice[];
+  staff: StaffChoice[];
+  currentTossUpSalespersonId: string | null;
+  currentClosingSalespersonId: string | null;
 }
 
 /** 所属区分。"unset" は担当者そのものが未設定（担当者 select は disabled）。 */
 const KINDS = ["unset", "user", "dealer"] as const;
 type AssigneeKind = (typeof KINDS)[number];
 
-/** 1 役割ぶんの選択状態。id は kind に対応する User.id または Relationship.id。 */
+/**
+ * 1 役割ぶんの選択状態。
+ *
+ * - kind "user"（自社）: staffId にスタッフ、または userId に素の User
+ *   （スタッフ未登録のログインユーザーも従来どおり選べるようにするため両方持つ）
+ * - kind "dealer"（二次店）: relationshipId に会社、staffId にその所属スタッフ。
+ *   staffId が空なら「所属二次店は判るが個人スタッフは未登録」を表す。
+ */
 interface AssigneeSelection {
   kind: AssigneeKind;
-  id: string;
+  staffId: string;
+  userId: string;
+  relationshipId: string;
 }
 
 /**
  * 保存済みの値 → 初期選択。どちらの列に値が入っているかで所属区分を判定する
  * （所属区分は DB に持たないので、既存データからの復元はここだけで完結する）。
  */
-function toSelection(userId: string | null, relationshipId: string | null): AssigneeSelection {
-  if (relationshipId) return { kind: "dealer", id: relationshipId };
-  if (userId) return { kind: "user", id: userId };
-  return { kind: "unset", id: "" };
+function toSelection(
+  userId: string | null,
+  relationshipId: string | null,
+  salespersonId: string | null,
+): AssigneeSelection {
+  const empty = { kind: "unset" as AssigneeKind, staffId: "", userId: "", relationshipId: "" };
+  if (relationshipId) {
+    // 既存の二次店担当は会社までしか記録が無いことがある。その場合 staffId は
+    // 空のまま = 「未登録」として復元し、勝手にスタッフを選択しない。
+    return { ...empty, kind: "dealer", relationshipId, staffId: salespersonId ?? "" };
+  }
+  if (salespersonId) return { ...empty, kind: "user", staffId: salespersonId };
+  if (userId) return { ...empty, kind: "user", userId };
+  return empty;
 }
 
-/** 選択状態 → 保存用の {userId, relationshipId}（排他、未選択側は null）。 */
+/**
+ * 選択状態 → Server Action へ送る値。
+ *
+ * スタッフを選んだ場合は salespersonId だけを送り、userId / relationshipId は
+ * サーバ側が Salesperson から導出する（クライアント値を信用させない）。
+ * スタッフ未選択のときだけ、従来どおり userId / relationshipId を直接送る。
+ */
 function toPayload(sel: AssigneeSelection): {
+  salespersonId: string | null;
   userId: string | null;
   relationshipId: string | null;
 } {
-  if (sel.kind === "user") return { userId: sel.id || null, relationshipId: null };
-  if (sel.kind === "dealer") return { userId: null, relationshipId: sel.id || null };
-  return { userId: null, relationshipId: null };
+  if (sel.staffId) return { salespersonId: sel.staffId, userId: null, relationshipId: null };
+  if (sel.kind === "user") {
+    return { salespersonId: null, userId: sel.userId || null, relationshipId: null };
+  }
+  if (sel.kind === "dealer") {
+    return { salespersonId: null, userId: null, relationshipId: sel.relationshipId || null };
+  }
+  return { salespersonId: null, userId: null, relationshipId: null };
 }
 
 const SELECT_CLASS =
@@ -101,6 +143,7 @@ function AssigneeFields({
   onChange,
   users,
   dealers,
+  staff,
 }: {
   idPrefix: string;
   roleLabel: string;
@@ -108,8 +151,18 @@ function AssigneeFields({
   onChange: (next: AssigneeSelection) => void;
   users: UserChoice[];
   dealers: DealerChoice[];
+  staff: StaffChoice[];
 }) {
   const d = labels.customer.detail;
+  const selfStaff = staff.filter((s) => s.relationshipId === null);
+  // 二次店スタッフは「選択中の二次店に所属する人」だけに絞る。
+  const dealerStaff = staff.filter(
+    (s) => s.relationshipId !== null && s.relationshipId === selection.relationshipId,
+  );
+  // 新規の担当者候補は Salesperson だけ。システムユーザー（User）は候補に出さない。
+  // ただし *UserId しか持たない過去データは「今なんと表示されているか」を保つため、
+  // 現在保存されている 1 件だけを選択肢として残す（新規候補ではなく現在値の復元用）。
+  const legacyUser = selection.userId ? users.find((u) => u.id === selection.userId) : undefined;
   const kindLabel: Record<AssigneeKind, string> = {
     unset: d.unassigned,
     user: d.ownStaffGroup,
@@ -118,7 +171,7 @@ function AssigneeFields({
 
   // 所属区分を変えたら担当者は必ず未選択に戻す（区分と担当者の不整合を作らない）。
   function onKindChange(kind: AssigneeKind) {
-    onChange({ kind, id: "" });
+    onChange({ kind, staffId: "", userId: "", relationshipId: "" });
   }
 
   return (
@@ -141,29 +194,80 @@ function AssigneeFields({
         </select>
       </div>
 
-      <div className="space-y-1.5">
-        <Label htmlFor={`${idPrefix}-select`}>{d.assigneeLabel}</Label>
-        <select
-          id={`${idPrefix}-select`}
-          value={selection.id}
-          // 所属区分が未設定のときは選ぶものが無いので無効化する。
-          disabled={selection.kind === "unset"}
-          onChange={(e) => onChange({ kind: selection.kind, id: e.target.value })}
-          className={SELECT_CLASS}
-        >
-          <option value="">{d.unassigned}</option>
-          {selection.kind === "user" &&
-            users.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name}
-              </option>
-            ))}
-          {/* 二次店側の担当主体は「二次店（会社）」そのもの（Relationship）。
-              二次店所属の個人ユーザーを持つデータ構造ではないため会社名を並べる。 */}
-          {selection.kind === "dealer" &&
-            dealers.map((dl) => (
+      {/* 二次店のときは 会社 → 所属スタッフ の 2 段。会社を変えたらスタッフは外す。 */}
+      {selection.kind === "dealer" ? (
+        <div className="space-y-1.5">
+          <Label htmlFor={`${idPrefix}-dealer`}>{d.dealerGroup}</Label>
+          <select
+            id={`${idPrefix}-dealer`}
+            value={selection.relationshipId}
+            onChange={(e) =>
+              onChange({
+                kind: "dealer",
+                relationshipId: e.target.value,
+                staffId: "",
+                userId: "",
+              })
+            }
+            className={SELECT_CLASS}
+          >
+            <option value="">{d.unassigned}</option>
+            {dealers.map((dl) => (
               <option key={dl.relationshipId} value={dl.relationshipId}>
                 {dl.dealerName}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
+
+      <div className="space-y-1.5">
+        <Label htmlFor={`${idPrefix}-select`}>
+          {selection.kind === "dealer" ? d.assigneeStaffLabel : d.assigneeLabel}
+        </Label>
+        <select
+          id={`${idPrefix}-select`}
+          value={selection.staffId || selection.userId}
+          // 所属区分が未設定 / 二次店未選択のときは選ぶものが無いので無効化する。
+          disabled={
+            selection.kind === "unset" ||
+            (selection.kind === "dealer" && selection.relationshipId === "")
+          }
+          onChange={(e) => {
+            const value = e.target.value;
+            const isStaff = staff.some((s) => s.id === value);
+            onChange({
+              ...selection,
+              staffId: isStaff ? value : "",
+              // スタッフ未登録の素の User を選んだときだけ userId を持つ。
+              userId: !isStaff && selection.kind === "user" ? value : "",
+            });
+          }}
+          className={SELECT_CLASS}
+        >
+          {/* 二次店で会社だけ判っている既存データは、ここが「未登録」のまま復元される。 */}
+          <option value="">
+            {selection.kind === "dealer" ? d.assigneeStaffUnset : d.unassigned}
+          </option>
+          {selection.kind === "user" && (
+            <>
+              {selfStaff.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+              {/* 過去データ（*UserId のみ）の現在値。新規候補としては出さない。 */}
+              {legacyUser ? (
+                <option key={legacyUser.id} value={legacyUser.id}>
+                  {d.assigneeLegacyUserOption(legacyUser.name)}
+                </option>
+              ) : null}
+            </>
+          )}
+          {selection.kind === "dealer" &&
+            dealerStaff.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
               </option>
             ))}
         </select>
@@ -180,13 +284,24 @@ export function EditAssigneeDialog({
   currentClosingRelationshipId,
   users,
   dealers,
+  staff,
+  currentTossUpSalespersonId,
+  currentClosingSalespersonId,
 }: EditAssigneeDialogProps) {
   const d = labels.customer.detail;
   const c = labels.common;
   const router = useRouter();
 
-  const tossUpInitial = toSelection(currentTossUpUserId, currentTossUpRelationshipId);
-  const closingInitial = toSelection(currentClosingUserId, currentClosingRelationshipId);
+  const tossUpInitial = toSelection(
+    currentTossUpUserId,
+    currentTossUpRelationshipId,
+    currentTossUpSalespersonId,
+  );
+  const closingInitial = toSelection(
+    currentClosingUserId,
+    currentClosingRelationshipId,
+    currentClosingSalespersonId,
+  );
 
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -209,8 +324,12 @@ export function EditAssigneeDialog({
       try {
         await updateCustomerAction({
           id: customerId,
+          // スタッフを選んだときは salespersonId のみ送り、サーバ側が
+          // Salesperson から userId / relationshipId を導出する。
+          tossUpSalespersonId: tu.salespersonId,
           tossUpUserId: tu.userId,
           tossUpRelationshipId: tu.relationshipId,
+          closingSalespersonId: cl.salespersonId,
           closingUserId: cl.userId,
           closingRelationshipId: cl.relationshipId,
         });
@@ -243,6 +362,7 @@ export function EditAssigneeDialog({
             onChange={setTossUp}
             users={users}
             dealers={dealers}
+            staff={staff}
           />
           <AssigneeFields
             idPrefix="edit-closing"
@@ -251,6 +371,7 @@ export function EditAssigneeDialog({
             onChange={setClosing}
             users={users}
             dealers={dealers}
+            staff={staff}
           />
         </div>
         <DialogFooter>

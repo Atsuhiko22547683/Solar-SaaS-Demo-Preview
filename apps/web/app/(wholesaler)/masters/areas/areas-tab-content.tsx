@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { formatDateTime } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
 import { AreaModal, type AreaModalMode } from "./area-modal";
@@ -122,11 +123,9 @@ export function AreasTabContent({
                         </td>
                         <td className="px-3 py-2">{r.isActive ? c.active : c.inactive}</td>
                         <td className="text-muted-foreground px-3 py-2 text-xs">
-                          {new Date(r.updatedAt).toLocaleString("ja-JP")}
+                          {formatDateTime(r.updatedAt)}
                         </td>
-                        <td className="text-muted-foreground px-3 py-2 text-right text-xs">
-                          編集
-                        </td>
+                        <td className="text-muted-foreground px-3 py-2 text-right text-xs">編集</td>
                       </tr>
                     ))}
                   </tbody>

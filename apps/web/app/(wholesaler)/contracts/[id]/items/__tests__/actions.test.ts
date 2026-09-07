@@ -7,13 +7,12 @@
 //   3. Dealer DTO — snapshotPurchasePrice is physically absent from Object.keys().
 //   4. CANCELLED contract — replaceContractItemsAction throws InvalidStateTransitionError.
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import {
   toContractItemDealerDto,
   toContractItemWholesalerDto,
   type ContractItemForWholesalerDto,
 } from "@solar/contracts";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { InvalidStateTransitionError, NotFoundError } from "../../../../../../lib/errors.js";
 

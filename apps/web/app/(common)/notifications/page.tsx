@@ -7,13 +7,14 @@
 import { Suspense } from "react";
 
 import { labels } from "@/lib/i18n/labels";
+
 import { NotificationInbox } from "./notification-inbox";
 
 export default function NotificationsPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold">{labels.notifications.pageTitle}</h1>
+        <h1 className="text-ink text-xl font-bold">{labels.notifications.pageTitle}</h1>
         <p className="text-muted-foreground mt-1 text-sm">{labels.notifications.pageSubtitle}</p>
       </div>
       <Suspense fallback={null}>

@@ -32,8 +32,7 @@ type FormValues = z.infer<typeof formSchema>;
 // page renders a panel with the shared demo account so participants don't
 // have to look it up. Stripped completely from non-demo builds because the
 // env check folds to a constant at build time.
-const DEMO_CREDENTIALS_ENABLED =
-  process.env.NEXT_PUBLIC_SHOW_DEMO_CREDENTIALS === "true";
+const DEMO_CREDENTIALS_ENABLED = process.env.NEXT_PUBLIC_SHOW_DEMO_CREDENTIALS === "true";
 const DEMO_EMAIL = "demo@solar-saas.demo";
 const DEMO_PASSWORD = "Demo1234!";
 
@@ -58,7 +57,10 @@ export default function SignInPage() {
       const result = await signInAction(prev, fd);
       switch (result.status) {
         case "OK":
-          router.push("/dashboard");
+          // "/" はロールに応じたホームへ振り分ける（app/page.tsx）。
+          // "/dashboard" 固定だと二次店・SaaS 運営がログイン直後に
+          // 卸業者用ホームへ着地し、権限エラー画面が最初の画面になる。
+          router.push("/");
           return;
         case "LOCKED":
           router.push(
@@ -91,7 +93,7 @@ export default function SignInPage() {
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">{labels.signIn.title}</h1>
+        <h1 className="text-ink text-xl font-bold">{labels.signIn.title}</h1>
         <p className="text-muted-foreground text-sm">{labels.signIn.subtitle}</p>
       </div>
 
@@ -102,12 +104,8 @@ export default function SignInPage() {
           className="border-primary/30 bg-primary/5 hover:bg-primary/10 focus-visible:ring-ring w-full rounded-md border p-4 text-left transition focus:outline-none focus-visible:ring-2"
           aria-label={labels.signIn.demoAutofillButton}
         >
-          <div className="text-primary text-sm font-semibold">
-            {labels.signIn.demoPanelTitle}
-          </div>
-          <p className="text-muted-foreground mt-1 text-xs">
-            {labels.signIn.demoPanelDescription}
-          </p>
+          <div className="text-primary text-sm font-semibold">{labels.signIn.demoPanelTitle}</div>
+          <p className="text-muted-foreground mt-1 text-xs">{labels.signIn.demoPanelDescription}</p>
           <dl className="mt-3 space-y-1 font-mono text-xs">
             <div className="flex gap-2">
               <dt className="text-muted-foreground min-w-[7.5rem]">

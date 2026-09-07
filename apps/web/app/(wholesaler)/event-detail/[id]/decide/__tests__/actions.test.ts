@@ -13,11 +13,9 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  ForbiddenError,
-  InvalidStateTransitionError,
-} from "../../../../../../lib/errors.js";
 import { notificationService } from "@/lib/notifications/notification-service";
+
+import { ForbiddenError, InvalidStateTransitionError } from "../../../../../../lib/errors.js";
 
 import type * as DbModule from "@solar/db";
 
@@ -34,7 +32,9 @@ const relationshipFindManyMock = vi.fn();
 const revalidatePathMock = vi.fn();
 
 vi.mock("@/lib/notifications/notification-service", () => ({
-  notificationService: { fire: vi.fn().mockResolvedValue({ notificationIds: [], skippedCount: 0 }) },
+  notificationService: {
+    fire: vi.fn().mockResolvedValue({ notificationIds: [], skippedCount: 0 }),
+  },
 }));
 
 vi.mock("@/lib/notifications/recipient-helpers", () => ({
@@ -140,7 +140,12 @@ beforeEach(() => {
 
   // Default return for eventCandidateUpdate — tests that check `status` will
   // override this if needed; the notification path only needs storeName.
-  eventCandidateUpdateMock.mockResolvedValue({ id: "ec_1", status: "DECIDED", storeName: "テスト会場", scheduledDate: null });
+  eventCandidateUpdateMock.mockResolvedValue({
+    id: "ec_1",
+    status: "DECIDED",
+    storeName: "テスト会場",
+    scheduledDate: null,
+  });
 });
 
 describe("decideEventModeAction — mode=SELF", () => {

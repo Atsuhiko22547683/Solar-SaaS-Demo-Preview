@@ -4,9 +4,8 @@
 // to `resetPasswordAction` from @solar/auth which handles argon2 verify,
 // CAS-style token consumption, sessionVersion bump, and audit logging.
 
-import { type NextRequest, NextResponse } from "next/server";
-
 import { resetPasswordAction, UnauthorizedError } from "@solar/auth";
+import { type NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   let token: string | undefined;

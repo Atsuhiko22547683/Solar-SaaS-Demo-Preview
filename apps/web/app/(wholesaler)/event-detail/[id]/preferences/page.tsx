@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { formatDate, formatDateTime } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 import { cn } from "@/lib/utils";
 
@@ -36,14 +37,6 @@ function statusBadgeClass(status: PreferenceSubmissionStatus): string {
   }
 }
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("ja-JP");
-}
-
-function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString("ja-JP");
-}
-
 export default async function EventCandidatePreferenceStatusPage({ params }: PageProps) {
   const { id } = await params;
   const data = await getEventCandidatePreferenceStatus(id);
@@ -62,7 +55,7 @@ export default async function EventCandidatePreferenceStatusPage({ params }: Pag
       />
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
+          <h1 className="text-ink text-xl font-bold">{t.title}</h1>
           <p className="text-muted-foreground text-sm">{t.subtitle}</p>
         </div>
         <Button asChild variant="outline">

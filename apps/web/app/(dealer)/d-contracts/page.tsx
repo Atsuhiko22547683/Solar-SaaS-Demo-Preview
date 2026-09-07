@@ -8,11 +8,12 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { formatDate } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
-import type { ContractStatus } from "@solar/db";
-
 import { listDealerContracts } from "./data";
+
+import type { ContractStatus } from "@solar/db";
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +54,7 @@ export default async function DealerContractListPage({ searchParams }: PageProps
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">{t.listTitle}</h1>
+        <h1 className="text-ink text-xl font-bold">{t.listTitle}</h1>
       </div>
 
       {/* Filter bar */}
@@ -114,13 +115,13 @@ export default async function DealerContractListPage({ searchParams }: PageProps
                   <tr key={row.id} className="border-border border-t">
                     <td className="px-3 py-2 font-medium">{row.customerName}</td>
                     <td className="text-muted-foreground px-3 py-2">
-                      {new Date(row.contractDate).toLocaleDateString("ja-JP")}
+                      {formatDate(row.contractDate)}
                     </td>
                     <td className="px-3 py-2">
                       {Number(row.contractAmount).toLocaleString("ja-JP")} {c.currencySuffix}
                     </td>
                     <td className="text-muted-foreground px-3 py-2">
-                      {new Date(row.cancelDeadline).toLocaleDateString("ja-JP")}
+                      {formatDate(row.cancelDeadline)}
                     </td>
                     <td className="px-3 py-2">
                       <span

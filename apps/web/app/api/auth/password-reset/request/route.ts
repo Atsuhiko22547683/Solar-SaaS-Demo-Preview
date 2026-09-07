@@ -3,9 +3,8 @@
 // Thin Route Handler wrapper around `requestPasswordResetAction` from
 // @solar/auth. Always returns 200 to prevent email-enumeration attacks.
 
-import { type NextRequest, NextResponse } from "next/server";
-
 import { requestPasswordResetAction } from "@solar/auth";
+import { type NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   let email: string | undefined;

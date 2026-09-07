@@ -7,11 +7,12 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { formatDate, formatDateTime } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
-import type { AppointmentStatus } from "@solar/db";
-
 import { listDealerAppointments } from "./data";
+
+import type { AppointmentStatus } from "@solar/db";
 
 export const dynamic = "force-dynamic";
 
@@ -63,7 +64,7 @@ export default async function DealerAppointmentListPage({ searchParams }: PagePr
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">{t.listTitle}</h1>
+      <h1 className="text-ink text-xl font-bold">{t.listTitle}</h1>
 
       {/* Filter bar */}
       <form method="get" className="flex flex-wrap items-center gap-2">
@@ -87,13 +88,7 @@ export default async function DealerAppointmentListPage({ searchParams }: PagePr
           aria-label={t.filterByFrom}
           className="w-40"
         />
-        <Input
-          type="date"
-          name="to"
-          defaultValue={to}
-          aria-label={t.filterByTo}
-          className="w-40"
-        />
+        <Input type="date" name="to" defaultValue={to} aria-label={t.filterByTo} className="w-40" />
         <Button type="submit" variant="outline">
           {c.search}
         </Button>
@@ -120,12 +115,10 @@ export default async function DealerAppointmentListPage({ searchParams }: PagePr
                 {result.items.map((row) => (
                   <tr key={row.id} className="border-border border-t">
                     <td className="px-3 py-2">{row.customerName}</td>
-                    <td className="px-3 py-2 tabular-nums">
-                      {new Date(row.scheduledAt).toLocaleString("ja-JP")}
-                    </td>
+                    <td className="px-3 py-2 tabular-nums">{formatDateTime(row.scheduledAt)}</td>
                     <td className="px-3 py-2">{t.statuses[row.status]}</td>
                     <td className="text-muted-foreground px-3 py-2 text-xs">
-                      {new Date(row.createdAt).toLocaleDateString("ja-JP")}
+                      {formatDate(row.createdAt)}
                     </td>
                   </tr>
                 ))}

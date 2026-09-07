@@ -19,7 +19,7 @@ export interface SalesTrendPoint {
 export function SalesTrendChart({ data }: { data: SalesTrendPoint[] }) {
   if (data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-48 text-pewter text-sm">
+      <div className="text-mute-light flex h-48 items-center justify-center text-sm">
         データがありません
       </div>
     );

@@ -16,7 +16,7 @@ export default async function WholesalerSettingsPage() {
   if (!settings) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
+        <h1 className="text-ink text-xl font-bold">{t.title}</h1>
         <p className="text-muted-foreground text-sm">{labels.common.notFound}</p>
       </div>
     );
@@ -25,7 +25,7 @@ export default async function WholesalerSettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
+        <h1 className="text-ink text-xl font-bold">{t.title}</h1>
         <p className="text-muted-foreground text-sm">{t.subtitle}</p>
       </div>
       <div className="max-w-2xl">

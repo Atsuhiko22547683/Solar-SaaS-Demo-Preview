@@ -24,6 +24,7 @@ import {
   type ContractStatusValue,
 } from "./data";
 import { PageSizeSelect } from "./page-size-select";
+import { StatusQuickFilter } from "./status-quick-filter";
 
 import type { ListSortOption } from "@/components/list/list-sort";
 
@@ -119,36 +120,58 @@ export default async function WholesalerCustomerListPage({ searchParams }: PageP
     return `${BASE_PATH}?${sp.toString()}`;
   }
 
+  // クイック絞り込みのリンク先。契約状況だけを差し替え、他の条件は保つ。
+  // ページ番号は状況を切り替えた時点で意味を失うので落とす。
+  function statusUrl(status: string): string {
+    const sp = new URLSearchParams();
+    if (query) sp.set("query", query);
+    if (assigneeUserId) sp.set("assigneeUserId", assigneeUserId);
+    if (status) sp.set("contractStatus", status);
+    if (sortField !== DEFAULT_SORT_FIELD) sp.set("sortField", sortField);
+    if (sortDirection !== SORT_OPTIONS.find((o) => o.value === sortField)?.defaultDirection) {
+      sp.set("sortDir", sortDirection);
+    }
+    if (pageSize !== 20) sp.set("pageSize", String(pageSize));
+    const qs = sp.toString();
+    return qs ? `${BASE_PATH}?${qs}` : BASE_PATH;
+  }
+
   const pageText = t.pagination.pageOf
     .replace("{page}", String(result.page))
     .replace("{total}", String(Math.max(1, result.totalPages)));
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-ink text-2xl font-bold">{t.listTitle}</h1>
-          <p className="text-mute-light mt-1 text-sm">{t.subtitle}</p>
-        </div>
+      {/* 画面上部は「見出し + 主操作」「よく切り替える条件」「件数 + 並び替え」の
+          3 段に圧縮する。以前は見出し・定型 subtitle・大きな検索カード・件数・
+          並び替えで縦に 5 段を消費し、一覧が下へ押し出されていた。
+          説明文（「全ての顧客情報を一覧で確認・管理できます。」）は画面名から
+          読み取れる内容しか持たないため出さない。 */}
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-ink text-xl font-bold">{t.listTitle}</h1>
         <Button asChild>
           <Link href="/customers/new">{t.newShort}</Link>
         </Button>
       </div>
 
-      <Card className="p-4">
-        <CustomerFilter
-          query={query}
-          assigneeUserId={assigneeUserId ?? ""}
-          contractStatus={contractStatus ?? ""}
-          assignees={assignees}
-          activeCount={activeFilterCount}
-          defaultOpen={activeFilterCount > 0}
-        />
-      </Card>
+      {/* よく切り替える条件（契約状況）だけを 1 クリックで。 */}
+      <div className="border-hairline-light border-b pb-2">
+        <StatusQuickFilter current={contractStatus ?? ""} buildUrl={statusUrl} />
+      </div>
 
-      {/* 表示件数（左）と並び替え（右）。並び替えは検索条件ではないのでここに置く。 */}
+      {/* 低頻度の条件（氏名検索・担当者・全 7 値の契約状況）は畳んだまま。 */}
+      <CustomerFilter
+        query={query}
+        assigneeUserId={assigneeUserId ?? ""}
+        contractStatus={contractStatus ?? ""}
+        assignees={assignees}
+        activeCount={activeFilterCount}
+        defaultOpen={activeFilterCount > 0}
+      />
+
+      {/* 件数と並び替えは一覧の直上に同じ行で置く（対象件数と並び順は対で読む）。 */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-mute-light text-sm">
+        <p className="text-mute-light text-sm tabular-nums">
           {t.filters.resultCount.replace("{total}", String(result.total))}
         </p>
         <ListSortSelect
@@ -181,7 +204,7 @@ export default async function WholesalerCustomerListPage({ searchParams }: PageP
             <PageSizeSelect pageSize={result.pageSize} />
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className={result.totalPages > 1 ? "flex items-center gap-1" : "hidden"}>
             <Button
               asChild={result.page > 1}
               variant="outline"
@@ -263,7 +286,9 @@ export default async function WholesalerCustomerListPage({ searchParams }: PageP
             </Button>
           </div>
 
-          <span className="text-mute-light text-sm tabular-nums">{pageText}</span>
+          {result.totalPages > 1 ? (
+            <span className="text-mute-light text-sm tabular-nums">{pageText}</span>
+          ) : null}
         </div>
       )}
     </div>

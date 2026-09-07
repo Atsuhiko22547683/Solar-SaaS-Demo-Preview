@@ -23,7 +23,7 @@ export default async function DealerMonthlyReportsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{td.title}</h1>
+        <h1 className="text-ink text-xl font-bold">{td.title}</h1>
         <p className="text-muted-foreground mt-1 text-sm">{td.subtitle}</p>
       </div>
 
@@ -41,7 +41,7 @@ export default async function DealerMonthlyReportsPage() {
                 : {};
 
             return (
-              <div key={report.id} className="border-border rounded-md border p-4 space-y-4">
+              <div key={report.id} className="border-border space-y-4 rounded-md border p-4">
                 {/* Report header */}
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="space-y-0.5">
@@ -88,12 +88,10 @@ export default async function DealerMonthlyReportsPage() {
                 )}
 
                 {/* Comment input form — only for DRAFT reports */}
-                {report.status === "DRAFT" && (
-                  <SubmitCommentForm reportId={report.id} />
-                )}
+                {report.status === "DRAFT" && <SubmitCommentForm reportId={report.id} />}
 
                 {report.status === "FINALIZED" && (
-                  <p className="text-xs text-muted-foreground">{t.comment.finalized}</p>
+                  <p className="text-muted-foreground text-xs">{t.comment.finalized}</p>
                 )}
               </div>
             );

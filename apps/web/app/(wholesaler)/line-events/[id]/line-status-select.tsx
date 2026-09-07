@@ -17,7 +17,7 @@ function chipColors(s: LineEventStatus): string {
     case "CONFIRMED":
       return "bg-primary/10 text-primary border-primary/30";
     case "CANCELLED":
-      return "bg-warning/10 text-warning border-warning/30";
+      return "bg-danger/10 text-danger border-danger/30";
     default:
       return "bg-amber-50 text-amber-700 border-amber-200";
   }
@@ -29,7 +29,7 @@ function menuItemColors(s: LineEventStatus, active: boolean): string {
     case "CONFIRMED":
       return `${base} text-primary`;
     case "CANCELLED":
-      return `${base} text-warning`;
+      return `${base} text-danger`;
     default:
       return `${base} text-amber-700`;
   }
@@ -84,34 +84,50 @@ export function LineStatusSelect({ id, current }: Props) {
         onClick={() => !isPending && setOpen(!open)}
         disabled={isPending}
         className={[
-          "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors cursor-pointer",
+          "inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors",
           chipColors(current),
           isPending ? "opacity-50" : "hover:shadow-sm",
         ].join(" ")}
       >
         {t.statuses[current]}
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="opacity-60">
-          <path d="M2.5 4L5 6.5L7.5 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          <path
+            d="M2.5 4L5 6.5L7.5 4"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </svg>
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-50 w-36 rounded-md border border-hairline-light bg-white py-1 shadow-lg animate-in fade-in-0 zoom-in-95 duration-150">
+        <div className="border-hairline-light animate-in fade-in-0 zoom-in-95 absolute right-0 top-full z-50 mt-1 w-36 rounded-md border bg-white py-1 shadow-lg duration-150">
           {OPTIONS.map((s) => (
             <button
               key={s}
               type="button"
               onClick={() => handleSelect(s)}
               className={[
-                "flex w-full items-center gap-2 px-3 py-2 text-xs transition-colors hover:bg-surface-soft",
+                "hover:bg-surface-soft flex w-full items-center gap-2 px-3 py-2 text-xs transition-colors",
                 menuItemColors(s, s === current),
               ].join(" ")}
             >
-              <span className={["inline-block h-2 w-2 rounded-full", chipColors(s).split(" ")[0]].join(" ")} />
+              <span
+                className={["inline-block h-2 w-2 rounded-full", chipColors(s).split(" ")[0]].join(
+                  " ",
+                )}
+              />
               {t.statuses[s]}
               {s === current && (
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="ml-auto">
-                  <path d="M2.5 6L5 8.5L9.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path
+                    d="M2.5 6L5 8.5L9.5 3.5"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </svg>
               )}
             </button>

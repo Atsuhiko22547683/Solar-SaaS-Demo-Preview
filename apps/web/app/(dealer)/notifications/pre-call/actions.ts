@@ -13,12 +13,11 @@
 //      c. Update status → ACKNOWLEDGED, acknowledgedAt → now().
 //   4. Return { id, acknowledgedAt }.
 
-import { revalidatePath } from "next/cache";
-
 import {
   PreCallNotificationAcknowledgeSchema,
   type PreCallNotificationAcknowledgeInput,
 } from "@solar/contracts";
+import { revalidatePath } from "next/cache";
 
 import { ForbiddenError, NotFoundError } from "@/lib/errors";
 import { withServerActionContext } from "@/lib/tenancy/server-action";
@@ -31,53 +30,50 @@ export interface AcknowledgeNotificationResult {
 export const acknowledgePreCallNotificationAction = withServerActionContext<
   PreCallNotificationAcknowledgeInput,
   AcknowledgeNotificationResult
->(
-  { action: "pre_call_notification.acknowledge" },
-  async ({ tx, ctx, input }) => {
-    const parsed = PreCallNotificationAcknowledgeSchema.parse(input);
+>({ action: "pre_call_notification.acknowledge" }, async ({ tx, ctx, input }) => {
+  const parsed = PreCallNotificationAcknowledgeSchema.parse(input);
 
-    const notification = await tx.preCallNotification.findUnique({
-      where: { id: parsed.notificationId },
-      select: {
-        id: true,
-        relationshipId: true,
-        status: true,
-        acknowledgedAt: true,
-      },
-    });
+  const notification = await tx.preCallNotification.findUnique({
+    where: { id: parsed.notificationId },
+    select: {
+      id: true,
+      relationshipId: true,
+      status: true,
+      acknowledgedAt: true,
+    },
+  });
 
-    if (!notification) {
-      throw new NotFoundError("通知が見つかりません");
-    }
+  if (!notification) {
+    throw new NotFoundError("通知が見つかりません");
+  }
 
-    // Tenant isolation — the notification must belong to one of the caller's
-    // relationship IDs. RLS covers wholesalerId but relationshipId-level check
-    // is enforced here to prevent cross-dealer access within the same wholesaler.
-    if (!ctx.relationshipIds.includes(notification.relationshipId)) {
-      throw new ForbiddenError("この通知にアクセスできません");
-    }
+  // Tenant isolation — the notification must belong to one of the caller's
+  // relationship IDs. RLS covers wholesalerId but relationshipId-level check
+  // is enforced here to prevent cross-dealer access within the same wholesaler.
+  if (!ctx.relationshipIds.includes(notification.relationshipId)) {
+    throw new ForbiddenError("この通知にアクセスできません");
+  }
 
-    if (notification.status === "ACKNOWLEDGED" && notification.acknowledgedAt) {
-      return {
-        id: notification.id,
-        acknowledgedAt: notification.acknowledgedAt.toISOString(),
-      };
-    }
-
-    const acknowledgedAt = new Date();
-    await tx.preCallNotification.update({
-      where: { id: parsed.notificationId },
-      data: {
-        status: "ACKNOWLEDGED",
-        acknowledgedAt,
-      },
-    });
-
-    revalidatePath("/notifications/pre-call");
-
+  if (notification.status === "ACKNOWLEDGED" && notification.acknowledgedAt) {
     return {
       id: notification.id,
-      acknowledgedAt: acknowledgedAt.toISOString(),
+      acknowledgedAt: notification.acknowledgedAt.toISOString(),
     };
-  },
-);
+  }
+
+  const acknowledgedAt = new Date();
+  await tx.preCallNotification.update({
+    where: { id: parsed.notificationId },
+    data: {
+      status: "ACKNOWLEDGED",
+      acknowledgedAt,
+    },
+  });
+
+  revalidatePath("/notifications/pre-call");
+
+  return {
+    id: notification.id,
+    acknowledgedAt: acknowledgedAt.toISOString(),
+  };
+});

@@ -18,10 +18,10 @@ import { auth } from "@/auth";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { UnauthorizedError } from "@/lib/errors";
+import { labels } from "@/lib/i18n/labels";
 import { assertCan } from "@/lib/permissions/can";
 import { getTenantContext } from "@/lib/tenancy/context";
 import { withTenant } from "@/lib/tenancy/with-tenant";
-import { labels } from "@/lib/i18n/labels";
 
 import { JointIncentiveAdjustForm } from "./JointIncentiveAdjustForm";
 
@@ -158,24 +158,21 @@ export default async function IncentiveAdjustPage({ params }: PageProps) {
         <Button asChild variant="outline" size="sm">
           <Link href={`/contracts/${id}`}>{t.backToContract}</Link>
         </Button>
-        <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
+        <h1 className="text-ink text-xl font-bold">{t.title}</h1>
       </div>
 
-      <p className="text-sm text-muted-foreground">{t.subtitle}</p>
+      <p className="text-muted-foreground text-sm">{t.subtitle}</p>
 
       {data.eventModeAtContract !== "JOINT" ? (
         <div className="border-border rounded-md border p-4">
-          <p className="text-sm text-muted-foreground">{t.notJointMode}</p>
+          <p className="text-muted-foreground text-sm">{t.notJointMode}</p>
         </div>
       ) : data.incentives.length === 0 ? (
         <div className="border-border rounded-md border p-4">
-          <p className="text-sm text-muted-foreground">{t.noIncentives}</p>
+          <p className="text-muted-foreground text-sm">{t.noIncentives}</p>
         </div>
       ) : (
-        <JointIncentiveAdjustForm
-          contractId={id}
-          incentives={data.incentives}
-        />
+        <JointIncentiveAdjustForm contractId={id} incentives={data.incentives} />
       )}
     </div>
   );

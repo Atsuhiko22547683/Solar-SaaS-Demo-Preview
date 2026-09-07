@@ -6,10 +6,11 @@
 //
 // 編集対象は既存列のみ。仕入値スナップショット（ContractItem.snapshot*）は扱わない。
 
+import { LOAN_REVIEW_RESULT_VALUES, LOAN_REVIEW_STATUS_VALUES } from "@solar/contracts";
 import {
-  LOAN_REVIEW_RESULT_VALUES,
-  LOAN_REVIEW_STATUS_VALUES,
-} from "@solar/contracts";
+  computeContractCommission,
+  computeContractGrossProfit,
+} from "@solar/contracts/dto/project-info";
 import { ChevronDown, Pencil, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -28,12 +29,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { formatDate } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 import { cn } from "@/lib/utils";
 
 import { CustomerFiles } from "./customer-files";
 import { EditableTabTrigger } from "./editable-tab-trigger";
-
 import {
   createApplicationAction,
   createConstructionAction,
@@ -79,8 +80,6 @@ import type {
   LoanReviewResultValue,
   LoanReviewStatusValue,
 } from "@solar/contracts";
-import { computeContractCommission, computeContractGrossProfit } from "@solar/contracts/dto/project-info";
-
 import type {
   ProjectCostItemDto,
   ProjectLoanReviewLogDto,
@@ -175,7 +174,7 @@ function EditTrigger({ label, mode = "edit" }: { label: string; mode?: "edit" | 
         type="button"
         variant="ghost"
         size="icon"
-        className="size-7 text-mute-light hover:text-ink"
+        className="text-mute-light hover:text-ink size-7"
         aria-label={label}
       >
         {mode === "add" ? <Plus className="size-4" /> : <Pencil className="size-4" />}
@@ -275,9 +274,7 @@ export function EditOverviewDialog({
         household: strOrNull(household),
         housingType: strOrNull(housingType),
         inflowRoute:
-          inflowRoute === ""
-            ? null
-            : (inflowRoute as "EVENT" | "OUTBOUND_CALL" | "DIRECT_VISIT"),
+          inflowRoute === "" ? null : (inflowRoute as "EVENT" | "OUTBOUND_CALL" | "DIRECT_VISIT"),
         maekakuStatus: strOrNull(maekakuStatus),
       }),
     );
@@ -292,16 +289,33 @@ export function EditOverviewDialog({
         </DialogHeader>
         <div className="space-y-4">
           <FormField label={f.electricBill} htmlFor="ov-electric">
-            <Input id="ov-electric" value={electricBill} onChange={(e) => setElectricBill(e.target.value)} />
+            <Input
+              id="ov-electric"
+              value={electricBill}
+              onChange={(e) => setElectricBill(e.target.value)}
+            />
           </FormField>
           <FormField label={f.household} htmlFor="ov-household">
-            <Input id="ov-household" value={household} onChange={(e) => setHousehold(e.target.value)} />
+            <Input
+              id="ov-household"
+              value={household}
+              onChange={(e) => setHousehold(e.target.value)}
+            />
           </FormField>
           <FormField label={f.housingType} htmlFor="ov-housing">
-            <Input id="ov-housing" value={housingType} onChange={(e) => setHousingType(e.target.value)} />
+            <Input
+              id="ov-housing"
+              value={housingType}
+              onChange={(e) => setHousingType(e.target.value)}
+            />
           </FormField>
           <FormField label={f.inflowRoute} htmlFor="ov-inflow">
-            <select id="ov-inflow" className={FIELD} value={inflowRoute} onChange={(e) => setInflowRoute(e.target.value)}>
+            <select
+              id="ov-inflow"
+              className={FIELD}
+              value={inflowRoute}
+              onChange={(e) => setInflowRoute(e.target.value)}
+            >
               <option value="">{ed.unset}</option>
               <option value="EVENT">{ed.inflowRouteLabels.EVENT}</option>
               <option value="OUTBOUND_CALL">{ed.inflowRouteLabels.OUTBOUND_CALL}</option>
@@ -309,7 +323,12 @@ export function EditOverviewDialog({
             </select>
           </FormField>
           <FormField label={f.maekakuStatus} htmlFor="ov-maekaku">
-            <select id="ov-maekaku" className={FIELD} value={maekakuStatus} onChange={(e) => setMaekakuStatus(e.target.value)}>
+            <select
+              id="ov-maekaku"
+              className={FIELD}
+              value={maekakuStatus}
+              onChange={(e) => setMaekakuStatus(e.target.value)}
+            >
               <option value="">{ed.unset}</option>
               <option value="pending">{ed.maekakuStatusLabels.pending}</option>
               <option value="done">{ed.maekakuStatusLabels.done}</option>
@@ -340,7 +359,13 @@ function InlineFooter({
 }) {
   return (
     <div className="flex justify-end gap-2">
-      <Button type="button" variant="outline" size="sm" onClick={onCancel} disabled={pending || !dirty}>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={onCancel}
+        disabled={pending || !dirty}
+      >
         {ed.cancel}
       </Button>
       <Button type="button" size="sm" onClick={onSave} disabled={pending || !dirty}>
@@ -422,7 +447,12 @@ export function MaekakuCallInlineEdit({
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3">
         <FormField label={f.callMaekakuStatus} htmlFor="mk-status">
-          <select id="mk-status" className={FIELD} value={status} onChange={(e) => setStatus(e.target.value)}>
+          <select
+            id="mk-status"
+            className={FIELD}
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+          >
             <option value="">{ed.unset}</option>
             <option value="pending">{ed.maekakuStatusLabels.pending}</option>
             <option value="done">{ed.maekakuStatusLabels.done}</option>
@@ -430,7 +460,13 @@ export function MaekakuCallInlineEdit({
           </select>
         </FormField>
         <FormField label={f.maekakuPreferredAt} htmlFor="mk-at">
-          <input id="mk-at" type="datetime-local" className={FIELD} value={preferredAt} onChange={(e) => setPreferredAt(e.target.value)} />
+          <input
+            id="mk-at"
+            type="datetime-local"
+            className={FIELD}
+            value={preferredAt}
+            onChange={(e) => setPreferredAt(e.target.value)}
+          />
         </FormField>
       </div>
       <FormField label={f.maekakuCallNote} htmlFor="mk-note">
@@ -485,7 +521,7 @@ export function CallLogAddForm({
   }
 
   return (
-    <div className="rounded-md border border-hairline-light bg-surface-soft/40 p-3">
+    <div className="border-hairline-light bg-surface-soft/40 rounded-md border p-3">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <FormField label={s.callLogCalledAt} htmlFor="cl-at">
           <input
@@ -554,7 +590,7 @@ export function CallLogDeleteButton({
       type="button"
       variant="ghost"
       size="icon"
-      className="size-7 text-mute-light hover:text-destructive"
+      className="text-mute-light hover:text-destructive size-7"
       aria-label={s.callLogDelete}
       onClick={onDelete}
       disabled={pending}
@@ -612,7 +648,13 @@ export function ThankYouCallInlineEdit({
           <CallStatusSelect id="ty-status" value={status} onChange={setStatus} />
         </FormField>
         <FormField label={f.thankYouCallPreferredAt} htmlFor="ty-at">
-          <input id="ty-at" type="datetime-local" className={FIELD} value={at} onChange={(e) => setAt(e.target.value)} />
+          <input
+            id="ty-at"
+            type="datetime-local"
+            className={FIELD}
+            value={at}
+            onChange={(e) => setAt(e.target.value)}
+          />
         </FormField>
       </div>
       <FormField label={f.thankYouCallNote} htmlFor="ty-note">
@@ -639,7 +681,8 @@ export function LoanCompletionCallInlineEdit({
 
   const initStatus = initial.loanCompletionCallStatus ?? CALL_STATUS_UNSET;
   const initAt = toDateTimeInput(initial.loanCompletionCallPreferredAt);
-  const dirty = status !== initStatus || at !== initAt || note !== (initial.loanCompletionCallNote ?? "");
+  const dirty =
+    status !== initStatus || at !== initAt || note !== (initial.loanCompletionCallNote ?? "");
 
   function reset() {
     setStatus(initStatus);
@@ -671,7 +714,13 @@ export function LoanCompletionCallInlineEdit({
           <CallStatusSelect id="lc-status" value={status} onChange={setStatus} />
         </FormField>
         <FormField label={f.loanCompletionCallPreferredAt} htmlFor="lc-at">
-          <input id="lc-at" type="datetime-local" className={FIELD} value={at} onChange={(e) => setAt(e.target.value)} />
+          <input
+            id="lc-at"
+            type="datetime-local"
+            className={FIELD}
+            value={at}
+            onChange={(e) => setAt(e.target.value)}
+          />
         </FormField>
       </div>
       <FormField label={f.loanCompletionCallNote} htmlFor="lc-note">
@@ -698,7 +747,8 @@ export function PostCompletionCallInlineEdit({
 
   const initStatus = initial.postCompletionCallStatus ?? CALL_STATUS_UNSET;
   const initAt = toDateTimeInput(initial.postCompletionCallPreferredAt);
-  const dirty = status !== initStatus || at !== initAt || note !== (initial.postCompletionCallNote ?? "");
+  const dirty =
+    status !== initStatus || at !== initAt || note !== (initial.postCompletionCallNote ?? "");
 
   function reset() {
     setStatus(initStatus);
@@ -730,7 +780,13 @@ export function PostCompletionCallInlineEdit({
           <CallStatusSelect id="pc-status" value={status} onChange={setStatus} />
         </FormField>
         <FormField label={f.postCompletionCallPreferredAt} htmlFor="pc-at">
-          <input id="pc-at" type="datetime-local" className={FIELD} value={at} onChange={(e) => setAt(e.target.value)} />
+          <input
+            id="pc-at"
+            type="datetime-local"
+            className={FIELD}
+            value={at}
+            onChange={(e) => setAt(e.target.value)}
+          />
         </FormField>
       </div>
       <FormField label={f.postCompletionCallNote} htmlFor="pc-note">
@@ -751,9 +807,13 @@ export function EditHearingDialog({
 }) {
   const h = p.hearing;
   const [open, setOpen] = useState(false);
-  const [husbandAge, setHusbandAge] = useState(initial.husbandAge != null ? String(initial.husbandAge) : "");
+  const [husbandAge, setHusbandAge] = useState(
+    initial.husbandAge != null ? String(initial.husbandAge) : "",
+  );
   const [wifeAge, setWifeAge] = useState(initial.wifeAge != null ? String(initial.wifeAge) : "");
-  const [childAge, setChildAge] = useState(initial.childAge != null ? String(initial.childAge) : "");
+  const [childAge, setChildAge] = useState(
+    initial.childAge != null ? String(initial.childAge) : "",
+  );
   const [household, setHousehold] = useState(initial.household ?? "");
   const [guideAttendee, setGuideAttendee] = useState(initial.guideAttendee ?? "");
   const [faceToFace, setFaceToFace] = useState(boolToSelect(initial.faceToFace));
@@ -787,9 +847,7 @@ export function EditHearingDialog({
         childAge: numOrNull(childAge),
         household: strOrNull(household),
         guideAttendee:
-          guideAttendee === ""
-            ? null
-            : (guideAttendee as "HUSBAND" | "WIFE" | "BOTH" | "OTHER"),
+          guideAttendee === "" ? null : (guideAttendee as "HUSBAND" | "WIFE" | "BOTH" | "OTHER"),
         faceToFace: selectToBool(faceToFace),
         landlinePhone: strOrNull(landlinePhone),
         mobilePhone: strOrNull(mobilePhone),
@@ -807,24 +865,54 @@ export function EditHearingDialog({
           <DialogTitle>{ed.editHearing}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-mute-light">{h.familyTitle}</p>
+          <p className="text-mute-light text-[11px] font-semibold">{h.familyTitle}</p>
           <div className="grid grid-cols-3 gap-3">
             <FormField label={h.husbandAge} htmlFor="hr-husband">
-              <Input id="hr-husband" type="number" min={0} max={120} value={husbandAge} onChange={(e) => setHusbandAge(e.target.value)} />
+              <Input
+                id="hr-husband"
+                type="number"
+                min={0}
+                max={120}
+                value={husbandAge}
+                onChange={(e) => setHusbandAge(e.target.value)}
+              />
             </FormField>
             <FormField label={h.wifeAge} htmlFor="hr-wife">
-              <Input id="hr-wife" type="number" min={0} max={120} value={wifeAge} onChange={(e) => setWifeAge(e.target.value)} />
+              <Input
+                id="hr-wife"
+                type="number"
+                min={0}
+                max={120}
+                value={wifeAge}
+                onChange={(e) => setWifeAge(e.target.value)}
+              />
             </FormField>
             <FormField label={h.childAge} htmlFor="hr-child">
-              <Input id="hr-child" type="number" min={0} max={120} value={childAge} onChange={(e) => setChildAge(e.target.value)} />
+              <Input
+                id="hr-child"
+                type="number"
+                min={0}
+                max={120}
+                value={childAge}
+                onChange={(e) => setChildAge(e.target.value)}
+              />
             </FormField>
           </div>
           <FormField label={h.household} htmlFor="hr-household">
-            <Input id="hr-household" value={household} onChange={(e) => setHousehold(e.target.value)} />
+            <Input
+              id="hr-household"
+              value={household}
+              onChange={(e) => setHousehold(e.target.value)}
+            />
           </FormField>
           <div className="grid grid-cols-2 gap-3">
             <FormField label={h.guideAttendee} htmlFor="hr-guide">
-              <select id="hr-guide" className={FIELD} value={guideAttendee} onChange={(e) => setGuideAttendee(e.target.value)}>
+              <select
+                id="hr-guide"
+                className={FIELD}
+                value={guideAttendee}
+                onChange={(e) => setGuideAttendee(e.target.value)}
+              >
                 <option value="">{ed.unset}</option>
                 <option value="HUSBAND">{h.guideAttendeeLabels.HUSBAND}</option>
                 <option value="WIFE">{h.guideAttendeeLabels.WIFE}</option>
@@ -833,24 +921,43 @@ export function EditHearingDialog({
               </select>
             </FormField>
             <FormField label={h.faceToFace} htmlFor="hr-face">
-              <select id="hr-face" className={FIELD} value={faceToFace} onChange={(e) => setFaceToFace(e.target.value)}>
+              <select
+                id="hr-face"
+                className={FIELD}
+                value={faceToFace}
+                onChange={(e) => setFaceToFace(e.target.value)}
+              >
                 <option value={BOOL_UNSET}>{ed.unset}</option>
                 <option value="true">{ed.presence.true}</option>
                 <option value="false">{ed.presence.false}</option>
               </select>
             </FormField>
           </div>
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-mute-light">{ed.contactTitle}</p>
+          <p className="text-mute-light text-[11px] font-semibold">{ed.contactTitle}</p>
           <div className="grid grid-cols-2 gap-3">
             <FormField label={h.landlinePhone} htmlFor="hr-landline">
-              <Input id="hr-landline" type="tel" value={landlinePhone} onChange={(e) => setLandlinePhone(e.target.value)} />
+              <Input
+                id="hr-landline"
+                type="tel"
+                value={landlinePhone}
+                onChange={(e) => setLandlinePhone(e.target.value)}
+              />
             </FormField>
             <FormField label={h.mobilePhone} htmlFor="hr-mobile">
-              <Input id="hr-mobile" type="tel" value={mobilePhone} onChange={(e) => setMobilePhone(e.target.value)} />
+              <Input
+                id="hr-mobile"
+                type="tel"
+                value={mobilePhone}
+                onChange={(e) => setMobilePhone(e.target.value)}
+              />
             </FormField>
           </div>
           <FormField label={h.proposedProduct} htmlFor="hr-product">
-            <Input id="hr-product" value={proposedProduct} onChange={(e) => setProposedProduct(e.target.value)} />
+            <Input
+              id="hr-product"
+              value={proposedProduct}
+              onChange={(e) => setProposedProduct(e.target.value)}
+            />
           </FormField>
         </div>
         <Footer onSave={save} onCancel={() => setOpen(false)} pending={pending} />
@@ -872,9 +979,13 @@ export function HearingInlineEdit({
   const h = p.hearing;
   const router = useRouter();
   const [pending, start] = useTransition();
-  const [husbandAge, setHusbandAge] = useState(initial.husbandAge != null ? String(initial.husbandAge) : "");
+  const [husbandAge, setHusbandAge] = useState(
+    initial.husbandAge != null ? String(initial.husbandAge) : "",
+  );
   const [wifeAge, setWifeAge] = useState(initial.wifeAge != null ? String(initial.wifeAge) : "");
-  const [childAge, setChildAge] = useState(initial.childAge != null ? String(initial.childAge) : "");
+  const [childAge, setChildAge] = useState(
+    initial.childAge != null ? String(initial.childAge) : "",
+  );
   const [household, setHousehold] = useState(initial.household ?? "");
   const [guideAttendee, setGuideAttendee] = useState(initial.guideAttendee ?? "");
   const [faceToFace, setFaceToFace] = useState(boolToSelect(initial.faceToFace));
@@ -934,24 +1045,52 @@ export function HearingInlineEdit({
   return (
     <div className="space-y-4">
       <div>
-        <h4 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-mute-light">
-          {h.familyTitle}
-        </h4>
+        <h4 className="text-mute-light mb-1.5 text-[11px] font-semibold">{h.familyTitle}</h4>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <FormField label={h.husbandAge} htmlFor="hr-husband">
-            <Input id="hr-husband" type="number" min={0} max={120} value={husbandAge} onChange={(e) => setHusbandAge(e.target.value)} />
+            <Input
+              id="hr-husband"
+              type="number"
+              min={0}
+              max={120}
+              value={husbandAge}
+              onChange={(e) => setHusbandAge(e.target.value)}
+            />
           </FormField>
           <FormField label={h.wifeAge} htmlFor="hr-wife">
-            <Input id="hr-wife" type="number" min={0} max={120} value={wifeAge} onChange={(e) => setWifeAge(e.target.value)} />
+            <Input
+              id="hr-wife"
+              type="number"
+              min={0}
+              max={120}
+              value={wifeAge}
+              onChange={(e) => setWifeAge(e.target.value)}
+            />
           </FormField>
           <FormField label={h.childAge} htmlFor="hr-child">
-            <Input id="hr-child" type="number" min={0} max={120} value={childAge} onChange={(e) => setChildAge(e.target.value)} />
+            <Input
+              id="hr-child"
+              type="number"
+              min={0}
+              max={120}
+              value={childAge}
+              onChange={(e) => setChildAge(e.target.value)}
+            />
           </FormField>
           <FormField label={h.household} htmlFor="hr-household">
-            <Input id="hr-household" value={household} onChange={(e) => setHousehold(e.target.value)} />
+            <Input
+              id="hr-household"
+              value={household}
+              onChange={(e) => setHousehold(e.target.value)}
+            />
           </FormField>
           <FormField label={h.guideAttendee} htmlFor="hr-guide">
-            <select id="hr-guide" className={FIELD} value={guideAttendee} onChange={(e) => setGuideAttendee(e.target.value)}>
+            <select
+              id="hr-guide"
+              className={FIELD}
+              value={guideAttendee}
+              onChange={(e) => setGuideAttendee(e.target.value)}
+            >
               <option value="">{ed.unset}</option>
               <option value="HUSBAND">{h.guideAttendeeLabels.HUSBAND}</option>
               <option value="WIFE">{h.guideAttendeeLabels.WIFE}</option>
@@ -960,7 +1099,12 @@ export function HearingInlineEdit({
             </select>
           </FormField>
           <FormField label={h.faceToFace} htmlFor="hr-face">
-            <select id="hr-face" className={FIELD} value={faceToFace} onChange={(e) => setFaceToFace(e.target.value)}>
+            <select
+              id="hr-face"
+              className={FIELD}
+              value={faceToFace}
+              onChange={(e) => setFaceToFace(e.target.value)}
+            >
               <option value={BOOL_UNSET}>{ed.unset}</option>
               <option value="true">{ed.presence.true}</option>
               <option value="false">{ed.presence.false}</option>
@@ -969,23 +1113,41 @@ export function HearingInlineEdit({
         </div>
       </div>
       <div>
-        <h4 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-mute-light">
-          {ed.contactTitle}
-        </h4>
+        <h4 className="text-mute-light mb-1.5 text-[11px] font-semibold">{ed.contactTitle}</h4>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <FormField label={h.landlinePhone} htmlFor="hr-landline">
-            <Input id="hr-landline" type="tel" value={landlinePhone} onChange={(e) => setLandlinePhone(e.target.value)} />
+            <Input
+              id="hr-landline"
+              type="tel"
+              value={landlinePhone}
+              onChange={(e) => setLandlinePhone(e.target.value)}
+            />
           </FormField>
           <FormField label={h.mobilePhone} htmlFor="hr-mobile">
-            <Input id="hr-mobile" type="tel" value={mobilePhone} onChange={(e) => setMobilePhone(e.target.value)} />
+            <Input
+              id="hr-mobile"
+              type="tel"
+              value={mobilePhone}
+              onChange={(e) => setMobilePhone(e.target.value)}
+            />
           </FormField>
           <FormField label={h.proposedProduct} htmlFor="hr-product">
-            <Input id="hr-product" value={proposedProduct} onChange={(e) => setProposedProduct(e.target.value)} />
+            <Input
+              id="hr-product"
+              value={proposedProduct}
+              onChange={(e) => setProposedProduct(e.target.value)}
+            />
           </FormField>
         </div>
       </div>
       <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" size="sm" onClick={reset} disabled={pending || !dirty}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={reset}
+          disabled={pending || !dirty}
+        >
           {ed.cancel}
         </Button>
         <Button type="button" size="sm" onClick={onSave} disabled={pending || !dirty}>
@@ -995,7 +1157,6 @@ export function HearingInlineEdit({
     </div>
   );
 }
-
 
 /* ── 設備明細（ContractEquipment の非価格フィールドのみ。契約 find-or-create 方式） ──
    契約状況タブで PV/BT/付帯の設備を追加・編集する。initial が null（空カテゴリ）の
@@ -1023,12 +1184,20 @@ export function EditEquipmentDialog({
   const [manufacturer, setManufacturer] = useState(initial?.manufacturer ?? "");
   const [model, setModel] = useState(initial?.model ?? "");
   const [capacity, setCapacity] = useState(initial?.capacity ?? "");
-  const [quantity, setQuantity] = useState(initial?.quantity != null ? String(initial.quantity) : "");
+  const [quantity, setQuantity] = useState(
+    initial?.quantity != null ? String(initial.quantity) : "",
+  );
   const [installLocation, setInstallLocation] = useState(initial?.installLocation ?? "");
   const [introducedStatus, setIntroducedStatus] = useState(initial?.introducedStatus ?? "");
-  const [warrantyStandard, setWarrantyStandard] = useState(boolToSelect(initial?.warrantyStandard ?? null));
-  const [warrantyExtended, setWarrantyExtended] = useState(boolToSelect(initial?.warrantyExtended ?? null));
-  const [warrantyDisaster, setWarrantyDisaster] = useState(boolToSelect(initial?.warrantyDisaster ?? null));
+  const [warrantyStandard, setWarrantyStandard] = useState(
+    boolToSelect(initial?.warrantyStandard ?? null),
+  );
+  const [warrantyExtended, setWarrantyExtended] = useState(
+    boolToSelect(initial?.warrantyExtended ?? null),
+  );
+  const [warrantyDisaster, setWarrantyDisaster] = useState(
+    boolToSelect(initial?.warrantyDisaster ?? null),
+  );
   const [detail, setDetail] = useState(initial?.detail ?? "");
   const { pending, run } = useSaver(() => setOpen(false));
 
@@ -1088,29 +1257,57 @@ export function EditEquipmentDialog({
         </DialogHeader>
         <div className="max-h-[70vh] space-y-4 overflow-y-auto pr-1">
           <FormField label={p.contracted} htmlFor="eq-contracted">
-            <select id="eq-contracted" className={FIELD} value={contracted ? "true" : "false"} onChange={(ev) => setContracted(ev.target.value === "true")}>
+            <select
+              id="eq-contracted"
+              className={FIELD}
+              value={contracted ? "true" : "false"}
+              onChange={(ev) => setContracted(ev.target.value === "true")}
+            >
               <option value="true">{p.contracted}</option>
               <option value="false">{p.notContracted}</option>
             </select>
           </FormField>
           <div className="grid grid-cols-2 gap-3">
             <FormField label={e.maker} htmlFor="eq-maker">
-              <Input id="eq-maker" value={manufacturer} onChange={(ev) => setManufacturer(ev.target.value)} />
+              <Input
+                id="eq-maker"
+                value={manufacturer}
+                onChange={(ev) => setManufacturer(ev.target.value)}
+              />
             </FormField>
             <FormField label={e.modelNo} htmlFor="eq-model">
               <Input id="eq-model" value={model} onChange={(ev) => setModel(ev.target.value)} />
             </FormField>
             <FormField label={e.capacity} htmlFor="eq-capacity">
-              <Input id="eq-capacity" value={capacity} onChange={(ev) => setCapacity(ev.target.value)} />
+              <Input
+                id="eq-capacity"
+                value={capacity}
+                onChange={(ev) => setCapacity(ev.target.value)}
+              />
             </FormField>
             <FormField label={e.count} htmlFor="eq-qty">
-              <Input id="eq-qty" type="number" min={0} value={quantity} onChange={(ev) => setQuantity(ev.target.value)} />
+              <Input
+                id="eq-qty"
+                type="number"
+                min={0}
+                value={quantity}
+                onChange={(ev) => setQuantity(ev.target.value)}
+              />
             </FormField>
             <FormField label={e.location} htmlFor="eq-loc">
-              <Input id="eq-loc" value={installLocation} onChange={(ev) => setInstallLocation(ev.target.value)} />
+              <Input
+                id="eq-loc"
+                value={installLocation}
+                onChange={(ev) => setInstallLocation(ev.target.value)}
+              />
             </FormField>
             <FormField label={e.status} htmlFor="eq-intro">
-              <select id="eq-intro" className={FIELD} value={introducedStatus} onChange={(ev) => setIntroducedStatus(ev.target.value)}>
+              <select
+                id="eq-intro"
+                className={FIELD}
+                value={introducedStatus}
+                onChange={(ev) => setIntroducedStatus(ev.target.value)}
+              >
                 <option value="">{ed.unset}</option>
                 <option value="NONE">{p.introStatusLabels.NONE}</option>
                 <option value="EXISTING">{p.introStatusLabels.EXISTING}</option>
@@ -1120,21 +1317,36 @@ export function EditEquipmentDialog({
           </div>
           <div className="grid grid-cols-3 gap-3">
             <FormField label={e.totalWarranty} htmlFor="eq-wstd">
-              <select id="eq-wstd" className={FIELD} value={warrantyStandard} onChange={(ev) => setWarrantyStandard(ev.target.value)}>
+              <select
+                id="eq-wstd"
+                className={FIELD}
+                value={warrantyStandard}
+                onChange={(ev) => setWarrantyStandard(ev.target.value)}
+              >
                 <option value={BOOL_UNSET}>{ed.unset}</option>
                 <option value="true">{ed.presence.true}</option>
                 <option value="false">{ed.presence.false}</option>
               </select>
             </FormField>
             <FormField label={e.extWarranty} htmlFor="eq-wext">
-              <select id="eq-wext" className={FIELD} value={warrantyExtended} onChange={(ev) => setWarrantyExtended(ev.target.value)}>
+              <select
+                id="eq-wext"
+                className={FIELD}
+                value={warrantyExtended}
+                onChange={(ev) => setWarrantyExtended(ev.target.value)}
+              >
                 <option value={BOOL_UNSET}>{ed.unset}</option>
                 <option value="true">{ed.presence.true}</option>
                 <option value="false">{ed.presence.false}</option>
               </select>
             </FormField>
             <FormField label={e.disasterWarranty} htmlFor="eq-wdis">
-              <select id="eq-wdis" className={FIELD} value={warrantyDisaster} onChange={(ev) => setWarrantyDisaster(ev.target.value)}>
+              <select
+                id="eq-wdis"
+                className={FIELD}
+                value={warrantyDisaster}
+                onChange={(ev) => setWarrantyDisaster(ev.target.value)}
+              >
                 <option value={BOOL_UNSET}>{ed.unset}</option>
                 <option value="true">{ed.presence.true}</option>
                 <option value="false">{ed.presence.false}</option>
@@ -1142,7 +1354,12 @@ export function EditEquipmentDialog({
             </FormField>
           </div>
           <FormField label={e.detail} htmlFor="eq-detail">
-            <Textarea id="eq-detail" rows={2} value={detail} onChange={(ev) => setDetail(ev.target.value)} />
+            <Textarea
+              id="eq-detail"
+              rows={2}
+              value={detail}
+              onChange={(ev) => setDetail(ev.target.value)}
+            />
           </FormField>
         </div>
         <Footer onSave={save} onCancel={() => setOpen(false)} pending={pending} />
@@ -1179,12 +1396,20 @@ export function EquipmentInlineEdit({
   const [manufacturer, setManufacturer] = useState(initial?.manufacturer ?? "");
   const [model, setModel] = useState(initial?.model ?? "");
   const [capacity, setCapacity] = useState(initial?.capacity ?? "");
-  const [quantity, setQuantity] = useState(initial?.quantity != null ? String(initial.quantity) : "");
+  const [quantity, setQuantity] = useState(
+    initial?.quantity != null ? String(initial.quantity) : "",
+  );
   const [installLocation, setInstallLocation] = useState(initial?.installLocation ?? "");
   const [detail, setDetail] = useState(initial?.detail ?? "");
-  const [warrantyStandard, setWarrantyStandard] = useState(boolToSelect(initial?.warrantyStandard ?? null));
-  const [warrantyExtended, setWarrantyExtended] = useState(boolToSelect(initial?.warrantyExtended ?? null));
-  const [warrantyDisaster, setWarrantyDisaster] = useState(boolToSelect(initial?.warrantyDisaster ?? null));
+  const [warrantyStandard, setWarrantyStandard] = useState(
+    boolToSelect(initial?.warrantyStandard ?? null),
+  );
+  const [warrantyExtended, setWarrantyExtended] = useState(
+    boolToSelect(initial?.warrantyExtended ?? null),
+  );
+  const [warrantyDisaster, setWarrantyDisaster] = useState(
+    boolToSelect(initial?.warrantyDisaster ?? null),
+  );
 
   const initAmount = initial?.amount != null ? String(initial.amount) : "";
   const initQty = initial?.quantity != null ? String(initial.quantity) : "";
@@ -1248,9 +1473,9 @@ export function EquipmentInlineEdit({
   }
 
   return (
-    <div className="space-y-3 rounded-md border border-hairline-light p-4">
+    <div className="border-hairline-light space-y-3 rounded-md border p-4">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-semibold text-ink">{title}</p>
+        <p className="text-ink text-sm font-semibold">{title}</p>
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <FormField label={e.amount} htmlFor={`eq-amount-${category}`}>
@@ -1258,26 +1483,52 @@ export function EquipmentInlineEdit({
         </FormField>
         {isConstruction ? (
           <FormField label={e.vendor} htmlFor={`eq-vendor-${category}`}>
-            <Input id={`eq-vendor-${category}`} value={manufacturer} onChange={(ev) => setManufacturer(ev.target.value)} />
+            <Input
+              id={`eq-vendor-${category}`}
+              value={manufacturer}
+              onChange={(ev) => setManufacturer(ev.target.value)}
+            />
           </FormField>
         ) : (
           <FormField label={e.maker} htmlFor={`eq-maker-${category}`}>
-            <Input id={`eq-maker-${category}`} value={manufacturer} onChange={(ev) => setManufacturer(ev.target.value)} />
+            <Input
+              id={`eq-maker-${category}`}
+              value={manufacturer}
+              onChange={(ev) => setManufacturer(ev.target.value)}
+            />
           </FormField>
         )}
         <FormField label={e.modelNo} htmlFor={`eq-model-${category}`}>
-          <Input id={`eq-model-${category}`} value={model} onChange={(ev) => setModel(ev.target.value)} />
+          <Input
+            id={`eq-model-${category}`}
+            value={model}
+            onChange={(ev) => setModel(ev.target.value)}
+          />
         </FormField>
         {!isConstruction ? (
           <>
             <FormField label={e.capacity} htmlFor={`eq-capacity-${category}`}>
-              <Input id={`eq-capacity-${category}`} value={capacity} onChange={(ev) => setCapacity(ev.target.value)} />
+              <Input
+                id={`eq-capacity-${category}`}
+                value={capacity}
+                onChange={(ev) => setCapacity(ev.target.value)}
+              />
             </FormField>
             <FormField label={e.count} htmlFor={`eq-qty-${category}`}>
-              <Input id={`eq-qty-${category}`} type="number" min={0} value={quantity} onChange={(ev) => setQuantity(ev.target.value)} />
+              <Input
+                id={`eq-qty-${category}`}
+                type="number"
+                min={0}
+                value={quantity}
+                onChange={(ev) => setQuantity(ev.target.value)}
+              />
             </FormField>
             <FormField label={e.location} htmlFor={`eq-loc-${category}`}>
-              <Input id={`eq-loc-${category}`} value={installLocation} onChange={(ev) => setInstallLocation(ev.target.value)} />
+              <Input
+                id={`eq-loc-${category}`}
+                value={installLocation}
+                onChange={(ev) => setInstallLocation(ev.target.value)}
+              />
             </FormField>
           </>
         ) : null}
@@ -1285,21 +1536,36 @@ export function EquipmentInlineEdit({
       {!isConstruction ? (
         <div className="grid grid-cols-3 gap-3">
           <FormField label={e.totalWarranty} htmlFor={`eq-wstd-${category}`}>
-            <select id={`eq-wstd-${category}`} className={FIELD} value={warrantyStandard} onChange={(ev) => setWarrantyStandard(ev.target.value)}>
+            <select
+              id={`eq-wstd-${category}`}
+              className={FIELD}
+              value={warrantyStandard}
+              onChange={(ev) => setWarrantyStandard(ev.target.value)}
+            >
               <option value={BOOL_UNSET}>{ed.unset}</option>
               <option value="true">{ed.presence.true}</option>
               <option value="false">{ed.presence.false}</option>
             </select>
           </FormField>
           <FormField label={e.extWarranty} htmlFor={`eq-wext-${category}`}>
-            <select id={`eq-wext-${category}`} className={FIELD} value={warrantyExtended} onChange={(ev) => setWarrantyExtended(ev.target.value)}>
+            <select
+              id={`eq-wext-${category}`}
+              className={FIELD}
+              value={warrantyExtended}
+              onChange={(ev) => setWarrantyExtended(ev.target.value)}
+            >
               <option value={BOOL_UNSET}>{ed.unset}</option>
               <option value="true">{ed.presence.true}</option>
               <option value="false">{ed.presence.false}</option>
             </select>
           </FormField>
           <FormField label={e.disasterWarranty} htmlFor={`eq-wdis-${category}`}>
-            <select id={`eq-wdis-${category}`} className={FIELD} value={warrantyDisaster} onChange={(ev) => setWarrantyDisaster(ev.target.value)}>
+            <select
+              id={`eq-wdis-${category}`}
+              className={FIELD}
+              value={warrantyDisaster}
+              onChange={(ev) => setWarrantyDisaster(ev.target.value)}
+            >
               <option value={BOOL_UNSET}>{ed.unset}</option>
               <option value="true">{ed.presence.true}</option>
               <option value="false">{ed.presence.false}</option>
@@ -1308,10 +1574,21 @@ export function EquipmentInlineEdit({
         </div>
       ) : null}
       <FormField label={e.detail} htmlFor={`eq-detail-${category}`}>
-        <Textarea id={`eq-detail-${category}`} rows={2} value={detail} onChange={(ev) => setDetail(ev.target.value)} />
+        <Textarea
+          id={`eq-detail-${category}`}
+          rows={2}
+          value={detail}
+          onChange={(ev) => setDetail(ev.target.value)}
+        />
       </FormField>
       <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" size="sm" onClick={reset} disabled={pending || !dirty}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={reset}
+          disabled={pending || !dirty}
+        >
           {ed.cancel}
         </Button>
         <Button type="button" size="sm" onClick={onSave} disabled={pending || !dirty}>
@@ -1339,7 +1616,9 @@ export function AccessoryInlineEdit({
   const router = useRouter();
   const [pending, start] = useTransition();
   const [amount, setAmount] = useState(initial.amount != null ? String(initial.amount) : "");
-  const [quantity, setQuantity] = useState(initial.quantity != null ? String(initial.quantity) : "");
+  const [quantity, setQuantity] = useState(
+    initial.quantity != null ? String(initial.quantity) : "",
+  );
   const [model, setModel] = useState(initial.model ?? "");
   const [installLocation, setInstallLocation] = useState(initial.installLocation ?? "");
   const [detail, setDetail] = useState(initial.detail ?? "");
@@ -1398,14 +1677,14 @@ export function AccessoryInlineEdit({
   }
 
   return (
-    <div className="space-y-3 rounded-md border border-hairline-light p-4">
+    <div className="border-hairline-light space-y-3 rounded-md border p-4">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-semibold text-ink">{e.accessory}</p>
+        <p className="text-ink text-sm font-semibold">{e.accessory}</p>
         <Button
           type="button"
           variant="ghost"
           size="icon"
-          className="size-7 text-mute-light hover:text-destructive"
+          className="text-mute-light hover:text-destructive size-7"
           aria-label={ct.deleteAccessory}
           onClick={onDelete}
           disabled={pending}
@@ -1418,20 +1697,45 @@ export function AccessoryInlineEdit({
           <MoneyInput id={`acc-amount-${initial.id}`} value={amount} onChange={setAmount} />
         </FormField>
         <FormField label={e.count} htmlFor={`acc-qty-${initial.id}`}>
-          <Input id={`acc-qty-${initial.id}`} type="number" min={0} value={quantity} onChange={(ev) => setQuantity(ev.target.value)} />
+          <Input
+            id={`acc-qty-${initial.id}`}
+            type="number"
+            min={0}
+            value={quantity}
+            onChange={(ev) => setQuantity(ev.target.value)}
+          />
         </FormField>
         <FormField label={e.modelNo1} htmlFor={`acc-model-${initial.id}`}>
-          <Input id={`acc-model-${initial.id}`} value={model} onChange={(ev) => setModel(ev.target.value)} />
+          <Input
+            id={`acc-model-${initial.id}`}
+            value={model}
+            onChange={(ev) => setModel(ev.target.value)}
+          />
         </FormField>
         <FormField label={e.pcLocationSwap} htmlFor={`acc-loc-${initial.id}`}>
-          <Input id={`acc-loc-${initial.id}`} value={installLocation} onChange={(ev) => setInstallLocation(ev.target.value)} />
+          <Input
+            id={`acc-loc-${initial.id}`}
+            value={installLocation}
+            onChange={(ev) => setInstallLocation(ev.target.value)}
+          />
         </FormField>
       </div>
       <FormField label={e.detail} htmlFor={`acc-detail-${initial.id}`}>
-        <Textarea id={`acc-detail-${initial.id}`} rows={2} value={detail} onChange={(ev) => setDetail(ev.target.value)} />
+        <Textarea
+          id={`acc-detail-${initial.id}`}
+          rows={2}
+          value={detail}
+          onChange={(ev) => setDetail(ev.target.value)}
+        />
       </FormField>
       <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" size="sm" onClick={reset} disabled={pending || !dirty}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={reset}
+          disabled={pending || !dirty}
+        >
           {ed.cancel}
         </Button>
         <Button type="button" size="sm" onClick={onSave} disabled={pending || !dirty}>
@@ -1549,7 +1853,12 @@ function NamedAddButton({
           />
         </FormField>
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={pending}
+          >
             {c.cancel}
           </Button>
           <Button type="button" onClick={submit} disabled={pending}>
@@ -1639,7 +1948,9 @@ export function ContractDetailInlineEdit({
   const router = useRouter();
   const [pending, start] = useTransition();
   const [contractDate, setContractDate] = useState(toDateInput(initial.contractDate));
-  const [paymentCount, setPaymentCount] = useState(initial.paymentCount != null ? String(initial.paymentCount) : "");
+  const [paymentCount, setPaymentCount] = useState(
+    initial.paymentCount != null ? String(initial.paymentCount) : "",
+  );
   const [paymentStatus, setPaymentStatus] = useState(initial.paymentStatus ?? "UNPAID");
   const [depositDate, setDepositDate] = useState(toDateInput(initial.depositDate));
   const [equipmentSerialId, setEquipmentSerialId] = useState(initial.equipmentSerialId ?? "");
@@ -1687,30 +1998,57 @@ export function ContractDetailInlineEdit({
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <FormField label={f.contractDate} htmlFor="ct-date">
-          <input id="ct-date" type="date" className={FIELD} value={contractDate} onChange={(e) => setContractDate(e.target.value)} />
+          <input
+            id="ct-date"
+            type="date"
+            className={FIELD}
+            value={contractDate}
+            onChange={(e) => setContractDate(e.target.value)}
+          />
         </FormField>
         {/* 契約金額は商材ライン合計（read-only・自動計算）。 */}
         <div className="space-y-1.5">
           <Label>{ct.contractAmountAuto}</Label>
-          <p className="flex h-9 items-center text-sm font-medium tabular-nums text-ink">
+          <p className="text-ink flex h-9 items-center text-sm font-medium tabular-nums">
             {contractAmount != null ? `¥${contractAmount.toLocaleString("ja-JP")}` : p.empty}
           </p>
         </div>
         <FormField label={f.paymentCount} htmlFor="ct-paycount">
-          <Input id="ct-paycount" type="number" min={0} value={paymentCount} onChange={(e) => setPaymentCount(e.target.value)} />
+          <Input
+            id="ct-paycount"
+            type="number"
+            min={0}
+            value={paymentCount}
+            onChange={(e) => setPaymentCount(e.target.value)}
+          />
         </FormField>
         <FormField label={f.paymentStatus} htmlFor="ct-paystatus">
-          <select id="ct-paystatus" className={FIELD} value={paymentStatus} onChange={(e) => setPaymentStatus(e.target.value)}>
+          <select
+            id="ct-paystatus"
+            className={FIELD}
+            value={paymentStatus}
+            onChange={(e) => setPaymentStatus(e.target.value)}
+          >
             <option value="UNPAID">{p.paymentStatusLabels.UNPAID}</option>
             <option value="PARTIAL">{p.paymentStatusLabels.PARTIAL}</option>
             <option value="PAID">{p.paymentStatusLabels.PAID}</option>
           </select>
         </FormField>
         <FormField label={f.depositDate} htmlFor="ct-deposit">
-          <input id="ct-deposit" type="date" className={FIELD} value={depositDate} onChange={(e) => setDepositDate(e.target.value)} />
+          <input
+            id="ct-deposit"
+            type="date"
+            className={FIELD}
+            value={depositDate}
+            onChange={(e) => setDepositDate(e.target.value)}
+          />
         </FormField>
         <FormField label={f.equipmentId} htmlFor="ct-serial">
-          <Input id="ct-serial" value={equipmentSerialId} onChange={(e) => setEquipmentSerialId(e.target.value)} />
+          <Input
+            id="ct-serial"
+            value={equipmentSerialId}
+            onChange={(e) => setEquipmentSerialId(e.target.value)}
+          />
         </FormField>
       </div>
       <InlineFooter onSave={onSave} onCancel={reset} pending={pending} dirty={dirty} />
@@ -1774,7 +2112,9 @@ export function EditConstructionDialog({
   const [plannedDate, setPlannedDate] = useState(toDateInput(initial.plannedDate));
   const [startedDate, setStartedDate] = useState(toDateInput(initial.startedDate));
   const [completedDate, setCompletedDate] = useState(toDateInput(initial.completedDate));
-  const [powerSaleStartDate, setPowerSaleStartDate] = useState(toDateInput(initial.powerSaleStartDate));
+  const [powerSaleStartDate, setPowerSaleStartDate] = useState(
+    toDateInput(initial.powerSaleStartDate),
+  );
   const [status, setStatus] = useState<string>(normalizeConstructionStatus4(initial.status));
   const [surveyStatus, setSurveyStatus] = useState(initial.surveyStatus ?? "");
   const [vendorName, setVendorName] = useState(initial.vendorName ?? "");
@@ -1825,9 +2165,7 @@ export function EditConstructionDialog({
           | "DONE"
           | "PAUSED",
         surveyStatus:
-          surveyStatus === ""
-            ? null
-            : (surveyStatus as "not_surveyed" | "scheduled" | "surveyed"),
+          surveyStatus === "" ? null : (surveyStatus as "not_surveyed" | "scheduled" | "surveyed"),
         vendorName: strOrNull(vendorName),
         fee: numOrNull(fee),
         postCompletionStatus: postCompletionStatus as "NONE" | "IN_PROGRESS" | "DONE",
@@ -1848,7 +2186,12 @@ export function EditConstructionDialog({
         <div className="max-h-[70vh] space-y-4 overflow-y-auto pr-1">
           <div className="grid grid-cols-2 gap-3">
             <FormField label={f.completionStatus} htmlFor="cn-status">
-              <select id="cn-status" className={FIELD} value={status} onChange={(e) => setStatus(e.target.value)}>
+              <select
+                id="cn-status"
+                className={FIELD}
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+              >
                 {CONSTRUCTION_STATUS_4.map((v) => (
                   <option key={v} value={v}>
                     {p.constructionStatusLabels[v] ?? v}
@@ -1857,7 +2200,12 @@ export function EditConstructionDialog({
               </select>
             </FormField>
             <FormField label={f.surveyStatus} htmlFor="cn-survey-status">
-              <select id="cn-survey-status" className={FIELD} value={surveyStatus} onChange={(e) => setSurveyStatus(e.target.value)}>
+              <select
+                id="cn-survey-status"
+                className={FIELD}
+                value={surveyStatus}
+                onChange={(e) => setSurveyStatus(e.target.value)}
+              >
                 <option value="">{ed.unset}</option>
                 <option value="not_surveyed">{p.surveyStatusLabels.not_surveyed}</option>
                 <option value="scheduled">{p.surveyStatusLabels.scheduled}</option>
@@ -1865,48 +2213,103 @@ export function EditConstructionDialog({
               </select>
             </FormField>
             <FormField label={f.vendorName} htmlFor="cn-vendor">
-              <Input id="cn-vendor" value={vendorName} onChange={(e) => setVendorName(e.target.value)} />
+              <Input
+                id="cn-vendor"
+                value={vendorName}
+                onChange={(e) => setVendorName(e.target.value)}
+              />
             </FormField>
             <FormField label={f.constructionFee} htmlFor="cn-fee">
               <MoneyInput id="cn-fee" value={fee} onChange={setFee} />
             </FormField>
             <FormField label={f.surveyAt} htmlFor="cn-survey">
-              <input id="cn-survey" type="datetime-local" className={FIELD} value={surveyDate} onChange={(e) => setSurveyDate(e.target.value)} />
+              <input
+                id="cn-survey"
+                type="datetime-local"
+                className={FIELD}
+                value={surveyDate}
+                onChange={(e) => setSurveyDate(e.target.value)}
+              />
             </FormField>
             <FormField label={f.plannedDate} htmlFor="cn-planned">
-              <input id="cn-planned" type="date" className={FIELD} value={plannedDate} onChange={(e) => setPlannedDate(e.target.value)} />
+              <input
+                id="cn-planned"
+                type="date"
+                className={FIELD}
+                value={plannedDate}
+                onChange={(e) => setPlannedDate(e.target.value)}
+              />
             </FormField>
             <FormField label={f.startedDate} htmlFor="cn-started">
-              <input id="cn-started" type="date" className={FIELD} value={startedDate} onChange={(e) => setStartedDate(e.target.value)} />
+              <input
+                id="cn-started"
+                type="date"
+                className={FIELD}
+                value={startedDate}
+                onChange={(e) => setStartedDate(e.target.value)}
+              />
             </FormField>
             <FormField label={f.completedDate} htmlFor="cn-completed">
-              <input id="cn-completed" type="date" className={FIELD} value={completedDate} onChange={(e) => setCompletedDate(e.target.value)} />
+              <input
+                id="cn-completed"
+                type="date"
+                className={FIELD}
+                value={completedDate}
+                onChange={(e) => setCompletedDate(e.target.value)}
+              />
             </FormField>
             <FormField label={f.powerSaleStartDate} htmlFor="cn-power">
-              <input id="cn-power" type="date" className={FIELD} value={powerSaleStartDate} onChange={(e) => setPowerSaleStartDate(e.target.value)} />
+              <input
+                id="cn-power"
+                type="date"
+                className={FIELD}
+                value={powerSaleStartDate}
+                onChange={(e) => setPowerSaleStartDate(e.target.value)}
+              />
             </FormField>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <FormField label={f.postCompletionStatus} htmlFor="cn-post">
-              <select id="cn-post" className={FIELD} value={postCompletionStatus} onChange={(e) => setPostCompletionStatus(e.target.value)}>
+              <select
+                id="cn-post"
+                className={FIELD}
+                value={postCompletionStatus}
+                onChange={(e) => setPostCompletionStatus(e.target.value)}
+              >
                 <option value="NONE">{p.postCompletionStatusLabels.NONE}</option>
                 <option value="IN_PROGRESS">{p.postCompletionStatusLabels.IN_PROGRESS}</option>
                 <option value="DONE">{p.postCompletionStatusLabels.DONE}</option>
               </select>
             </FormField>
             <FormField label={f.defectStatus} htmlFor="cn-defect">
-              <select id="cn-defect" className={FIELD} value={defectStatus} onChange={(e) => setDefectStatus(e.target.value)}>
+              <select
+                id="cn-defect"
+                className={FIELD}
+                value={defectStatus}
+                onChange={(e) => setDefectStatus(e.target.value)}
+              >
                 <option value="NONE">{p.defectStatusLabels.NONE}</option>
                 <option value="OPEN">{p.defectStatusLabels.OPEN}</option>
                 <option value="RESOLVED">{p.defectStatusLabels.RESOLVED}</option>
               </select>
             </FormField>
             <FormField label={f.thankYouCallAt} htmlFor="cn-thanks">
-              <input id="cn-thanks" type="datetime-local" className={FIELD} value={thankYouCallAt} onChange={(e) => setThankYouCallAt(e.target.value)} />
+              <input
+                id="cn-thanks"
+                type="datetime-local"
+                className={FIELD}
+                value={thankYouCallAt}
+                onChange={(e) => setThankYouCallAt(e.target.value)}
+              />
             </FormField>
           </div>
           <FormField label={f.defectDetail} htmlFor="cn-defdetail">
-            <Textarea id="cn-defdetail" rows={2} value={defectDetail} onChange={(e) => setDefectDetail(e.target.value)} />
+            <Textarea
+              id="cn-defdetail"
+              rows={2}
+              value={defectDetail}
+              onChange={(e) => setDefectDetail(e.target.value)}
+            />
           </FormField>
         </div>
         <Footer onSave={save} onCancel={() => setOpen(false)} pending={pending} />
@@ -1987,8 +2390,12 @@ export function LoanReviewInlineEdit({
   const [pending, start] = useTransition();
   const [status, setStatus] = useState(initial.status);
   const [loanCompany, setLoanCompany] = useState(initial.loanCompany ?? "");
-  const [downPayment, setDownPayment] = useState(initial.downPayment != null ? String(initial.downPayment) : "");
-  const [creditLifeInsurance, setCreditLifeInsurance] = useState(boolToSelect(initial.creditLifeInsurance));
+  const [downPayment, setDownPayment] = useState(
+    initial.downPayment != null ? String(initial.downPayment) : "",
+  );
+  const [creditLifeInsurance, setCreditLifeInsurance] = useState(
+    boolToSelect(initial.creditLifeInsurance),
+  );
   const [note, setNote] = useState(initial.note ?? "");
   const [reviewedAt, setReviewedAt] = useState(toDateInput(initial.reviewedAt));
 
@@ -2037,7 +2444,12 @@ export function LoanReviewInlineEdit({
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <FormField label={lt.status} htmlFor={`lr-status-${initial.loanReviewId}`}>
-          <select id={`lr-status-${initial.loanReviewId}`} className={FIELD} value={status} onChange={(e) => setStatus(e.target.value)}>
+          <select
+            id={`lr-status-${initial.loanReviewId}`}
+            className={FIELD}
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+          >
             {LOAN_REVIEW_STATUS_VALUES.map((v) => (
               <option key={v} value={v}>
                 {lt.statusLabels[v]}
@@ -2046,24 +2458,48 @@ export function LoanReviewInlineEdit({
           </select>
         </FormField>
         <FormField label={lt.loanCompany} htmlFor={`lr-company-${initial.loanReviewId}`}>
-          <Input id={`lr-company-${initial.loanReviewId}`} value={loanCompany} onChange={(e) => setLoanCompany(e.target.value)} />
+          <Input
+            id={`lr-company-${initial.loanReviewId}`}
+            value={loanCompany}
+            onChange={(e) => setLoanCompany(e.target.value)}
+          />
         </FormField>
         <FormField label={lt.downPayment} htmlFor={`lr-down-${initial.loanReviewId}`}>
-          <MoneyInput id={`lr-down-${initial.loanReviewId}`} value={downPayment} onChange={setDownPayment} />
+          <MoneyInput
+            id={`lr-down-${initial.loanReviewId}`}
+            value={downPayment}
+            onChange={setDownPayment}
+          />
         </FormField>
         <FormField label={lt.creditLife} htmlFor={`lr-credit-${initial.loanReviewId}`}>
-          <select id={`lr-credit-${initial.loanReviewId}`} className={FIELD} value={creditLifeInsurance} onChange={(e) => setCreditLifeInsurance(e.target.value)}>
+          <select
+            id={`lr-credit-${initial.loanReviewId}`}
+            className={FIELD}
+            value={creditLifeInsurance}
+            onChange={(e) => setCreditLifeInsurance(e.target.value)}
+          >
             <option value={BOOL_UNSET}>{ed.unset}</option>
             <option value="true">{ed.presence.true}</option>
             <option value="false">{ed.presence.false}</option>
           </select>
         </FormField>
         <FormField label={lt.reviewedAt} htmlFor={`lr-at-${initial.loanReviewId}`}>
-          <input id={`lr-at-${initial.loanReviewId}`} type="date" className={FIELD} value={reviewedAt} onChange={(e) => setReviewedAt(e.target.value)} />
+          <input
+            id={`lr-at-${initial.loanReviewId}`}
+            type="date"
+            className={FIELD}
+            value={reviewedAt}
+            onChange={(e) => setReviewedAt(e.target.value)}
+          />
         </FormField>
       </div>
       <FormField label={lt.note} htmlFor={`lr-note-${initial.loanReviewId}`}>
-        <Textarea id={`lr-note-${initial.loanReviewId}`} rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
+        <Textarea
+          id={`lr-note-${initial.loanReviewId}`}
+          rows={2}
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+        />
       </FormField>
       <InlineFooter onSave={onSave} onCancel={reset} pending={pending} dirty={dirty} />
     </div>
@@ -2113,13 +2549,24 @@ export function LoanReviewLogAddForm({
   }
 
   return (
-    <div className="rounded-md border border-hairline-light bg-surface-soft/40 p-3">
+    <div className="border-hairline-light bg-surface-soft/40 rounded-md border p-3">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <FormField label={lt.logReviewedAt} htmlFor={`lrl-at-${loanReviewId}`}>
-          <input id={`lrl-at-${loanReviewId}`} type="date" className={FIELD} value={reviewedAt} onChange={(e) => setReviewedAt(e.target.value)} />
+          <input
+            id={`lrl-at-${loanReviewId}`}
+            type="date"
+            className={FIELD}
+            value={reviewedAt}
+            onChange={(e) => setReviewedAt(e.target.value)}
+          />
         </FormField>
         <FormField label={lt.logResult} htmlFor={`lrl-result-${loanReviewId}`}>
-          <select id={`lrl-result-${loanReviewId}`} className={FIELD} value={result} onChange={(e) => setResult(e.target.value)}>
+          <select
+            id={`lrl-result-${loanReviewId}`}
+            className={FIELD}
+            value={result}
+            onChange={(e) => setResult(e.target.value)}
+          >
             {LOAN_REVIEW_RESULT_VALUES.map((v) => (
               <option key={v} value={v}>
                 {lt.resultLabels[v]}
@@ -2128,7 +2575,11 @@ export function LoanReviewLogAddForm({
           </select>
         </FormField>
         <FormField label={lt.logNote} htmlFor={`lrl-note-${loanReviewId}`}>
-          <Input id={`lrl-note-${loanReviewId}`} value={note} onChange={(e) => setNote(e.target.value)} />
+          <Input
+            id={`lrl-note-${loanReviewId}`}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+          />
         </FormField>
       </div>
       <div className="mt-3 flex justify-end">
@@ -2188,7 +2639,7 @@ export function LoanReviewDefectAddForm({
   }
 
   return (
-    <div className="rounded-md border border-hairline-light bg-surface-soft/40 p-3">
+    <div className="border-hairline-light bg-surface-soft/40 rounded-md border p-3">
       <FormField label={lt.logDefectContent} htmlFor={`lrl-defect-${loanReviewId}`}>
         <Textarea
           id={`lrl-defect-${loanReviewId}`}
@@ -2265,7 +2716,7 @@ export function LoanReviewLogDeleteButton({
       type="button"
       variant="ghost"
       size="icon"
-      className="size-7 text-mute-light hover:text-destructive"
+      className="text-mute-light hover:text-destructive size-7"
       aria-label={lt.logDelete}
       onClick={onDelete}
       disabled={pending}
@@ -2375,7 +2826,7 @@ export function LoanReviewSubTabs({
 }
 
 // 施工ステータス（ConstructionStatus enum）の値域。EditConstructionDialog と同一。
-const CONSTRUCTION_STATUS_ENUM = [
+const _CONSTRUCTION_STATUS_ENUM = [
   "REQUEST_PENDING",
   "REQUESTED",
   "SURVEYED",
@@ -2400,8 +2851,8 @@ function normalizeConstructionStatus4(status: string): (typeof CONSTRUCTION_STAT
 function ReadonlyField({ label, value }: { label: string; value: string | null }) {
   return (
     <div className="space-y-1.5">
-      <span className="text-xs font-medium text-mute-light">{label}</span>
-      <p className="text-sm text-ink">{value && value.length > 0 ? value : ed.unset}</p>
+      <span className="text-mute-light text-xs font-semibold">{label}</span>
+      <p className="text-ink text-sm">{value && value.length > 0 ? value : ed.unset}</p>
     </div>
   );
 }
@@ -2463,7 +2914,7 @@ export function ConstructionInlineEdit({
           customerId,
           contractId: initial.contractId,
           constructionId: initial.constructionId,
-          status: status as (typeof CONSTRUCTION_STATUS_ENUM)[number],
+          status: status as (typeof _CONSTRUCTION_STATUS_ENUM)[number],
           vendorName: strOrNull(vendorName),
           surveyDate: surveyDate || null,
           plannedStartDate: plannedStartDate || null,
@@ -2481,7 +2932,7 @@ export function ConstructionInlineEdit({
   }
 
   const id = initial.constructionId;
-  const sectionHeading = "mb-2 text-[11px] font-semibold uppercase tracking-wide text-mute-light";
+  const sectionHeading = "mb-2 text-[11px] font-semibold text-mute-light";
 
   return (
     <div className="space-y-5">
@@ -2490,7 +2941,12 @@ export function ConstructionInlineEdit({
         <h4 className={sectionHeading}>{cs.summary}</h4>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <FormField label={f.completionStatus} htmlFor={`cn-status-${id}`}>
-            <select id={`cn-status-${id}`} className={FIELD} value={status} onChange={(e) => setStatus(e.target.value)}>
+            <select
+              id={`cn-status-${id}`}
+              className={FIELD}
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+            >
               {CONSTRUCTION_STATUS_4.map((v) => (
                 <option key={v} value={v}>
                   {p.constructionStatusLabels[v] ?? v}
@@ -2508,19 +2964,49 @@ export function ConstructionInlineEdit({
         <h4 className={sectionHeading}>{cs.schedule}</h4>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <FormField label={f.surveyDateField} htmlFor={`cn-survey-${id}`}>
-            <input id={`cn-survey-${id}`} type="date" className={FIELD} value={surveyDate} onChange={(e) => setSurveyDate(e.target.value)} />
+            <input
+              id={`cn-survey-${id}`}
+              type="date"
+              className={FIELD}
+              value={surveyDate}
+              onChange={(e) => setSurveyDate(e.target.value)}
+            />
           </FormField>
           <FormField label={f.plannedStartDate} htmlFor={`cn-pstart-${id}`}>
-            <input id={`cn-pstart-${id}`} type="date" className={FIELD} value={plannedStartDate} onChange={(e) => setPlannedStartDate(e.target.value)} />
+            <input
+              id={`cn-pstart-${id}`}
+              type="date"
+              className={FIELD}
+              value={plannedStartDate}
+              onChange={(e) => setPlannedStartDate(e.target.value)}
+            />
           </FormField>
           <FormField label={f.plannedEndDate} htmlFor={`cn-pend-${id}`}>
-            <input id={`cn-pend-${id}`} type="date" className={FIELD} value={plannedEndDate} onChange={(e) => setPlannedEndDate(e.target.value)} />
+            <input
+              id={`cn-pend-${id}`}
+              type="date"
+              className={FIELD}
+              value={plannedEndDate}
+              onChange={(e) => setPlannedEndDate(e.target.value)}
+            />
           </FormField>
           <FormField label={f.constructionStartDate} htmlFor={`cn-started-${id}`}>
-            <input id={`cn-started-${id}`} type="date" className={FIELD} value={startedDate} onChange={(e) => setStartedDate(e.target.value)} />
+            <input
+              id={`cn-started-${id}`}
+              type="date"
+              className={FIELD}
+              value={startedDate}
+              onChange={(e) => setStartedDate(e.target.value)}
+            />
           </FormField>
           <FormField label={f.constructionEndDate} htmlFor={`cn-completed-${id}`}>
-            <input id={`cn-completed-${id}`} type="date" className={FIELD} value={completedDate} onChange={(e) => setCompletedDate(e.target.value)} />
+            <input
+              id={`cn-completed-${id}`}
+              type="date"
+              className={FIELD}
+              value={completedDate}
+              onChange={(e) => setCompletedDate(e.target.value)}
+            />
           </FormField>
         </div>
       </section>
@@ -2530,7 +3016,11 @@ export function ConstructionInlineEdit({
         <h4 className={sectionHeading}>{cs.cost}</h4>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <FormField label={f.installerName} htmlFor={`cn-vendor-${id}`}>
-            <Input id={`cn-vendor-${id}`} value={vendorName} onChange={(e) => setVendorName(e.target.value)} />
+            <Input
+              id={`cn-vendor-${id}`}
+              value={vendorName}
+              onChange={(e) => setVendorName(e.target.value)}
+            />
           </FormField>
           <FormField label={f.amount} htmlFor={`cn-fee-${id}`}>
             <MoneyInput id={`cn-fee-${id}`} value={fee} onChange={setFee} />
@@ -2717,7 +3207,12 @@ export function ApplicationInlineEdit({
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <FormField label={at.status} htmlFor={`ap-status-${id}`}>
-          <select id={`ap-status-${id}`} className={FIELD} value={status} onChange={(e) => setStatus(e.target.value)}>
+          <select
+            id={`ap-status-${id}`}
+            className={FIELD}
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+          >
             {APPLICATION_STATUS_4.map((v) => (
               <option key={v} value={v}>
                 {at.statusLabels[v]}
@@ -2729,19 +3224,29 @@ export function ApplicationInlineEdit({
           <Input id={`ap-type-${id}`} value={type} onChange={(e) => setType(e.target.value)} />
         </FormField>
         <FormField label={f.submittedDate} htmlFor={`ap-submitted-${id}`}>
-          <input id={`ap-submitted-${id}`} type="date" className={FIELD} value={submittedDate} onChange={(e) => setSubmittedDate(e.target.value)} />
+          <input
+            id={`ap-submitted-${id}`}
+            type="date"
+            className={FIELD}
+            value={submittedDate}
+            onChange={(e) => setSubmittedDate(e.target.value)}
+          />
         </FormField>
         <FormField label={f.approvedDate} htmlFor={`ap-approved-${id}`}>
-          <input id={`ap-approved-${id}`} type="date" className={FIELD} value={approvedDate} onChange={(e) => setApprovedDate(e.target.value)} />
+          <input
+            id={`ap-approved-${id}`}
+            type="date"
+            className={FIELD}
+            value={approvedDate}
+            onChange={(e) => setApprovedDate(e.target.value)}
+          />
         </FormField>
       </div>
       <InlineFooter onSave={onSave} onCancel={reset} pending={pending} dirty={dirty} />
 
       {/* 関連ドキュメント — この申請に紐づくファイルのアップロード + 一覧。 */}
-      <section className="border-t border-hairline-light pt-4">
-        <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-mute-light">
-          {at.relatedDocuments}
-        </h4>
+      <section className="border-hairline-light border-t pt-4">
+        <h4 className="text-mute-light mb-2 text-[11px] font-semibold">{at.relatedDocuments}</h4>
         <CustomerFiles
           customerId={customerId}
           files={initial.files}
@@ -2864,28 +3369,26 @@ export function LoanReviewLogList({
 }) {
   const lt = labels.customer.detail.loanTab;
   if (logs.length === 0) {
-    return <p className="text-sm text-mute-light">{lt.historyEmpty}</p>;
+    return <p className="text-mute-light text-sm">{lt.historyEmpty}</p>;
   }
   return (
-    <ul className="divide-y divide-hairline-light">
+    <ul className="divide-hairline-light divide-y">
       {logs.map((log) => (
         <li key={log.id} className="flex items-center justify-between gap-3 py-2">
-          <div className="flex min-w-0 items-center gap-2 text-sm text-ink">
-            <span className="shrink-0 tabular-nums">
-              {new Date(log.reviewedAt).toLocaleDateString("ja-JP")}
-            </span>
-            <span className="shrink-0 rounded-sm bg-surface-soft px-1.5 py-0.5 text-xs font-medium text-ink">
+          <div className="text-ink flex min-w-0 items-center gap-2 text-sm">
+            <span className="shrink-0 tabular-nums">{formatDate(log.reviewedAt)}</span>
+            <span className="bg-surface-soft text-ink shrink-0 rounded-sm px-1.5 py-0.5 text-xs font-medium">
               {lt.resultLabels[log.result] ?? log.result}
             </span>
             {log.handlerName ? (
-              <span className="shrink-0 text-xs text-mute-light">{log.handlerName}</span>
+              <span className="text-mute-light shrink-0 text-xs">{log.handlerName}</span>
             ) : null}
             {log.defectContent ? (
               <span className="min-w-0 truncate text-sm text-amber-700" title={log.defectContent}>
                 {lt.logDefectContent}：{log.defectContent}
               </span>
             ) : log.note ? (
-              <span className="min-w-0 truncate text-sm text-ink" title={log.note}>
+              <span className="text-ink min-w-0 truncate text-sm" title={log.note}>
                 {log.note}
               </span>
             ) : null}
@@ -2955,7 +3458,7 @@ function DefectResolveToggle({
         disabled={pending}
         aria-label={lt.defectStatusAria}
         className={cn(
-          "h-8 w-full cursor-pointer appearance-none whitespace-nowrap rounded-full border pl-7 pr-8 text-xs font-medium leading-none focus:outline-none focus:ring-2 focus:ring-primary/25 disabled:cursor-not-allowed disabled:opacity-50",
+          "focus:ring-primary/25 h-8 w-full cursor-pointer appearance-none whitespace-nowrap rounded-full border pl-7 pr-8 text-xs font-medium leading-none focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50",
           resolved
             ? "border-emerald-200 bg-emerald-50 text-emerald-700"
             : "border-amber-200 bg-amber-50 text-amber-700",
@@ -2990,18 +3493,16 @@ export function LoanReviewDefectList({
   const lt = labels.customer.detail.loanTab;
   const defects = logs.filter((l) => l.defectContent != null && l.defectContent !== "");
   if (defects.length === 0) {
-    return <p className="text-sm text-mute-light">{lt.defectListEmpty}</p>;
+    return <p className="text-mute-light text-sm">{lt.defectListEmpty}</p>;
   }
   return (
-    <ul className="divide-y divide-hairline-light">
+    <ul className="divide-hairline-light divide-y">
       {defects.map((log) => (
         <li
           key={log.id}
-          className="grid grid-cols-[5.5rem_8rem_minmax(0,1fr)_auto] items-center gap-3 py-1.5 text-sm text-ink"
+          className="text-ink grid grid-cols-[5.5rem_8rem_minmax(0,1fr)_auto] items-center gap-3 py-1.5 text-sm"
         >
-          <span className="tabular-nums text-mute-light">
-            {new Date(log.reviewedAt).toLocaleDateString("ja-JP")}
-          </span>
+          <span className="text-mute-light tabular-nums">{formatDate(log.reviewedAt)}</span>
           {customerId ? (
             <DefectResolveToggle
               customerId={customerId}
@@ -3022,7 +3523,7 @@ export function LoanReviewDefectList({
           <span className="min-w-0 truncate" title={log.defectContent ?? undefined}>
             {log.defectContent}
           </span>
-          <span className="text-xs text-mute-light">{log.assigneeName ?? ""}</span>
+          <span className="text-mute-light text-xs">{log.assigneeName ?? ""}</span>
         </li>
       ))}
     </ul>
@@ -3064,7 +3565,7 @@ function ProfitSummaryTable({ rows }: { rows: ProjectProfitDto[] }) {
     <th
       scope="col"
       className={cn(
-        "whitespace-nowrap px-3 py-2 text-xs font-semibold text-mute-light",
+        "text-mute-light whitespace-nowrap px-3 py-2 text-xs font-semibold",
         numeric ? "text-right" : "text-left",
       )}
     >
@@ -3073,10 +3574,10 @@ function ProfitSummaryTable({ rows }: { rows: ProjectProfitDto[] }) {
   );
 
   return (
-    <div className="overflow-x-auto rounded-md border border-hairline-light">
+    <div className="border-hairline-light overflow-x-auto rounded-md border">
       <table className="w-full border-collapse text-sm">
         <thead>
-          <tr className="border-b border-hairline-light bg-surface-soft/40">
+          <tr className="border-hairline-light bg-surface-soft/40 border-b">
             <Th numeric={false}>{pt.columns.contract}</Th>
             <Th>{pt.columns.salesPrice}</Th>
             <Th>{pt.columns.constructionFee}</Th>
@@ -3087,21 +3588,21 @@ function ProfitSummaryTable({ rows }: { rows: ProjectProfitDto[] }) {
         </thead>
         <tbody>
           {rows.map((r) => (
-            <tr key={r.contractId} className="border-b border-hairline-light last:border-b-0">
-              <td className="whitespace-nowrap px-3 py-2 text-ink">{r.contractLabel}</td>
-              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-ink">
+            <tr key={r.contractId} className="border-hairline-light border-b last:border-b-0">
+              <td className="text-ink whitespace-nowrap px-3 py-2">{r.contractLabel}</td>
+              <td className="text-ink whitespace-nowrap px-3 py-2 text-right tabular-nums">
                 {fmtYenDisplay(r.salesPrice)}
               </td>
-              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-body-light">
+              <td className="text-body-light whitespace-nowrap px-3 py-2 text-right tabular-nums">
                 {fmtYenDisplay(r.constructionFeeTotal)}
               </td>
-              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-body-light">
+              <td className="text-body-light whitespace-nowrap px-3 py-2 text-right tabular-nums">
                 {fmtYenDisplay(r.venueFeeTotal)}
               </td>
-              <td className="whitespace-nowrap px-3 py-2 text-right font-semibold tabular-nums text-ink">
+              <td className="text-ink whitespace-nowrap px-3 py-2 text-right font-semibold tabular-nums">
                 {fmtYenDisplay(r.grossProfit)}
               </td>
-              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-ink">
+              <td className="text-ink whitespace-nowrap px-3 py-2 text-right tabular-nums">
                 {fmtYenDisplay(r.commission)}
               </td>
             </tr>
@@ -3109,21 +3610,21 @@ function ProfitSummaryTable({ rows }: { rows: ProjectProfitDto[] }) {
         </tbody>
         {rows.length > 1 ? (
           <tfoot>
-            <tr className="border-t-2 border-hairline-light bg-surface-soft/60 font-semibold">
-              <td className="whitespace-nowrap px-3 py-2 text-ink">{pt.totalRow}</td>
-              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-ink">
+            <tr className="border-hairline-light bg-surface-soft/60 border-t-2 font-semibold">
+              <td className="text-ink whitespace-nowrap px-3 py-2">{pt.totalRow}</td>
+              <td className="text-ink whitespace-nowrap px-3 py-2 text-right tabular-nums">
                 {fmtYenDisplay(totals.salesPrice)}
               </td>
-              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-ink">
+              <td className="text-ink whitespace-nowrap px-3 py-2 text-right tabular-nums">
                 {fmtYenDisplay(totals.constructionFeeTotal)}
               </td>
-              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-ink">
+              <td className="text-ink whitespace-nowrap px-3 py-2 text-right tabular-nums">
                 {fmtYenDisplay(totals.venueFeeTotal)}
               </td>
-              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-ink">
+              <td className="text-ink whitespace-nowrap px-3 py-2 text-right tabular-nums">
                 {fmtYenDisplay(totals.grossProfit)}
               </td>
-              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-ink">
+              <td className="text-ink whitespace-nowrap px-3 py-2 text-right tabular-nums">
                 {fmtYenDisplay(totals.commission)}
               </td>
             </tr>
@@ -3177,7 +3678,11 @@ function ProfitContractCard({
   const venueFeeTotal = rows
     .filter((r) => r.category === "VENUE_FEE")
     .reduce((s, r) => s + (numOrNull(r.amount) ?? 0), 0);
-  const grossProfit = computeContractGrossProfit(row.salesPrice, constructionFeeTotal, venueFeeTotal);
+  const grossProfit = computeContractGrossProfit(
+    row.salesPrice,
+    constructionFeeTotal,
+    venueFeeTotal,
+  );
   const parsedRate = rate.trim() === "" ? null : Number(rate);
   const commission = computeContractCommission(
     grossProfit,
@@ -3230,9 +3735,7 @@ function ProfitContractCard({
     if (!customerId) return;
     if (!window.confirm(pt.deleteCostItemConfirm)) return;
     const costId = r.costId;
-    run(() =>
-      deleteContractCostAction({ customerId, contractId: row.contractId, costId }),
-    );
+    run(() => deleteContractCostAction({ customerId, contractId: row.contractId, costId }));
   }
 
   function saveRate() {
@@ -3248,23 +3751,21 @@ function ProfitContractCard({
   }
 
   return (
-    <div className="space-y-4 rounded-md border border-hairline-light p-4">
+    <div className="border-hairline-light space-y-4 rounded-md border p-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-ink">{row.contractLabel}</h3>
+        <h3 className="text-ink text-sm font-semibold">{row.contractLabel}</h3>
         <div className="text-right">
-          <span className="text-xs text-mute-light">{pt.salesPrice}</span>
-          <span className="ml-2 text-base font-semibold tabular-nums text-ink">
+          <span className="text-mute-light text-xs">{pt.salesPrice}</span>
+          <span className="text-ink ml-2 text-base font-semibold tabular-nums">
             {fmtYenDisplay(row.salesPrice)}
           </span>
-          <p className="text-[11px] text-mute-light">{pt.salesPriceHint}</p>
+          <p className="text-mute-light text-[11px]">{pt.salesPriceHint}</p>
         </div>
       </div>
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold uppercase tracking-wide text-mute-light">
-            {pt.costItems}
-          </span>
+          <span className="text-mute-light text-xs font-semibold">{pt.costItems}</span>
           {editable ? (
             <div className="flex gap-2">
               <Button
@@ -3292,7 +3793,7 @@ function ProfitContractCard({
         </div>
 
         {rows.length === 0 ? (
-          <p className="rounded-md border border-hairline-light p-3 text-sm text-mute-light">
+          <p className="border-hairline-light text-mute-light rounded-md border p-3 text-sm">
             {pt.costItemsEmpty}
           </p>
         ) : (
@@ -3300,9 +3801,9 @@ function ProfitContractCard({
             {rows.map((r) => (
               <li
                 key={r.key}
-                className="flex flex-wrap items-center gap-2 rounded-md border border-hairline-light p-2"
+                className="border-hairline-light flex flex-wrap items-center gap-2 rounded-md border p-2"
               >
-                <span className="w-16 shrink-0 text-xs font-medium text-body-light">
+                <span className="text-body-light w-16 shrink-0 text-xs font-medium">
                   {pt.categoryLabels[r.category]}
                 </span>
                 {r.category === "CONSTRUCTION_FEE" ? (
@@ -3321,7 +3822,7 @@ function ProfitContractCard({
                       ))}
                     </select>
                   ) : (
-                    <span className="w-44 text-sm text-body-light">
+                    <span className="text-body-light w-44 text-sm">
                       {row.constructions.find((con) => con.constructionId === r.constructionId)
                         ?.label ?? EMPTY_DASH}
                     </span>
@@ -3337,7 +3838,7 @@ function ProfitContractCard({
                     className="h-8 w-36"
                   />
                 ) : (
-                  <span className="w-36 text-right text-sm tabular-nums text-ink">
+                  <span className="text-ink w-36 text-right text-sm tabular-nums">
                     {fmtYenDisplay(numOrNull(r.amount) ?? 0)}
                   </span>
                 )}
@@ -3350,7 +3851,7 @@ function ProfitContractCard({
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="size-8 text-mute-light hover:text-danger"
+                      className="text-mute-light hover:text-danger size-8"
                       aria-label={pt.deleteCostItem}
                       onClick={() => deleteRow(r)}
                       disabled={pending}
@@ -3365,7 +3866,7 @@ function ProfitContractCard({
         )}
       </div>
 
-      <div className="flex flex-wrap items-end justify-between gap-4 border-t border-hairline-light pt-3">
+      <div className="border-hairline-light flex flex-wrap items-end justify-between gap-4 border-t pt-3">
         <div className="space-y-1.5">
           <Label htmlFor={`rate-${row.contractId}`}>{pt.commissionRate}</Label>
           <div className="flex items-center gap-2">
@@ -3391,14 +3892,14 @@ function ProfitContractCard({
         </div>
         <div className="flex gap-6 text-right">
           <div>
-            <p className="text-xs text-mute-light">{pt.grossProfit}</p>
-            <p className="text-base font-semibold tabular-nums text-ink">
+            <p className="text-mute-light text-xs">{pt.grossProfit}</p>
+            <p className="text-ink text-base font-semibold tabular-nums">
               {fmtYenDisplay(grossProfit)}
             </p>
           </div>
           <div>
-            <p className="text-xs text-mute-light">{pt.commission}</p>
-            <p className="text-base font-semibold tabular-nums text-ink">
+            <p className="text-mute-light text-xs">{pt.commission}</p>
+            <p className="text-ink text-base font-semibold tabular-nums">
               {fmtYenDisplay(commission)}
             </p>
           </div>
@@ -3417,7 +3918,7 @@ export function ProjectProfitEditor({
 }) {
   if (rows.length === 0) {
     return (
-      <p className="rounded-md border border-hairline-light p-4 text-sm text-mute-light">
+      <p className="border-hairline-light text-mute-light rounded-md border p-4 text-sm">
         {pt.empty}
       </p>
     );

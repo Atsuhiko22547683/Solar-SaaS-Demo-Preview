@@ -9,7 +9,7 @@ import {
   listActiveStores,
   listActiveVenueProviders,
   listLineEvents,
-  listWholesalerUsers,
+  listSelfStaff,
 } from "./data";
 import { LineFilter } from "./line-filter";
 import { LineTable } from "./line-table";
@@ -35,12 +35,12 @@ export default async function LineEventsPage({ searchParams }: PageProps) {
     params.month && /^\d{4}-(0[1-9]|1[0-2])$/.test(params.month) ? params.month : currentMonth();
   const venueProviderId = params.venueProviderId ?? "";
 
-  const [rows, venueProviders, areas, stores, wholesalerUsers, dealers] = await Promise.all([
+  const [rows, venueProviders, areas, stores, selfStaff, dealers] = await Promise.all([
     listLineEvents({ targetMonth, venueProviderId: venueProviderId || undefined }),
     listActiveVenueProviders(),
     listActiveAreas(),
     listActiveStores(),
-    listWholesalerUsers(),
+    listSelfStaff(),
     listActiveDealers(),
   ]);
 
@@ -48,14 +48,14 @@ export default async function LineEventsPage({ searchParams }: PageProps) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-ink">{t.title}</h1>
-          <p className="text-body-light text-sm mt-1">{t.subtitle}</p>
+          <h1 className="text-ink text-xl font-bold">{t.title}</h1>
+          <p className="text-body-light mt-1 text-sm">{t.subtitle}</p>
         </div>
         <NewLineEventDialog
           venueProviders={venueProviders}
           areas={areas}
           stores={stores}
-          wholesalerUsers={wholesalerUsers}
+          selfStaff={selfStaff}
           dealers={dealers}
           defaultMonth={targetMonth}
         />
@@ -69,16 +69,16 @@ export default async function LineEventsPage({ searchParams }: PageProps) {
         />
       </Card>
 
-      <Card className="p-0 overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-hairline-light">
-          <h2 className="text-sm font-medium text-ink">{t.title}</h2>
-          <span className="text-xs text-mute-light tabular-nums">
+      <Card className="overflow-hidden p-0">
+        <div className="border-hairline-light flex items-center justify-between border-b px-6 py-4">
+          <h2 className="text-ink text-sm font-medium">{t.title}</h2>
+          <span className="text-mute-light text-xs tabular-nums">
             {rows.length}
             {t.filter.resultCount}
           </span>
         </div>
         {rows.length === 0 ? (
-          <div className="px-6 py-12 text-center text-mute-light text-sm">{t.empty}</div>
+          <div className="text-mute-light px-6 py-12 text-center text-sm">{t.empty}</div>
         ) : (
           <LineTable rows={rows} />
         )}

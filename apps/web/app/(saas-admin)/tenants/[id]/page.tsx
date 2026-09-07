@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { formatDateTime } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
 import { getTenant } from "../data";
@@ -48,7 +49,7 @@ export default async function TenantDetailPage({ params }: PageProps) {
         </Link>
       </div>
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">{tenant.name}</h1>
+        <h1 className="text-ink text-xl font-bold">{tenant.name}</h1>
         <span className="text-muted-foreground text-sm">{t.statuses[tenant.status]}</span>
       </div>
 
@@ -69,7 +70,7 @@ export default async function TenantDetailPage({ params }: PageProps) {
           </div>
           <div>
             <dt className="text-muted-foreground text-xs">{t.fields.createdAt}</dt>
-            <dd className="text-xs">{new Date(tenant.createdAt).toLocaleString("ja-JP")}</dd>
+            <dd className="text-xs">{formatDateTime(tenant.createdAt)}</dd>
           </div>
         </dl>
       </section>
@@ -99,16 +100,16 @@ export default async function TenantDetailPage({ params }: PageProps) {
             <>
               <div>
                 <dt className="text-muted-foreground text-xs">{t.invitation.sentAt}</dt>
-                <dd className="text-xs">{new Date(inv.createdAt).toLocaleString("ja-JP")}</dd>
+                <dd className="text-xs">{formatDateTime(inv.createdAt)}</dd>
               </div>
               <div>
                 <dt className="text-muted-foreground text-xs">{t.invitation.expiresAt}</dt>
-                <dd className="text-xs">{new Date(inv.expiresAt).toLocaleString("ja-JP")}</dd>
+                <dd className="text-xs">{formatDateTime(inv.expiresAt)}</dd>
               </div>
               {inv.acceptedAt ? (
                 <div>
                   <dt className="text-muted-foreground text-xs">{t.invitation.acceptedAt}</dt>
-                  <dd className="text-xs">{new Date(inv.acceptedAt).toLocaleString("ja-JP")}</dd>
+                  <dd className="text-xs">{formatDateTime(inv.acceptedAt)}</dd>
                 </div>
               ) : null}
             </>

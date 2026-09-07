@@ -10,16 +10,17 @@
 
 import "server-only";
 
+import { maskPhone, maskAddress, maskName } from "@solar/contracts/services/masking";
+import { rawPrisma } from "@solar/db";
+
 import { auth } from "@/auth";
 import { UnauthorizedError } from "@/lib/errors";
 import { assertCan } from "@/lib/permissions/can";
 import { getTenantContext } from "@/lib/tenancy/context";
 import { withTenant } from "@/lib/tenancy/with-tenant";
-import { maskPhone, maskAddress, maskName } from "@solar/contracts/services/masking";
-import type { ViewerContext } from "@solar/contracts/services/masking";
 
+import type { ViewerContext } from "@solar/contracts/services/masking";
 import type { AcquisitionChannel, CustomerStatus } from "@solar/db";
-import { rawPrisma } from "@solar/db";
 
 export const PAGE_SIZE = 50;
 

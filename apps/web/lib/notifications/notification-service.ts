@@ -13,14 +13,16 @@
 //      caller-supplied transaction.
 //   5. Enqueue `notification.send_email` jobs for EMAIL deliveries.
 
-import type { TxClient } from "@solar/db";
-import { enqueueEmail } from "@/lib/jobs/queue";
 import {
   buildNotificationContent,
   defaultChannelsForType,
   type NotificationType,
   type DeliveryChannel,
 } from "@solar/contracts";
+
+import { enqueueEmail } from "@/lib/jobs/queue";
+
+import type { TxClient } from "@solar/db";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -85,14 +87,7 @@ export class NotificationService {
    * correctly applied.
    */
   async fire(tx: TxClient, input: FireInput): Promise<FireResult> {
-    const {
-      type,
-      recipientUserIds,
-      tenantId,
-      payload = {},
-      channels,
-      dedupKey,
-    } = input;
+    const { type, recipientUserIds, tenantId, payload = {}, channels, dedupKey } = input;
 
     const { title, body } = resolveContent(input);
     const effectiveChannels: Exclude<DeliveryChannel, "LINE">[] =

@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { formatDate, formatDateTime } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
 import {
@@ -75,7 +76,7 @@ export default async function DealerEventCandidatesPage({ searchParams }: PagePr
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
+        <h1 className="text-ink text-xl font-bold">{t.title}</h1>
         <p className="text-muted-foreground text-sm">{t.subtitle}</p>
       </div>
 
@@ -135,7 +136,7 @@ export default async function DealerEventCandidatesPage({ searchParams }: PagePr
                       <div className="text-foreground text-base font-medium">{r.storeName}</div>
                       <div className="text-muted-foreground text-sm">
                         <span className="font-medium">{t.fields.scheduledDate}:</span>{" "}
-                        {new Date(r.scheduledDate).toLocaleDateString("ja-JP")}
+                        {formatDate(r.scheduledDate)}
                       </div>
                       {r.area ? (
                         <div className="text-muted-foreground text-sm">
@@ -155,7 +156,7 @@ export default async function DealerEventCandidatesPage({ searchParams }: PagePr
                         }
                       >
                         <span className="font-medium">{t.fields.deadlineAt}:</span>{" "}
-                        {new Date(r.deadlineAt).toLocaleString("ja-JP")}
+                        {formatDateTime(r.deadlineAt)}
                         {deadlinePassed ? `（${t.deadlinePassed}）` : ""}
                       </div>
                       <div className="mt-2">

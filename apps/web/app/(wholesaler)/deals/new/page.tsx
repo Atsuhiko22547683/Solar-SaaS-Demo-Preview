@@ -9,12 +9,12 @@
 import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
+import { Button } from "@/components/ui/button";
 import { UnauthorizedError } from "@/lib/errors";
+import { labels } from "@/lib/i18n/labels";
 import { assertCan } from "@/lib/permissions/can";
 import { getTenantContext } from "@/lib/tenancy/context";
 import { withTenant } from "@/lib/tenancy/with-tenant";
-import { Button } from "@/components/ui/button";
-import { labels } from "@/lib/i18n/labels";
 
 import { createDealAction } from "../actions";
 
@@ -79,18 +79,18 @@ export default async function NewDealPage({ searchParams }: PageProps) {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">{t.new}</h1>
+      <h1 className="text-ink text-xl font-bold">{t.new}</h1>
 
       {!customerId ? (
         <p className="text-destructive text-sm">顧客 ID を指定してください (?customerId=...)</p>
       ) : (
-        <form action={handleCreate} className="space-y-4 max-w-lg">
+        <form action={handleCreate} className="max-w-lg space-y-4">
           <input type="hidden" name="customerId" value={customerId} />
           <input type="hidden" name="actorUserId" value={ctx.actorUserId} />
 
           {/* Customer display */}
-          <div className="border-border rounded-md border p-4 space-y-1">
-            <p className="text-sm text-muted-foreground">{t.fields.customer}</p>
+          <div className="border-border space-y-1 rounded-md border p-4">
+            <p className="text-muted-foreground text-sm">{t.fields.customer}</p>
             <p className="font-medium">{customerName || customerId}</p>
           </div>
 
@@ -104,7 +104,7 @@ export default async function NewDealPage({ searchParams }: PageProps) {
               id="notes"
               name="notes"
               rows={3}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
             />
           </div>
 

@@ -22,7 +22,7 @@ import type {
   AreaOption,
   DealerOption,
   StoreOption,
-  WholesalerUserOption,
+  SelfStaffOption,
 } from "./data";
 import type { LineEventInput } from "@solar/contracts";
 
@@ -30,7 +30,7 @@ interface NewLineEventDialogProps {
   venueProviders: ActiveVenueProviderOption[];
   areas: AreaOption[];
   stores: StoreOption[];
-  wholesalerUsers: WholesalerUserOption[];
+  selfStaff: SelfStaffOption[];
   dealers: DealerOption[];
   defaultMonth: string;
 }
@@ -122,10 +122,10 @@ function ModeButton({
       type="button"
       onClick={onClick}
       className={[
-        "flex-1 rounded-md px-4 py-3 text-sm font-medium transition-colors border",
+        "flex-1 rounded-md border px-4 py-3 text-sm font-medium transition-colors",
         selected
           ? "border-primary bg-primary text-white"
-          : "border-hairline-light bg-white text-ink hover:border-primary/40 hover:bg-primary/5",
+          : "border-hairline-light text-ink hover:border-primary/40 hover:bg-primary/5 bg-white",
       ].join(" ")}
     >
       {label}
@@ -137,7 +137,7 @@ export function NewLineEventDialog({
   venueProviders,
   areas,
   stores,
-  wholesalerUsers,
+  selfStaff,
   dealers,
   defaultMonth,
 }: NewLineEventDialogProps) {
@@ -269,16 +269,16 @@ export function NewLineEventDialog({
       <DialogTrigger asChild>
         <Button>{t.newLine}</Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t.newLine}</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-5 mt-2" noValidate>
+        <form onSubmit={handleSubmit} className="mt-2 space-y-5" noValidate>
           {/* 1行目: 場所提供元 / 場所名 / エリア */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-mute-light" htmlFor="nl-venue">
+              <label className="text-mute-light text-xs font-semibold" htmlFor="nl-venue">
                 {t.fields.venueProvider}
               </label>
               <select
@@ -297,8 +297,8 @@ export function NewLineEventDialog({
               </select>
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-mute-light" htmlFor="nl-name">
-                {t.fields.venueName} <span className="text-warning">*</span>
+              <label className="text-mute-light text-xs font-semibold" htmlFor="nl-name">
+                {t.fields.venueName} <span className="text-danger">*</span>
               </label>
               <select
                 id="nl-name"
@@ -315,7 +315,7 @@ export function NewLineEventDialog({
               </select>
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-mute-light" htmlFor="nl-area">
+              <label className="text-mute-light text-xs font-semibold" htmlFor="nl-area">
                 {t.fields.area}
               </label>
               <select
@@ -336,7 +336,7 @@ export function NewLineEventDialog({
 
           {/* 2行目: 住所（横幅いっぱい） */}
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-mute-light" htmlFor="nl-address">
+            <label className="text-mute-light text-xs font-semibold" htmlFor="nl-address">
               {t.fields.address}
             </label>
             <Input
@@ -349,8 +349,8 @@ export function NewLineEventDialog({
           {/* 対象月 / ステータス */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-mute-light" htmlFor="nl-month">
-                {t.fields.targetMonth} <span className="text-warning">*</span>
+              <label className="text-mute-light text-xs font-semibold" htmlFor="nl-month">
+                {t.fields.targetMonth} <span className="text-danger">*</span>
               </label>
               <Input
                 id="nl-month"
@@ -360,7 +360,7 @@ export function NewLineEventDialog({
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-mute-light" htmlFor="nl-status">
+              <label className="text-mute-light text-xs font-semibold" htmlFor="nl-status">
                 {t.fields.status}
               </label>
               <select
@@ -379,23 +379,23 @@ export function NewLineEventDialog({
           {/* 開催日（カレンダーチェックボックスグリッド） */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-medium text-mute-light">
-                {t.fields.scheduledDates} <span className="text-warning">*</span>
+              <label className="text-mute-light text-xs font-semibold">
+                {t.fields.scheduledDates} <span className="text-danger">*</span>
               </label>
-              <span className="text-xs text-mute-light tabular-nums">
+              <span className="text-mute-light text-xs tabular-nums">
                 {t.form.selectedCount.replace("{n}", String(selectedDates.size))}
               </span>
             </div>
             {values.targetMonth ? (
-              <div className="rounded-md border border-hairline-light p-3">
+              <div className="border-hairline-light rounded-md border p-3">
                 {/* 曜日ヘッダー（月曜始まり） */}
-                <div className="grid grid-cols-7 gap-1.5 mb-1.5">
+                <div className="mb-1.5 grid grid-cols-7 gap-1.5">
                   {MON_WEEK_LABELS.map((w, i) => (
                     <div
                       key={w}
                       className={[
                         "text-center text-[10px] font-medium",
-                        i === 5 ? "text-link-light" : i === 6 ? "text-warning" : "text-mute-light",
+                        i === 5 ? "text-link-light" : i === 6 ? "text-danger" : "text-mute-light",
                       ].join(" ")}
                     >
                       {w}
@@ -414,17 +414,16 @@ export function NewLineEventDialog({
                     const ds = dayStr(values.targetMonth, day);
                     const dow = dayOfWeek(values.targetMonth, day);
                     const checked = selectedDates.has(ds);
-                    const numColor =
-                      dow === 0 ? "text-warning" : dow === 6 ? "text-link-light" : "";
+                    const numColor = dow === 0 ? "text-danger" : dow === 6 ? "text-link-light" : "";
                     return (
                       <button
                         key={ds}
                         type="button"
                         onClick={() => toggleDate(ds)}
                         className={[
-                          "flex items-center justify-center rounded-md border py-2 text-sm transition-colors tabular-nums",
+                          "flex items-center justify-center rounded-md border py-2 text-sm tabular-nums transition-colors",
                           checked
-                            ? "border-primary bg-primary text-white font-semibold"
+                            ? "border-primary bg-primary font-semibold text-white"
                             : `border-hairline-light hover:bg-surface-soft/50 ${numColor || "text-body-light"}`,
                         ].join(" ")}
                       >
@@ -435,33 +434,37 @@ export function NewLineEventDialog({
                 </div>
               </div>
             ) : (
-              <p className="text-xs text-mute-light">{t.form.selectDates}</p>
+              <p className="text-mute-light text-xs">{t.form.selectDates}</p>
             )}
           </div>
 
           {/* 契約条件 */}
-          <div className="rounded-md border border-dashed border-hairline-light bg-surface-soft/40 p-4 space-y-3">
-            <p className="text-xs font-medium text-ink">{t.sections.contract}</p>
+          <div className="border-hairline-light bg-surface-soft/40 space-y-3 rounded-md border border-dashed p-4">
+            <p className="text-ink text-xs font-medium">{t.sections.contract}</p>
             <div className="space-y-1.5">
-              <label className="text-xs text-mute-light" htmlFor="nl-ct">
+              <label className="text-mute-light text-xs" htmlFor="nl-ct">
                 {t.fields.contractType}
               </label>
               <select
                 id="nl-ct"
                 value={values.contractType}
-                onChange={(e) => update("contractType", e.target.value as FormState["contractType"])}
+                onChange={(e) =>
+                  update("contractType", e.target.value as FormState["contractType"])
+                }
                 className={SELECT_CLASS}
               >
                 <option value="">{c.notSet}</option>
                 <option value="FIXED">{labels.venueProvider.contractTypes.FIXED}</option>
-                <option value="PERFORMANCE">{labels.venueProvider.contractTypes.PERFORMANCE}</option>
+                <option value="PERFORMANCE">
+                  {labels.venueProvider.contractTypes.PERFORMANCE}
+                </option>
                 <option value="OTHER">{labels.venueProvider.contractTypes.OTHER}</option>
               </select>
             </div>
 
             {values.contractType === "FIXED" ? (
               <div className="space-y-1.5">
-                <label className="text-xs text-mute-light" htmlFor="nl-fee">
+                <label className="text-mute-light text-xs" htmlFor="nl-fee">
                   {t.fields.perDayFee}
                 </label>
                 <Input
@@ -475,7 +478,7 @@ export function NewLineEventDialog({
 
             {values.contractType === "PERFORMANCE" ? (
               <div className="space-y-1.5">
-                <label className="text-xs text-mute-light" htmlFor="nl-rate">
+                <label className="text-mute-light text-xs" htmlFor="nl-rate">
                   {t.fields.revenueRate}
                 </label>
                 <Input
@@ -488,7 +491,7 @@ export function NewLineEventDialog({
             ) : null}
 
             <div className="space-y-1.5">
-              <label className="text-xs text-mute-light" htmlFor="nl-cnote">
+              <label className="text-mute-light text-xs" htmlFor="nl-cnote">
                 {t.fields.contractNote}
               </label>
               <textarea
@@ -496,17 +499,17 @@ export function NewLineEventDialog({
                 rows={2}
                 value={values.contractNote}
                 onChange={(e) => update("contractNote", e.target.value)}
-                className="w-full rounded-md border border-hairline-light bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+                className="border-hairline-light focus:ring-primary/30 w-full resize-none rounded-md border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2"
               />
             </div>
           </div>
 
           {/* アサイン情報 */}
-          <div className="rounded-md border border-dashed border-hairline-light bg-surface-soft/40 p-4 space-y-4">
-            <p className="text-xs font-medium text-ink">{t.sections.assign}</p>
+          <div className="border-hairline-light bg-surface-soft/40 space-y-4 rounded-md border border-dashed p-4">
+            <p className="text-ink text-xs font-medium">{t.sections.assign}</p>
 
             <div>
-              <p className="text-xs font-medium text-mute-light mb-2">{tl.assignModeLabel}</p>
+              <p className="text-mute-light mb-2 text-xs font-semibold">{tl.assignModeLabel}</p>
               <div className="flex gap-2">
                 <ModeButton
                   label={tl.assignModeSelf}
@@ -528,20 +531,20 @@ export function NewLineEventDialog({
 
             {(values.assignMode === "SELF" || values.assignMode === "JOINT") && (
               <div>
-                <p className="text-xs font-medium text-mute-light mb-2">{tl.assignSelectStaff}</p>
-                <div className="border border-hairline-light rounded-md max-h-48 overflow-y-auto bg-white">
-                  {wholesalerUsers.map((u) => (
+                <p className="text-mute-light mb-2 text-xs font-semibold">{tl.assignSelectStaff}</p>
+                <div className="border-hairline-light max-h-48 overflow-y-auto rounded-md border bg-white">
+                  {selfStaff.map((u) => (
                     <label
                       key={u.id}
-                      className="flex items-center gap-3 px-3 py-2.5 hover:bg-surface-soft/50 cursor-pointer border-b border-hairline-light last:border-b-0"
+                      className="hover:bg-surface-soft/50 border-hairline-light flex cursor-pointer items-center gap-3 border-b px-3 py-2.5 last:border-b-0"
                     >
                       <input
                         type="checkbox"
                         checked={selectedStaff.includes(u.id)}
                         onChange={() => toggleStaff(u.id)}
-                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary/30"
+                        className="text-primary focus:ring-primary/30 h-4 w-4 rounded border-gray-300"
                       />
-                      <span className="text-sm text-ink">{u.name}</span>
+                      <span className="text-ink text-sm">{u.name}</span>
                     </label>
                   ))}
                 </div>
@@ -550,20 +553,20 @@ export function NewLineEventDialog({
 
             {(values.assignMode === "DEALER" || values.assignMode === "JOINT") && (
               <div>
-                <p className="text-xs font-medium text-mute-light mb-2">{tl.assignDealerName}</p>
-                <div className="border border-hairline-light rounded-md max-h-48 overflow-y-auto bg-white">
+                <p className="text-mute-light mb-2 text-xs font-semibold">{tl.assignDealerName}</p>
+                <div className="border-hairline-light max-h-48 overflow-y-auto rounded-md border bg-white">
                   {dealers.map((d) => (
                     <label
                       key={d.relationshipId}
-                      className="flex items-center gap-3 px-3 py-2.5 hover:bg-surface-soft/50 cursor-pointer border-b border-hairline-light last:border-b-0"
+                      className="hover:bg-surface-soft/50 border-hairline-light flex cursor-pointer items-center gap-3 border-b px-3 py-2.5 last:border-b-0"
                     >
                       <input
                         type="checkbox"
                         checked={selectedDealers.includes(d.relationshipId)}
                         onChange={() => toggleDealer(d.relationshipId)}
-                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary/30"
+                        className="text-primary focus:ring-primary/30 h-4 w-4 rounded border-gray-300"
                       />
-                      <span className="text-sm text-ink">{d.dealerName}</span>
+                      <span className="text-ink text-sm">{d.dealerName}</span>
                     </label>
                   ))}
                 </div>
@@ -571,7 +574,7 @@ export function NewLineEventDialog({
             )}
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-mute-light" htmlFor="nl-assign-status">
+              <label className="text-mute-light text-xs font-semibold" htmlFor="nl-assign-status">
                 {tl.assignOverallStatus}
               </label>
               <select
@@ -586,7 +589,7 @@ export function NewLineEventDialog({
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-mute-light" htmlFor="nl-assign-note">
+              <label className="text-mute-light text-xs font-semibold" htmlFor="nl-assign-note">
                 {tl.assignMemo}
               </label>
               <textarea
@@ -595,13 +598,13 @@ export function NewLineEventDialog({
                 value={values.assignNote}
                 onChange={(e) => update("assignNote", e.target.value)}
                 placeholder={tl.assignMemoPlaceholder}
-                className="w-full rounded-md border border-hairline-light bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+                className="border-hairline-light focus:ring-primary/30 w-full resize-none rounded-md border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2"
               />
             </div>
           </div>
 
           {error && (
-            <p role="alert" className="text-sm font-medium text-warning">
+            <p role="alert" className="text-danger text-sm font-medium">
               {error}
             </p>
           )}

@@ -1,4 +1,5 @@
 import { expect, request, test, type APIRequestContext, type Page } from "@playwright/test";
+
 import { signIn } from "../fixtures/auth";
 
 // E2E spec for T-02-04 — dealer-side `purchasePrice` mask on
@@ -34,7 +35,7 @@ async function ensureSeedProductExists(page: Page, productName: string): Promise
   await page.getByLabel("商品名", { exact: false }).fill(productName);
   await page.getByLabel("単位", { exact: false }).fill("枚");
   await page.getByLabel("仕入値（円）").fill("31000");
-  await page.getByLabel("二次店向け卸値（円）").fill("41000");
+  await page.getByLabel("取引先向け卸値（円）").fill("41000");
   await page.getByLabel("参考売価（円）").fill("56000");
 
   await page.getByRole("button", { name: "登録" }).click();

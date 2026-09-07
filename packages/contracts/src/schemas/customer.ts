@@ -16,6 +16,22 @@ export const AcquisitionChannelEnum = z.enum(["EVENT", "WALK_IN", "TELE", "REFER
 
 export type AcquisitionChannel = z.infer<typeof AcquisitionChannelEnum>;
 
+// 販売チャネル（案件の獲得経路）。Prisma の SalesChannel と 1:1。
+//
+// AcquisitionChannelEnum（EVENT/WALK_IN/TELE/REFERRAL/OTHER）は流用しない —
+// WALK_IN「飛び込み」は訪問販売と同義ではなく、TELE「テレアポ」は反響
+// （インバウンド）と逆向きの概念。既存 enum のラベルを付け替えると、それを
+// 使っている既存画面の意味まで変わってしまうため別 enum として分ける。
+export const SALES_CHANNEL_VALUES = [
+  "VISIT_SALES",
+  "INBOUND",
+  "EVENT",
+  "REFERRAL",
+  "OTHER",
+] as const;
+export const SalesChannelEnum = z.enum(SALES_CHANNEL_VALUES);
+export type SalesChannel = z.infer<typeof SalesChannelEnum>;
+
 // 流入経路（顧客情報で手動選択する 3 区分）。
 export const InflowRouteEnum = z.enum(["EVENT", "OUTBOUND_CALL", "DIRECT_VISIT"]);
 
@@ -112,6 +128,16 @@ export const CustomerCreateSchema = z
     electricBill: z.string().max(100).optional(),
     household: z.string().max(100).optional(),
     channel: AcquisitionChannelEnum,
+    // 販売チャネル。イベント経由の登録では "EVENT" を既定値として渡す。
+    // 未指定でも channel === "EVENT" なら Server Action 側で EVENT を補完する。
+    salesChannel: SalesChannelEnum.nullable().optional(),
+    faceToFace: z.boolean().nullable().optional(),
+    tossDept: z.string().max(100).nullable().optional(),
+    // トス獲得者。人物の正はスタッフマスタ（Salesperson）。
+    // 二次店がトス元のケースは登録後に担当者変更 UI で所属を設定する。
+    tossUpSalespersonId: z.string().min(1).nullable().optional(),
+    // 過去データ互換のため受け取るだけ。UI からは送らない。
+    tossUpUserId: z.string().min(1).nullable().optional(),
     sourceEventId: z.string().optional(),
     ownerRelationshipId: z.string().optional(),
     // status is optional at the input level; the default is applied by the schema.
@@ -152,6 +178,12 @@ export const CustomerUpdateSchema = z.object({
   buildYear: z.string().nullable().optional(),
   tossDept: z.string().max(100).nullable().optional(),
   belongDept: z.string().max(100).nullable().optional(),
+  // 販売チャネル（案件の獲得経路）。既存の channel: AcquisitionChannel とは別概念で、
+  // channel が登録時確定・不変なのに対し、こちらは基本情報から編集できる。null で未設定。
+  salesChannel: SalesChannelEnum.nullable().optional(),
+  // 対面者。true = 主権者 / false = 非主権者 / null = 未設定。
+  // ヒアリング (CustomerHearingSchema) と同じ Customer.faceToFace 列を指す。
+  faceToFace: z.boolean().nullable().optional(),
   area: z.string().max(255).nullable().optional(),
   // 電気契約・設備（基本情報タブ。全て自由記述・null でクリア可）。
   electricContractStatus: z.string().max(255).nullable().optional(),
@@ -186,6 +218,12 @@ export const CustomerUpdateSchema = z.object({
   tossUpRelationshipId: z.string().min(1).nullable().optional(),
   closingUserId: z.string().min(1).nullable().optional(),
   closingRelationshipId: z.string().min(1).nullable().optional(),
+  // 担当者を個人スタッフまで特定する参照。これを指定した場合、Server Action は
+  // Salesperson を読み直して userId / relationshipId を導出し直すため、同時に
+  // 送られた tossUpUserId / tossUpRelationshipId は無視される（改ざん防止）。
+  // null で個人スタッフの紐付けだけを外せる。
+  tossUpSalespersonId: z.string().min(1).nullable().optional(),
+  closingSalespersonId: z.string().min(1).nullable().optional(),
   // Manual status columns edited from the detail page status cards. Date fields
   // accept a `YYYY-MM-DD` (or ISO) string or null; the action converts to Date.
   contractStatus: ContractStatusEnum.optional(),

@@ -90,7 +90,7 @@ export default function MfaSetupPage() {
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">{labels.mfaSetup.title}</h1>
+        <h1 className="text-ink text-xl font-bold">{labels.mfaSetup.title}</h1>
         <p className="text-muted-foreground text-sm">{labels.mfaSetup.subtitle}</p>
       </div>
 

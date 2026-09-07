@@ -11,16 +11,16 @@ import "server-only";
 import Link from "next/link";
 import { Suspense } from "react";
 
-import { Button } from "@/components/ui/button";
 import { auth } from "@/auth";
+import { Button } from "@/components/ui/button";
 import { labels } from "@/lib/i18n/labels";
 import { getTenantContext } from "@/lib/tenancy/context";
 import { withTenant } from "@/lib/tenancy/with-tenant";
 
 import { quickAppointmentAction } from "./quick-appointment/actions";
 import { QuickAppointmentForm } from "./quick-appointment/quick-appointment-form";
-import { fetchMyShifts } from "./shifts/data";
 import { ShiftCard, thisWeekRange, todayIso } from "./shifts/_components/shift-card";
+import { fetchMyShifts } from "./shifts/data";
 
 async function TodayShifts() {
   const l = labels.fieldShift;
@@ -30,7 +30,7 @@ async function TodayShifts() {
 
   return (
     <section>
-      <h2 className="text-base font-semibold mb-3">{l.todaySection}</h2>
+      <h2 className="mb-3 text-base font-semibold">{l.todaySection}</h2>
       {shifts.length === 0 ? (
         <p className="text-muted-foreground text-sm">{l.noShiftsToday}</p>
       ) : (
@@ -46,9 +46,7 @@ async function TodayShifts() {
                   </Link>
                 </Button>
                 <Button asChild variant="outline" size="sm" className="text-xs">
-                  <Link href={`/events/${s.eventId}?report=end`}>
-                    {lq.reportLinks.endReport}
-                  </Link>
+                  <Link href={`/events/${s.eventId}?report=end`}>{lq.reportLinks.endReport}</Link>
                 </Button>
               </div>
             </div>
@@ -73,7 +71,7 @@ async function ThisWeekShifts() {
 
   return (
     <section>
-      <h2 className="text-base font-semibold mb-3">{l.thisWeekSection}</h2>
+      <h2 className="mb-3 text-base font-semibold">{l.thisWeekSection}</h2>
       <div className="flex flex-col gap-3">
         {nonTodayShifts.map((s) => (
           <ShiftCard key={s.id} shift={s} isToday={false} />
@@ -129,12 +127,10 @@ export default function FieldDashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-lg font-bold">{l.dashboardTitle}</h1>
-        <p className="text-muted-foreground text-sm mt-1">{l.dashboardSubtitle}</p>
+        <h1 className="text-ink text-xl font-bold">{l.dashboardTitle}</h1>
+        <p className="text-muted-foreground mt-1 text-sm">{l.dashboardSubtitle}</p>
       </div>
-      <Suspense
-        fallback={<p className="text-sm text-muted-foreground">{l.loading}</p>}
-      >
+      <Suspense fallback={<p className="text-muted-foreground text-sm">{l.loading}</p>}>
         <TodayShifts />
       </Suspense>
       <Suspense fallback={null}>

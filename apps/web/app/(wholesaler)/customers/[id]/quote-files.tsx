@@ -85,15 +85,15 @@ export function QuoteFiles({ customerId, activityId, files }: QuoteFilesProps) {
   }
 
   return (
-    <div className="mt-2 space-y-2 border-t border-hairline-light pt-2">
+    <div className="border-hairline-light mt-2 space-y-2 border-t pt-2">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-medium text-mute-light">{d.quoteSection.files}</span>
+        <span className="text-mute-light text-xs font-semibold">{d.quoteSection.files}</span>
       </div>
 
       {files.length === 0 ? (
-        <p className="text-xs text-mute-light">{d.quoteSection.noFiles}</p>
+        <p className="text-mute-light text-xs">{d.quoteSection.noFiles}</p>
       ) : (
-        <ul className="divide-y divide-hairline-light">
+        <ul className="divide-hairline-light divide-y">
           {files.map((f) => (
             <li key={f.id} className="flex items-center gap-2 py-1.5">
               {f.type === "XLSX" ? (
@@ -105,11 +105,11 @@ export function QuoteFiles({ customerId, activityId, files }: QuoteFilesProps) {
                 type="button"
                 onClick={() => handleOpen(f.id)}
                 disabled={isPending}
-                className="min-w-0 flex-1 truncate text-left text-xs text-link-light underline-offset-4 hover:underline disabled:opacity-60"
+                className="text-link-light min-w-0 flex-1 truncate text-left text-xs underline-offset-4 hover:underline disabled:opacity-60"
               >
                 {f.name}
               </button>
-              <span className="shrink-0 text-[10px] tabular-nums text-mute-light">{f.date}</span>
+              <span className="text-mute-light shrink-0 text-[10px] tabular-nums">{f.date}</span>
             </li>
           ))}
         </ul>

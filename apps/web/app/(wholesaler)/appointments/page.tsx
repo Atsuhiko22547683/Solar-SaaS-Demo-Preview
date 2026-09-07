@@ -108,7 +108,7 @@ export default async function AppointmentListPage({ searchParams }: PageProps) {
 
   return (
     <div className="space-y-6">
-      <ListPageHeader title={t.title} subtitle={t.subtitle} />
+      <ListPageHeader title={t.title} />
 
       <ListFilterCard>
         <AppointmentFilter

@@ -1,10 +1,12 @@
 "use client";
 
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { formatMonthDayWithWeekday } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
 import type { DaySummary } from "./unified-data";
@@ -25,7 +27,7 @@ function parseLocalDate(s: string): Date {
 
 function formatDayHeader(dateStr: string): string {
   const d = parseLocalDate(dateStr);
-  return `${d.getMonth() + 1}/${d.getDate()} (${DAY_LABELS[d.getDay()]})`;
+  return formatMonthDayWithWeekday(d);
 }
 
 function formatRangeLabel(start: string, end: string): string {
@@ -55,7 +57,7 @@ function cellBg(day: DaySummary, isSelected: boolean): string {
 }
 
 function dayHeaderColor(day: DaySummary): string {
-  if (day.isHoliday || day.dayOfWeek === 0) return "text-warning";
+  if (day.isHoliday || day.dayOfWeek === 0) return "text-danger";
   if (day.dayOfWeek === 6) return "text-link-light";
   return "text-ink";
 }
@@ -98,21 +100,18 @@ export function WeeklyCalendar({
 
   const goToday = useCallback(() => navigate(todayMonday()), [navigate]);
 
-  const handleDayClick = useCallback(
-    (date: string) => onToggleDate(date),
-    [onToggleDate],
-  );
+  const handleDayClick = useCallback((date: string) => onToggleDate(date), [onToggleDate]);
 
   return (
-    <Card className="p-0 overflow-hidden">
+    <Card className="overflow-hidden p-0">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-hairline-light">
+      <div className="border-hairline-light flex items-center justify-between border-b px-6 py-4">
         <div className="flex items-center gap-3">
-          <h2 className="text-sm font-semibold text-ink">{t.weeklyCalendar}</h2>
+          <h2 className="text-ink text-sm font-semibold">{t.weeklyCalendar}</h2>
           {selectedDates.size > 0 && (
             <button
               type="button"
-              className="text-xs text-link-light hover:underline underline-offset-4"
+              className="text-link-light text-xs underline-offset-4 hover:underline"
               onClick={onClearSelection}
             >
               {t.clearSelection}
@@ -120,14 +119,29 @@ export function WeeklyCalendar({
           )}
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="px-2" onClick={() => navigateWeek(-1)}>
-            {"<"}
+          {/* 週送りは他画面のページャと同じ lucide のシェブロンに揃える。
+              素の "<" ">" は文字として描かれるため、同じ画面の中でここだけ
+              出自の違う部品に見えていた。 */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="px-2"
+            aria-label={t.prevWeek}
+            onClick={() => navigateWeek(-1)}
+          >
+            <ChevronLeft />
           </Button>
-          <span className="text-sm text-ink tabular-nums px-2">
+          <span className="text-ink px-2 text-sm tabular-nums">
             {formatRangeLabel(weekStart, weekEnd)}
           </span>
-          <Button variant="outline" size="sm" className="px-2" onClick={() => navigateWeek(1)}>
-            {">"}
+          <Button
+            variant="outline"
+            size="sm"
+            className="px-2"
+            aria-label={t.nextWeek}
+            onClick={() => navigateWeek(1)}
+          >
+            <ChevronRight />
           </Button>
           <Button variant="outline" size="sm" onClick={goToday}>
             {t.thisWeek}
@@ -136,14 +150,14 @@ export function WeeklyCalendar({
       </div>
 
       {/* Day grid */}
-      <div className="grid grid-cols-7 divide-x divide-hairline-light border-b border-hairline-light">
+      <div className="divide-hairline-light border-hairline-light grid grid-cols-7 divide-x border-b">
         {daySummaries.map((day) => {
           const isSelected = selectedDates.has(day.date);
           return (
             <div
               key={day.date}
               className={[
-                "px-4 py-3 cursor-pointer transition-colors hover:bg-primary/5",
+                "hover:bg-primary/5 cursor-pointer px-4 py-3 transition-colors",
                 cellBg(day, isSelected),
               ].join(" ")}
               onClick={() => handleDayClick(day.date)}
@@ -151,36 +165,48 @@ export function WeeklyCalendar({
               {/* Day header */}
               <p
                 className={[
-                  "text-xs font-semibold mb-3 pb-2 border-b border-hairline-light",
+                  "border-hairline-light mb-3 border-b pb-2 text-xs font-semibold",
                   dayHeaderColor(day),
                 ].join(" ")}
               >
                 {formatDayHeader(day.date)}
               </p>
 
-              {/* Total */}
-              <div className="text-center mb-3">
-                <p className="text-[10px] text-mute-light tracking-wider">{t.totalEvents}</p>
-                <p className="text-2xl font-bold text-ink tabular-nums leading-tight">
-                  {day.total}
-                </p>
-              </div>
+              {/* 未アサインを日セルの主役にする。
+                  催事は人を立てられなければ売上がゼロになるため、この画面で
+                  最初に探すのは「総イベント件数」ではなく「人が足りていない日」。
+                  以前は総件数が最大表示で、未アサインは 3 行目の小さな数字だった。
+                  イベントが無い日は静かに沈める（0 が 7 個並ぶのを避ける）。 */}
+              {day.total === 0 ? (
+                <p className="py-3 text-center text-sm text-slate-300">{t.noEvents}</p>
+              ) : (
+                <>
+                  <div className="mb-3">
+                    {day.unassigned > 0 ? (
+                      <div className="text-danger flex items-baseline gap-1">
+                        <span className="text-2xl font-bold tabular-nums leading-tight">
+                          {day.unassigned}
+                        </span>
+                        <span className="text-[11px] font-medium">{t.unassigned}</span>
+                      </div>
+                    ) : (
+                      <p className="text-ok text-sm font-medium">{t.allAssigned}</p>
+                    )}
+                  </div>
 
-              {/* Breakdown */}
-              <div className="space-y-1 text-xs">
-                <div className="flex items-center justify-between">
-                  <span className="text-body-light">{t.confirmed}</span>
-                  <span className="text-ink font-medium tabular-nums">{day.confirmed}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-body-light">{t.prospective}</span>
-                  <span className="text-ink font-medium tabular-nums">{day.prospective}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-body-light">{t.unassigned}</span>
-                  <span className="text-ink font-medium tabular-nums">{day.unassigned}</span>
-                </div>
-              </div>
+                  {/* 内訳は補助情報。件数の内訳であって行動の対象ではない。 */}
+                  <div className="text-mute-light space-y-0.5 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span>{t.confirmed}</span>
+                      <span className="tabular-nums">{day.confirmed}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>{t.prospective}</span>
+                      <span className="tabular-nums">{day.prospective}</span>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           );
         })}

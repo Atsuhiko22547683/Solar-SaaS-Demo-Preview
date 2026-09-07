@@ -8,7 +8,7 @@ import { signIn } from "./fixtures/auth";
 // 粗利（売上−施工代−場所代）/ 手数料（粗利×手数料率）を表示する **機密財務** ビュー。
 // 上部に 契約/売上/施工代/場所代/粗利/手数料 の 5 列サマリ（合計行つき）、下部に契約ごとの
 // コスト項目編集カード（施工代=施工プルダウン+金額 / 場所代=金額 / 手数料率入力）を描画する。
-// 卸業者/SaaS 限定で、二次店 DTO（ProjectInfoForDealerDto）からは profitAndLoss を
+// 卸業者/SaaS 限定で、取引先 DTO（ProjectInfoForDealerDto）からは profitAndLoss を
 // セクション丸ごと物理除外し、UI も `"profitAndLoss" in projectInfo` ゲートでタブ自体を
 // 描画しない（CLAUDE.md #4・#5 / docs/05 §20.3）。
 //
@@ -17,12 +17,12 @@ import { signIn } from "./fixtures/auth";
 //      （売上 / 施工代 / 場所代 / 粗利 / 手数料）+ ¥ 金額 + 契約ごとの編集カード（手数料率）
 //      が描画される。複数契約なら合計行が出る。
 //   2. 未契約(契約なし)顧客では損益計算タブが空状態メッセージを描画する（クラッシュしない）。
-//   3. 二次店漏洩防止（最重要）: dealer ロールで卸業者専用の顧客詳細を開いても「損益計算」
+//   3. 取引先漏洩防止（最重要）: dealer ロールで卸業者専用の顧客詳細を開いても「損益計算」
 //      タブが描画されず、施工代/場所代/手数料率の機密ラベルが DOM に一切出ないこと。
 //
 // 認証:
 //   - 卸業者: demo@solar-saas.demo / Demo1234!（pilotWholesaler テナント, WHOLESALER_ADMIN）
-//   - 二次店: alpha-admin@solar-saas.dev / PILOT_PASSWORD（DEALER_ADMIN）
+//   - 取引先: alpha-admin@solar-saas.dev / PILOT_PASSWORD（DEALER_ADMIN）
 //
 // Seed は global-setup が `pnpm db:seed` を1回実行（idempotent）。
 // workers:1 + fullyParallel:false（playwright.config.ts）に追従。
@@ -160,7 +160,7 @@ test.describe("顧客詳細『損益計算』タブ（損益タブ刷新 / 卸�
   });
 });
 
-test.describe("二次店への損益漏洩防止（最重要 / CLAUDE.md #4・#5 / docs/05 §20.3）", () => {
+test.describe("取引先への損益漏洩防止（最重要 / CLAUDE.md #4・#5 / docs/05 §20.3）", () => {
   test.describe.configure({ timeout: 120_000 });
 
   test("dealer ロールでは『損益計算』タブが描画されず、施工代/場所代/手数料率が DOM に一切出ない", async ({
@@ -179,14 +179,14 @@ test.describe("二次店への損益漏洩防止（最重要 / CLAUDE.md #4・#5
     // 卸業者では当該詳細に損益計算タブが出ること（検証 URL が損益タブ対象）を確認。
     await expect(page.getByRole("tab", { name: profit.tab })).toBeVisible();
 
-    // (2) セッションを破棄して二次店(DEALER_ADMIN)で再ログイン。
+    // (2) セッションを破棄して取引先(DEALER_ADMIN)で再ログイン。
     await page.context().clearCookies();
     await signIn(page, DEALER_ADMIN_EMAIL);
 
-    // (3) 二次店セッションで卸業者専用の顧客詳細 URL を開く。
+    // (3) 取引先セッションで卸業者専用の顧客詳細 URL を開く。
     const response = await page.goto(customerDetailUrl, { waitUntil: "domcontentloaded" });
 
-    // 損益計算タブは二次店には絶対に描画されない（タブ自体ゼロ）。
+    // 損益計算タブは取引先には絶対に描画されない（タブ自体ゼロ）。
     await expect(page.getByRole("tab", { name: profit.tab })).toHaveCount(0);
     await expect(page.getByRole("heading", { name: profit.title })).toHaveCount(0);
 
@@ -199,7 +199,7 @@ test.describe("二次店への損益漏洩防止（最重要 / CLAUDE.md #4・#5
     ]) {
       await expect(
         page.getByText(label, { exact: true }),
-        `損益ラベル「${label}」が二次店 DOM に描画されない`,
+        `損益ラベル「${label}」が取引先 DOM に描画されない`,
       ).toHaveCount(0);
     }
 

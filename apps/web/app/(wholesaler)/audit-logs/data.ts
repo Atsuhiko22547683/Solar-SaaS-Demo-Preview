@@ -8,11 +8,11 @@
 import "server-only";
 
 import { auth } from "@/auth";
+import { redactPii } from "@/lib/audit/audit-service";
 import { UnauthorizedError } from "@/lib/errors";
 import { assertCan } from "@/lib/permissions/can";
 import { getTenantContext } from "@/lib/tenancy/context";
 import { withTenant } from "@/lib/tenancy/with-tenant";
-import { redactPii } from "@/lib/audit/audit-service";
 
 import type { AuditAction } from "@solar/db";
 
@@ -47,9 +47,7 @@ export interface PagedAuditLogResult {
   totalPages: number;
 }
 
-export async function listAuditLogs(
-  filter: AuditLogFilter = {},
-): Promise<PagedAuditLogResult> {
+export async function listAuditLogs(filter: AuditLogFilter = {}): Promise<PagedAuditLogResult> {
   const session = await auth();
   if (!session?.user) {
     throw new UnauthorizedError({
@@ -80,9 +78,7 @@ export async function listAuditLogs(
   return withTenant(ctx, async (tx) => {
     const where = {
       // Scope to own tenant; saas_admin has no tenantId so no filter applies.
-      ...(ctx.isSaasAdmin
-        ? {}
-        : { tenantId: ctx.tenantId ?? ctx.wholesalerId ?? "" }),
+      ...(ctx.isSaasAdmin ? {} : { tenantId: ctx.tenantId ?? ctx.wholesalerId ?? "" }),
       ...(filter.actor ? { actorUserId: filter.actor } : {}),
       ...(filter.action ? { action: filter.action } : {}),
       ...(fromDate || toDate

@@ -6,6 +6,7 @@
 // フォーム初期値とする（マスク値を保存し戻さない）。customer.update 権限が無い
 // 二次店・閲覧のみ（editable=null）では呼び出し側が読み取り専用 InfoRow を描画する。
 
+import { SALES_CHANNEL_VALUES } from "@solar/contracts";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -17,7 +18,7 @@ import { labels } from "@/lib/i18n/labels";
 
 import { updateCustomerAction } from "../actions";
 
-import type { InflowRoute } from "@solar/contracts";
+import type { InflowRoute, SalesChannel } from "@solar/contracts";
 
 export interface EditBasicInfoInitial {
   name: string;
@@ -27,6 +28,11 @@ export interface EditBasicInfoInitial {
   postalCode: string | null;
   area: string | null;
   inflowRoute: InflowRoute | null;
+  // 販売関連。salesChannel は専用 enum、faceToFace は 3 状態（true=主権者 /
+  // false=非主権者 / null=未設定）、tossDept は自由記述。
+  salesChannel: SalesChannel | null;
+  faceToFace: boolean | null;
+  tossDept: string | null;
   prefecture: string | null;
   city: string | null;
   addressLine: string | null;
@@ -39,6 +45,21 @@ export interface EditBasicInfoInitial {
 }
 
 const INFLOW_UNSET = "__unset__";
+// select は文字列しか持てないので、未設定 / 主権者 / 非主権者を別トークンに割り当てる。
+const UNSET = "__unset__";
+const FACE_SOVEREIGN = "sovereign";
+const FACE_NON_SOVEREIGN = "nonSovereign";
+
+function faceToSelect(v: boolean | null): string {
+  if (v === null) return UNSET;
+  return v ? FACE_SOVEREIGN : FACE_NON_SOVEREIGN;
+}
+
+function selectToFace(v: string): boolean | null {
+  if (v === FACE_SOVEREIGN) return true;
+  if (v === FACE_NON_SOVEREIGN) return false;
+  return null;
+}
 
 const FIELD =
   "h-9 w-full rounded-sm border border-hairline-light bg-white px-3 text-sm text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20";
@@ -127,6 +148,9 @@ export function BasicInfoInlineEdit({
   const [postalCode, setPostalCode] = useState(initial.postalCode ?? "");
   const [area, setArea] = useState(initial.area ?? "");
   const [inflowRoute, setInflowRoute] = useState<string>(initial.inflowRoute ?? INFLOW_UNSET);
+  const [salesChannel, setSalesChannel] = useState<string>(initial.salesChannel ?? UNSET);
+  const [faceToFace, setFaceToFace] = useState<string>(faceToSelect(initial.faceToFace));
+  const [tossDept, setTossDept] = useState(initial.tossDept ?? "");
   const [prefecture, setPrefecture] = useState(initial.prefecture ?? "");
   const [city, setCity] = useState(initial.city ?? "");
   const [addressLine, setAddressLine] = useState(initial.addressLine ?? "");
@@ -147,6 +171,9 @@ export function BasicInfoInlineEdit({
     setPostalCode(initial.postalCode ?? "");
     setArea(initial.area ?? "");
     setInflowRoute(initial.inflowRoute ?? INFLOW_UNSET);
+    setSalesChannel(initial.salesChannel ?? UNSET);
+    setFaceToFace(faceToSelect(initial.faceToFace));
+    setTossDept(initial.tossDept ?? "");
     setPrefecture(initial.prefecture ?? "");
     setCity(initial.city ?? "");
     setAddressLine(initial.addressLine ?? "");
@@ -166,6 +193,9 @@ export function BasicInfoInlineEdit({
     postalCode !== (initial.postalCode ?? "") ||
     area !== (initial.area ?? "") ||
     inflowRoute !== (initial.inflowRoute ?? INFLOW_UNSET) ||
+    salesChannel !== (initial.salesChannel ?? UNSET) ||
+    faceToFace !== faceToSelect(initial.faceToFace) ||
+    tossDept !== (initial.tossDept ?? "") ||
     prefecture !== (initial.prefecture ?? "") ||
     city !== (initial.city ?? "") ||
     addressLine !== (initial.addressLine ?? "") ||
@@ -189,6 +219,9 @@ export function BasicInfoInlineEdit({
           postalCode: blank(postalCode),
           area: area.trim().length > 0 ? area.trim() : null,
           inflowRoute: inflowRoute === INFLOW_UNSET ? null : (inflowRoute as InflowRoute),
+          salesChannel: salesChannel === UNSET ? null : (salesChannel as SalesChannel),
+          faceToFace: selectToFace(faceToFace),
+          tossDept: tossDept.trim() || null,
           prefecture: prefecture.trim() || null,
           city: city.trim() || null,
           addressLine: addressLine.trim() || null,
@@ -242,6 +275,41 @@ export function BasicInfoInlineEdit({
             <option value="OUTBOUND_CALL">{d.inflowRouteLabels.OUTBOUND_CALL}</option>
             <option value="DIRECT_VISIT">{d.inflowRouteLabels.DIRECT_VISIT}</option>
           </select>
+        </EditField>
+        <EditField id="basic-sales-channel" label={f.salesChannel}>
+          <select
+            id="basic-sales-channel"
+            value={salesChannel}
+            onChange={(e) => setSalesChannel(e.target.value)}
+            className={FIELD}
+          >
+            <option value={UNSET}>{d.unassigned}</option>
+            {SALES_CHANNEL_VALUES.map((v) => (
+              <option key={v} value={v}>
+                {d.salesChannelLabels[v]}
+              </option>
+            ))}
+          </select>
+        </EditField>
+        <EditField id="basic-face-to-face" label={f.faceToFace}>
+          <select
+            id="basic-face-to-face"
+            value={faceToFace}
+            onChange={(e) => setFaceToFace(e.target.value)}
+            className={FIELD}
+          >
+            <option value={UNSET}>{d.unassigned}</option>
+            <option value={FACE_SOVEREIGN}>{d.faceToFaceLabels.sovereign}</option>
+            <option value={FACE_NON_SOVEREIGN}>{d.faceToFaceLabels.nonSovereign}</option>
+          </select>
+        </EditField>
+        <EditField id="basic-toss-dept" label={f.tossDept}>
+          <Input
+            id="basic-toss-dept"
+            value={tossDept}
+            onChange={(e) => setTossDept(e.target.value)}
+            autoComplete="off"
+          />
         </EditField>
         <EditField id="basic-area" label={f.area}>
           <select
@@ -329,9 +397,7 @@ export function BasicInfoInlineEdit({
 
       {/* 現状情報 — 電気契約・設備（識別子・ステータス。生値・編集可）。 */}
       <div className="space-y-3">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-mute-light">
-          {d.electricSection}
-        </h3>
+        <h3 className="text-mute-light text-xs font-semibold">{d.electricSection}</h3>
         <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
           <EditField id="basic-electric-status" label={f.electricContractStatus}>
             <Input
@@ -413,7 +479,7 @@ export function MemoInlineEdit({
         onChange={(e) => setNote(e.target.value)}
         rows={6}
         placeholder={d.memoPlaceholder}
-        className="w-full resize-y rounded-sm border border-hairline-light bg-white px-3 py-2 text-sm text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+        className="border-hairline-light text-ink focus:border-primary focus:ring-primary/20 w-full resize-y rounded-sm border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2"
       />
       <SaveCancelRow
         onSave={onSave}

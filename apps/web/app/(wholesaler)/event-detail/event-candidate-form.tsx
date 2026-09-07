@@ -1,5 +1,10 @@
 "use client";
 
+import {
+  BOOTH_AREA_VALUES,
+  EVENT_PRODUCT_CATEGORY_VALUES,
+  VENUE_CHAIN_VALUES,
+} from "@solar/contracts";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -16,9 +21,12 @@ import {
 
 import type { ActiveVenueProviderOption } from "./data";
 import type {
+  BoothAreaValue,
   EventCandidateInput,
   EventCandidateStatus,
   EventCandidateUpdate,
+  EventProductCategoryValue,
+  VenueChainValue,
 } from "@solar/contracts";
 
 // S-024 の新規作成 / 編集フォーム。
@@ -49,6 +57,10 @@ type Mode =
         fixedFee: string | null;
         performanceRate: string | null;
         internalNote: string | null;
+        venueChain: VenueChainValue | null;
+        boothArea: BoothAreaValue | null;
+        boothAreaNote: string | null;
+        productCategory: EventProductCategoryValue | null;
       };
     };
 
@@ -69,7 +81,15 @@ interface FormState {
   fixedFee: string;
   performanceRate: string;
   internalNote: string;
+  // 空文字 = 未設定。select の value は文字列しか持てないので "" を未設定に割り当てる。
+  venueChain: "" | VenueChainValue;
+  boothArea: "" | BoothAreaValue;
+  boothAreaNote: string;
+  productCategory: "" | EventProductCategoryValue;
 }
+
+const SELECT_CLASS =
+  "border-input bg-background flex h-10 w-full rounded-md border px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60";
 
 function toDatetimeLocal(iso: string): string {
   // <input type="datetime-local"> wants yyyy-MM-ddTHH:mm in the user's local
@@ -101,6 +121,10 @@ function toFormState(mode: Mode): FormState {
       fixedFee: "",
       performanceRate: "",
       internalNote: "",
+      venueChain: "",
+      boothArea: "",
+      boothAreaNote: "",
+      productCategory: "",
     };
   }
   return {
@@ -115,6 +139,10 @@ function toFormState(mode: Mode): FormState {
     fixedFee: mode.initial.fixedFee ?? "",
     performanceRate: mode.initial.performanceRate ?? "",
     internalNote: mode.initial.internalNote ?? "",
+    venueChain: mode.initial.venueChain ?? "",
+    boothArea: mode.initial.boothArea ?? "",
+    boothAreaNote: mode.initial.boothAreaNote ?? "",
+    productCategory: mode.initial.productCategory ?? "",
   };
 }
 
@@ -158,6 +186,11 @@ export function EventCandidateForm({ mode, venueProviders }: EventCandidateFormP
     }
 
     const blank = (s: string) => (s.trim().length === 0 ? undefined : s.trim());
+    // select の "" は「未設定」。null で送って明示的に未設定へ戻せるようにする。
+    const enumOrNull = <T extends string>(s: "" | T): T | null => (s === "" ? null : s);
+    // 自由記述は「その他」を選んだときだけ送る（サーバ側でも同じ正規化を行う）。
+    const boothAreaNote =
+      values.boothArea === "OTHER" ? (blank(values.boothAreaNote) ?? null) : null;
     const scheduledDate = new Date(values.scheduledDate);
     const deadlineAt = new Date(values.deadlineAt);
 
@@ -176,6 +209,10 @@ export function EventCandidateForm({ mode, venueProviders }: EventCandidateFormP
             fixedFee: blank(values.fixedFee),
             performanceRate: blank(values.performanceRate),
             internalNote: blank(values.internalNote),
+            venueChain: enumOrNull(values.venueChain),
+            boothArea: enumOrNull(values.boothArea),
+            boothAreaNote,
+            productCategory: enumOrNull(values.productCategory),
           };
           const result = await createEventCandidateAction(payload);
           toast.success(c.saved);
@@ -202,6 +239,10 @@ export function EventCandidateForm({ mode, venueProviders }: EventCandidateFormP
                 fixedFee: blank(values.fixedFee),
                 performanceRate: blank(values.performanceRate),
                 internalNote: blank(values.internalNote),
+                venueChain: enumOrNull(values.venueChain),
+                boothArea: enumOrNull(values.boothArea),
+                boothAreaNote,
+                productCategory: enumOrNull(values.productCategory),
               };
           const input: UpdateEventCandidateInput = { id: mode.id, patch };
           await updateEventCandidateAction(input);
@@ -275,6 +316,85 @@ export function EventCandidateForm({ mode, venueProviders }: EventCandidateFormP
               disabled={lockedAfterPublish}
             />
           </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium" htmlFor="venueChain">
+              {t.fields.venueChain}
+            </label>
+            <select
+              id="venueChain"
+              value={values.venueChain}
+              onChange={(e) => update("venueChain", e.target.value as FormState["venueChain"])}
+              disabled={lockedAfterPublish}
+              className={SELECT_CLASS}
+            >
+              <option value="">{c.notSet}</option>
+              {VENUE_CHAIN_VALUES.map((v) => (
+                <option key={v} value={v}>
+                  {t.venueChains[v]}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium" htmlFor="productCategory">
+              {t.fields.productCategory}
+            </label>
+            <select
+              id="productCategory"
+              value={values.productCategory}
+              onChange={(e) =>
+                update("productCategory", e.target.value as FormState["productCategory"])
+              }
+              disabled={lockedAfterPublish}
+              className={SELECT_CLASS}
+            >
+              <option value="">{c.notSet}</option>
+              {EVENT_PRODUCT_CATEGORY_VALUES.map((v) => (
+                <option key={v} value={v}>
+                  {t.productCategories[v]}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium" htmlFor="boothArea">
+              {t.fields.boothArea}
+            </label>
+            <select
+              id="boothArea"
+              value={values.boothArea}
+              onChange={(e) => update("boothArea", e.target.value as FormState["boothArea"])}
+              disabled={lockedAfterPublish}
+              className={SELECT_CLASS}
+            >
+              <option value="">{c.notSet}</option>
+              {BOOTH_AREA_VALUES.map((v) => (
+                <option key={v} value={v}>
+                  {t.boothAreas[v]}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* 自由記述は「その他」を選んだときだけ出す。他の種別に戻すと
+              サーバ側・送信側の双方で null に正規化される。 */}
+          {values.boothArea === "OTHER" ? (
+            <div className="space-y-2">
+              <label className="text-sm font-medium" htmlFor="boothAreaNote">
+                {t.fields.boothAreaNote}
+              </label>
+              <Input
+                id="boothAreaNote"
+                value={values.boothAreaNote}
+                placeholder={t.boothAreaNotePlaceholder}
+                onChange={(e) => update("boothAreaNote", e.target.value)}
+                disabled={lockedAfterPublish}
+              />
+            </div>
+          ) : null}
         </div>
       </section>
 

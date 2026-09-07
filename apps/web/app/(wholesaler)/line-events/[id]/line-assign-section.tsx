@@ -17,7 +17,7 @@ import { labels } from "@/lib/i18n/labels";
 
 import { updateLineAssignAction } from "./actions";
 
-import type { DealerOption, LineAssigneeRow, WholesalerUserOption } from "../data";
+import type { DealerOption, LineAssigneeRow, SelfStaffOption } from "../data";
 
 type AssignMode = "SELF" | "DEALER" | "JOINT";
 type AssignStatus = "CONFIRMED" | "ADJUSTING";
@@ -30,7 +30,7 @@ interface LineAssignSectionProps {
   assignDealerIds: string[];
   assignees: LineAssigneeRow[];
   assignNote: string | null;
-  wholesalerUsers: WholesalerUserOption[];
+  selfStaff: SelfStaffOption[];
   dealers: DealerOption[];
 }
 
@@ -55,7 +55,7 @@ function StatusSelect({
       value={value}
       onChange={(e) => onChange(e.target.value as "confirmed" | "adjusting")}
       className={[
-        "appearance-none rounded-full border px-3 py-0.5 text-xs font-semibold cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/30",
+        "focus:ring-primary/30 cursor-pointer appearance-none rounded-full border px-3 py-0.5 text-xs font-semibold focus:outline-none focus:ring-2",
         colors,
       ].join(" ")}
     >
@@ -65,16 +65,24 @@ function StatusSelect({
   );
 }
 
-function ModeButton({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) {
+function ModeButton({
+  label,
+  selected,
+  onClick,
+}: {
+  label: string;
+  selected: boolean;
+  onClick: () => void;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={[
-        "flex-1 rounded-md px-4 py-3 text-sm font-medium transition-colors border",
+        "flex-1 rounded-md border px-4 py-3 text-sm font-medium transition-colors",
         selected
           ? "border-primary bg-primary text-white"
-          : "border-hairline-light bg-white text-ink hover:border-primary/40 hover:bg-primary/5",
+          : "border-hairline-light text-ink hover:border-primary/40 hover:bg-primary/5 bg-white",
       ].join(" ")}
     >
       {label}
@@ -90,7 +98,7 @@ export function LineAssignSection({
   assignDealerIds,
   assignees,
   assignNote,
-  wholesalerUsers,
+  selfStaff,
   dealers,
 }: LineAssignSectionProps) {
   const t = labels.lineEvent;
@@ -99,7 +107,9 @@ export function LineAssignSection({
   const [isPending, startTransition] = useTransition();
 
   const [open, setOpen] = useState(false);
-  const [selectedMode, setSelectedMode] = useState<AssignMode>((assignMode as AssignMode) ?? "SELF");
+  const [selectedMode, setSelectedMode] = useState<AssignMode>(
+    (assignMode as AssignMode) ?? "SELF",
+  );
   const [selectedStaff, setSelectedStaff] = useState<string[]>(assignStaffIds);
   const [selectedDealers, setSelectedDealers] = useState<string[]>(assignDealerIds);
   const [assignMemo, setAssignMemo] = useState(assignNote ?? "");
@@ -178,36 +188,60 @@ export function LineAssignSection({
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <CardTitle className="text-base whitespace-nowrap">{t.sections.assign}</CardTitle>
+            <CardTitle className="whitespace-nowrap text-base">{t.sections.assign}</CardTitle>
             <StatusSelect value={headerStatus} onChange={handleHeaderStatusChange} />
           </div>
 
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" size="sm">{tl.addAssign}</Button>
+              <Button variant="outline" size="sm">
+                {tl.addAssign}
+              </Button>
             </DialogTrigger>
             <DialogContent className="max-w-lg">
               <DialogHeader>
                 <DialogTitle>{tl.assignDialogTitle}</DialogTitle>
               </DialogHeader>
-              <div className="space-y-5 mt-2">
+              <div className="mt-2 space-y-5">
                 <div>
-                  <p className="text-xs font-medium text-mute-light mb-2">{tl.assignModeLabel}</p>
+                  <p className="text-mute-light mb-2 text-xs font-semibold">{tl.assignModeLabel}</p>
                   <div className="flex gap-2">
-                    <ModeButton label={tl.assignModeSelf} selected={selectedMode === "SELF"} onClick={() => setSelectedMode("SELF")} />
-                    <ModeButton label={tl.assignModeDealer} selected={selectedMode === "DEALER"} onClick={() => setSelectedMode("DEALER")} />
-                    <ModeButton label={tl.assignModeJoint} selected={selectedMode === "JOINT"} onClick={() => setSelectedMode("JOINT")} />
+                    <ModeButton
+                      label={tl.assignModeSelf}
+                      selected={selectedMode === "SELF"}
+                      onClick={() => setSelectedMode("SELF")}
+                    />
+                    <ModeButton
+                      label={tl.assignModeDealer}
+                      selected={selectedMode === "DEALER"}
+                      onClick={() => setSelectedMode("DEALER")}
+                    />
+                    <ModeButton
+                      label={tl.assignModeJoint}
+                      selected={selectedMode === "JOINT"}
+                      onClick={() => setSelectedMode("JOINT")}
+                    />
                   </div>
                 </div>
 
                 {(selectedMode === "SELF" || selectedMode === "JOINT") && (
                   <div>
-                    <p className="text-xs font-medium text-mute-light mb-2">{tl.assignSelectStaff}</p>
-                    <div className="border border-hairline-light rounded-md max-h-48 overflow-y-auto">
-                      {wholesalerUsers.map((u) => (
-                        <label key={u.id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-surface-soft/50 cursor-pointer border-b border-hairline-light last:border-b-0">
-                          <input type="checkbox" checked={selectedStaff.includes(u.id)} onChange={() => toggleStaff(u.id)} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary/30" />
-                          <span className="text-sm text-ink">{u.name}</span>
+                    <p className="text-mute-light mb-2 text-xs font-semibold">
+                      {tl.assignSelectStaff}
+                    </p>
+                    <div className="border-hairline-light max-h-48 overflow-y-auto rounded-md border">
+                      {selfStaff.map((u) => (
+                        <label
+                          key={u.id}
+                          className="hover:bg-surface-soft/50 border-hairline-light flex cursor-pointer items-center gap-3 border-b px-3 py-2.5 last:border-b-0"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedStaff.includes(u.id)}
+                            onChange={() => toggleStaff(u.id)}
+                            className="text-primary focus:ring-primary/30 h-4 w-4 rounded border-gray-300"
+                          />
+                          <span className="text-ink text-sm">{u.name}</span>
                         </label>
                       ))}
                     </div>
@@ -216,12 +250,22 @@ export function LineAssignSection({
 
                 {(selectedMode === "DEALER" || selectedMode === "JOINT") && (
                   <div>
-                    <p className="text-xs font-medium text-mute-light mb-2">{tl.assignDealerName}</p>
-                    <div className="border border-hairline-light rounded-md max-h-48 overflow-y-auto">
+                    <p className="text-mute-light mb-2 text-xs font-semibold">
+                      {tl.assignDealerName}
+                    </p>
+                    <div className="border-hairline-light max-h-48 overflow-y-auto rounded-md border">
                       {dealers.map((d) => (
-                        <label key={d.relationshipId} className="flex items-center gap-3 px-3 py-2.5 hover:bg-surface-soft/50 cursor-pointer border-b border-hairline-light last:border-b-0">
-                          <input type="checkbox" checked={selectedDealers.includes(d.relationshipId)} onChange={() => toggleDealer(d.relationshipId)} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary/30" />
-                          <span className="text-sm text-ink">{d.dealerName}</span>
+                        <label
+                          key={d.relationshipId}
+                          className="hover:bg-surface-soft/50 border-hairline-light flex cursor-pointer items-center gap-3 border-b px-3 py-2.5 last:border-b-0"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedDealers.includes(d.relationshipId)}
+                            onChange={() => toggleDealer(d.relationshipId)}
+                            className="text-primary focus:ring-primary/30 h-4 w-4 rounded border-gray-300"
+                          />
+                          <span className="text-ink text-sm">{d.dealerName}</span>
                         </label>
                       ))}
                     </div>
@@ -229,13 +273,21 @@ export function LineAssignSection({
                 )}
 
                 <div>
-                  <p className="text-xs font-medium text-mute-light mb-2">{tl.assignOverallStatus}</p>
+                  <p className="text-mute-light mb-2 text-xs font-semibold">
+                    {tl.assignOverallStatus}
+                  </p>
                   <StatusSelect value={dialogStatus} onChange={setDialogStatus} />
                 </div>
 
                 <div>
-                  <p className="text-xs font-medium text-mute-light mb-2">{tl.assignMemo}</p>
-                  <textarea value={assignMemo} onChange={(e) => setAssignMemo(e.target.value)} placeholder={tl.assignMemoPlaceholder} rows={3} className="w-full rounded-md border border-hairline-light bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
+                  <p className="text-mute-light mb-2 text-xs font-semibold">{tl.assignMemo}</p>
+                  <textarea
+                    value={assignMemo}
+                    onChange={(e) => setAssignMemo(e.target.value)}
+                    placeholder={tl.assignMemoPlaceholder}
+                    rows={3}
+                    className="border-hairline-light focus:ring-primary/30 w-full resize-none rounded-md border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2"
+                  />
                 </div>
 
                 <Button className="w-full" onClick={handleSave} disabled={isPending}>
@@ -249,19 +301,24 @@ export function LineAssignSection({
       <CardContent>
         {assignees.length > 0 ? (
           <div className="flex gap-4">
-            <div className="flex-1 min-w-0">
+            <div className="min-w-0 flex-1">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-hairline-light">
-                    <th className="px-3 py-2 text-left text-xs font-medium text-mute-light">{tl.assignColumns.name}</th>
+                  <tr className="border-hairline-light border-b">
+                    <th className="text-mute-light px-3 py-2 text-left text-xs font-semibold">
+                      {tl.assignColumns.name}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {assignees.map((a) => (
-                    <tr key={`${a.affiliation}-${a.id}`} className="border-b border-hairline-light last:border-b-0">
-                      <td className="px-3 py-2.5 text-sm text-ink">
+                    <tr
+                      key={`${a.affiliation}-${a.id}`}
+                      className="border-hairline-light border-b last:border-b-0"
+                    >
+                      <td className="text-ink px-3 py-2.5 text-sm">
                         <span className="font-medium">{a.name}</span>
-                        <span className="ml-2 text-xs text-mute-light">
+                        <span className="text-mute-light ml-2 text-xs">
                           ({a.affiliation === "self" ? tl.affiliationSelf : tl.affiliationDealer})
                         </span>
                       </td>
@@ -270,13 +327,13 @@ export function LineAssignSection({
                 </tbody>
               </table>
             </div>
-            <div className="w-1/3 shrink-0 border-l border-hairline-light pl-4">
-              <p className="text-xs font-medium text-mute-light mb-1">{tl.assignMemo}</p>
-              <p className="text-sm text-ink whitespace-pre-wrap">{assignNote || "—"}</p>
+            <div className="border-hairline-light w-1/3 shrink-0 border-l pl-4">
+              <p className="text-mute-light mb-1 text-xs font-semibold">{tl.assignMemo}</p>
+              <p className="text-ink whitespace-pre-wrap text-sm">{assignNote || "—"}</p>
             </div>
           </div>
         ) : (
-          <p className="px-3 py-6 text-center text-sm text-mute-light">{tl.assignNotAvailable}</p>
+          <p className="text-mute-light px-3 py-6 text-center text-sm">{tl.assignNotAvailable}</p>
         )}
       </CardContent>
     </Card>

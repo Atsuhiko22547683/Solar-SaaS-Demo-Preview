@@ -10,6 +10,7 @@ import { UnauthorizedError } from "@/lib/errors";
 import { assertCan } from "@/lib/permissions/can";
 import { getTenantContext } from "@/lib/tenancy/context";
 import { withTenant } from "@/lib/tenancy/with-tenant";
+
 import type { MonthlyScope } from "@solar/db";
 
 export interface MonthlyReportDetail {
@@ -49,9 +50,7 @@ function extractAggregated(raw: unknown): AggregatedJson {
   return {};
 }
 
-export async function getMonthlyReportDetail(
-  id: string,
-): Promise<MonthlyReportDetail | null> {
+export async function getMonthlyReportDetail(id: string): Promise<MonthlyReportDetail | null> {
   const session = await auth();
   if (!session?.user) {
     throw new UnauthorizedError({
@@ -111,12 +110,14 @@ export async function getMonthlyReportDetail(
       totalGrossProfit: agg.totalGrossProfit ?? 0,
       totalIncentive: agg.totalIncentive ?? 0,
       averageProfitRate: agg.averageProfitRate ?? 0,
-      aggregatedRaw: (row.aggregated && typeof row.aggregated === "object" && !Array.isArray(row.aggregated)
-        ? (row.aggregated as Record<string, unknown>)
-        : {}),
-      commentsRaw: (row.comments && typeof row.comments === "object" && !Array.isArray(row.comments)
-        ? (row.comments as Record<string, unknown>)
-        : null),
+      aggregatedRaw:
+        row.aggregated && typeof row.aggregated === "object" && !Array.isArray(row.aggregated)
+          ? (row.aggregated as Record<string, unknown>)
+          : {},
+      commentsRaw:
+        row.comments && typeof row.comments === "object" && !Array.isArray(row.comments)
+          ? (row.comments as Record<string, unknown>)
+          : null,
       updatedAt: row.updatedAt.toISOString(),
     };
   });

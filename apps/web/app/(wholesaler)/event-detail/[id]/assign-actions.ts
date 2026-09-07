@@ -8,13 +8,36 @@ import { withServerActionContext } from "@/lib/tenancy/server-action";
 export interface SaveAssignInput {
   eventCandidateId: string;
   mode: "SELF" | "DEALER" | "JOINT";
-  staffUserIds: string[];
+  /** 配置する自社スタッフ（Salesperson.id）。システムユーザー ID ではない。 */
+  staffSalespersonIds: string[];
   dealerRelationshipIds: string[];
   memo: string;
 }
 
 export interface SaveAssignResult {
   eventId: string;
+}
+
+/**
+ * 自社スタッフ（Salesperson）をイベントへ配置する。
+ *
+ * 受け取った id は必ず「自テナントの有効な自社スタッフ」であることを確認してから
+ * 書き込む。クライアントから来た id をそのまま信用しない。
+ */
+async function assignSelfStaff(
+  tx: Parameters<Parameters<typeof withServerActionContext>[1]>[0]["tx"],
+  eventId: string,
+  salespersonIds: string[],
+  wholesalerId: string,
+): Promise<void> {
+  if (salespersonIds.length === 0) return;
+  const staff = await tx.salesperson.findMany({
+    where: { id: { in: salespersonIds }, wholesalerId, relationshipId: null, isActive: true },
+    select: { id: true },
+  });
+  for (const s of staff) {
+    await tx.eventSalesperson.create({ data: { eventId, salespersonId: s.id } });
+  }
 }
 
 export const saveAssignAction = withServerActionContext<SaveAssignInput, SaveAssignResult>(
@@ -46,29 +69,11 @@ export const saveAssignAction = withServerActionContext<SaveAssignInput, SaveAss
         data: { mode: input.mode, note: input.memo || null },
       });
 
-      // Sync shifts: delete existing, re-create from staffUserIds
+      // 自社スタッフ配置を入れ替える。EventShift（User ベースの時間帯シフト）は
+      // 別機能なので触らない。
+      await tx.eventSalesperson.deleteMany({ where: { eventId } });
       if (input.mode === "SELF" || input.mode === "JOINT") {
-        await tx.eventShift.deleteMany({ where: { eventId } });
-        const candidate = await tx.eventCandidate.findUnique({
-          where: { id: input.eventCandidateId },
-          select: { scheduledDate: true },
-        });
-        const base = candidate?.scheduledDate ?? new Date();
-        const endDate = new Date(base.getTime() + 8 * 60 * 60 * 1000);
-        for (const userId of input.staffUserIds) {
-          await tx.eventShift.create({
-            data: {
-              eventId,
-              userId,
-              role: "LEAD",
-              startPlanned: base,
-              endPlanned: endDate,
-              status: "ASSIGNED",
-            },
-          });
-        }
-      } else {
-        await tx.eventShift.deleteMany({ where: { eventId } });
+        await assignSelfStaff(tx, eventId, input.staffSalespersonIds, ctx.wholesalerId);
       }
 
       // Sync dealers: delete existing, re-create from dealerRelationshipIds
@@ -105,26 +110,9 @@ export const saveAssignAction = withServerActionContext<SaveAssignInput, SaveAss
         data: { status: "DECIDED" },
       });
 
-      // Create shifts
+      // 自社スタッフ配置
       if (input.mode === "SELF" || input.mode === "JOINT") {
-        const candidate = await tx.eventCandidate.findUnique({
-          where: { id: input.eventCandidateId },
-          select: { scheduledDate: true },
-        });
-        const base = candidate?.scheduledDate ?? new Date();
-        const endDate = new Date(base.getTime() + 8 * 60 * 60 * 1000);
-        for (const userId of input.staffUserIds) {
-          await tx.eventShift.create({
-            data: {
-              eventId,
-              userId,
-              role: "LEAD",
-              startPlanned: base,
-              endPlanned: endDate,
-              status: "ASSIGNED",
-            },
-          });
-        }
+        await assignSelfStaff(tx, eventId, input.staffSalespersonIds, ctx.wholesalerId);
       }
 
       // Create dealers

@@ -15,14 +15,14 @@
 // Duplicate protection: each Appointment has at most one PreCall (@unique).
 // If one already exists, ConflictError is thrown.
 
-import { revalidatePath } from "next/cache";
-
 import { PreCallRecordSchema } from "@solar/contracts";
-import type { PreCallRecordInput } from "@solar/contracts";
+import { revalidatePath } from "next/cache";
 
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
 import { notificationService } from "@/lib/notifications/notification-service";
 import { withServerActionContext } from "@/lib/tenancy/server-action";
+
+import type { PreCallRecordInput } from "@solar/contracts";
 
 export interface PreCallResult {
   id: string;

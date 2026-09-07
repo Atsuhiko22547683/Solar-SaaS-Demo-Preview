@@ -13,8 +13,6 @@
 // wholesalerId is ALWAYS taken from ctx (via customer lookup), never from input.
 // ownerRelationshipId for dealer callers is resolved from ctx.relationshipIds[0].
 
-import { revalidatePath } from "next/cache";
-
 import {
   DealCreateSchema,
   DealUpdateSchema,
@@ -25,9 +23,10 @@ import {
   type DealCreateInput,
   type DealUpdateInput,
   type DealChangeStatusInput,
+  type DealerScope,
 } from "@solar/contracts";
-
 import { type TxClient } from "@solar/db";
+import { revalidatePath } from "next/cache";
 
 import { ForbiddenError, InvalidStateTransitionError, NotFoundError } from "@/lib/errors";
 import { withServerActionContext } from "@/lib/tenancy/server-action";
@@ -46,7 +45,7 @@ async function resolveDealerScopeInTx(
   ctx: { dealerId?: string; relationshipIds: string[] },
   ownerRelationshipId: string | null,
   tx: TxClient,
-): Promise<import("@solar/contracts").DealerScope | null> {
+): Promise<DealerScope | null> {
   if (!ctx.dealerId) return null; // wholesaler caller — no scope limit
   const relId = ownerRelationshipId ?? ctx.relationshipIds[0];
   if (!relId) return null;
@@ -56,7 +55,7 @@ async function resolveDealerScopeInTx(
     select: { defaultScope: true },
   });
 
-  const defaultScope = (relationship?.defaultScope ?? "FULL_CLOSING") as import("@solar/contracts").DealerScope;
+  const defaultScope = (relationship?.defaultScope ?? "FULL_CLOSING") as DealerScope;
   return defaultScope;
 }
 
@@ -68,15 +67,13 @@ export const createDealAction = withServerActionContext<DealCreateInput, { id: s
     // Enforce dealer scope — APPOINTMENT_ONLY may not create deals.
     const scope = await resolveDealerScopeInTx(ctx, parsed.ownerRelationshipId ?? null, tx);
     if (scope !== null && !canDealerCloseDeal(scope, "visit")) {
-      throw new ForbiddenError(
-        "このスコープでは商談の作成はできません (APPOINTMENT_ONLY)",
-        { scope },
-      );
+      throw new ForbiddenError("このスコープでは商談の作成はできません (APPOINTMENT_ONLY)", {
+        scope,
+      });
     }
 
     const ownerType = ctx.dealerId ? "DEALER" : "WHOLESALER";
-    const ownerRelationshipId =
-      parsed.ownerRelationshipId ?? (ctx.relationshipIds[0] ?? null);
+    const ownerRelationshipId = parsed.ownerRelationshipId ?? ctx.relationshipIds[0] ?? null;
 
     const created = await tx.deal.create({
       data: {
@@ -109,27 +106,20 @@ export const updateDealAction = withServerActionContext<DealUpdateInput, { id: s
     // Enforce dealer scope — APPOINTMENT_ONLY may not update deals.
     const scope = await resolveDealerScopeInTx(ctx, existing.ownerRelationshipId, tx);
     if (scope !== null && !canDealerCloseDeal(scope, "visit")) {
-      throw new ForbiddenError(
-        "このスコープでは商談の更新はできません (APPOINTMENT_ONLY)",
-        { scope },
-      );
+      throw new ForbiddenError("このスコープでは商談の更新はできません (APPOINTMENT_ONLY)", {
+        scope,
+      });
     }
 
     const updated = await tx.deal.update({
       where: { id: parsed.id },
       data: {
-        ...(parsed.assignedToUserId !== undefined
-          ? { ownerUserId: parsed.assignedToUserId }
-          : {}),
+        ...(parsed.assignedToUserId !== undefined ? { ownerUserId: parsed.assignedToUserId } : {}),
         ...(parsed.proposedProduct !== undefined
           ? { proposedProduct: parsed.proposedProduct }
           : {}),
-        ...(parsed.proposedAmount !== undefined
-          ? { proposedAmount: parsed.proposedAmount }
-          : {}),
-        ...(parsed.expectedProfit !== undefined
-          ? { expectedProfit: parsed.expectedProfit }
-          : {}),
+        ...(parsed.proposedAmount !== undefined ? { proposedAmount: parsed.proposedAmount } : {}),
+        ...(parsed.expectedProfit !== undefined ? { expectedProfit: parsed.expectedProfit } : {}),
         ...(parsed.expectedContractDate !== undefined
           ? { expectedContractDate: new Date(parsed.expectedContractDate) }
           : {}),
@@ -146,10 +136,7 @@ export const updateDealAction = withServerActionContext<DealUpdateInput, { id: s
   },
 );
 
-export const changeStatusAction = withServerActionContext<
-  DealChangeStatusInput,
-  { id: string }
->(
+export const changeStatusAction = withServerActionContext<DealChangeStatusInput, { id: string }>(
   { action: "deal.update" },
   async ({ tx, ctx, input }) => {
     const parsed = DealChangeStatusSchema.parse(input);

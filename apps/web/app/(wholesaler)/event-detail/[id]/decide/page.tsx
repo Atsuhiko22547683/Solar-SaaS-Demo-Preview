@@ -9,6 +9,7 @@ import { notFound } from "next/navigation";
 
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
+import { formatDate } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
 import { getEventDecidePageData } from "./data";
@@ -52,7 +53,7 @@ export default async function EventDecidePage({ params }: PageProps) {
       />
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
+          <h1 className="text-ink text-xl font-bold">{t.title}</h1>
           <p className="text-muted-foreground text-sm">{t.subtitle}</p>
         </div>
         <Button asChild variant="outline">
@@ -77,9 +78,7 @@ export default async function EventDecidePage({ params }: PageProps) {
         </div>
         <div>
           <p className="text-muted-foreground text-xs">{ec.fields.scheduledDate}</p>
-          <p className="text-sm">
-            {new Date(candidate.scheduledDate).toLocaleDateString("ja-JP")}
-          </p>
+          <p className="text-sm">{formatDate(candidate.scheduledDate)}</p>
         </div>
         <div>
           <p className="text-muted-foreground text-xs">{ec.fields.status}</p>
@@ -89,10 +88,7 @@ export default async function EventDecidePage({ params }: PageProps) {
         </div>
       </section>
 
-      <EventDecisionForm
-        eventCandidateId={candidate.id}
-        relationships={relationships}
-      />
+      <EventDecisionForm eventCandidateId={candidate.id} relationships={relationships} />
     </div>
   );
 }

@@ -17,8 +17,6 @@
 //   The action succeeds but sets `warning: "START_MISSING"` on the result.
 //   The UI surfaces a non-blocking warning toast.
 
-import { revalidatePath } from "next/cache";
-
 import {
   EventReportEndSchema,
   EventReportResultSchema,
@@ -27,6 +25,7 @@ import {
   type EventReportResultInput,
   type EventReportStartInput,
 } from "@solar/contracts";
+import { revalidatePath } from "next/cache";
 
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
 import { withServerActionContext } from "@/lib/tenancy/server-action";

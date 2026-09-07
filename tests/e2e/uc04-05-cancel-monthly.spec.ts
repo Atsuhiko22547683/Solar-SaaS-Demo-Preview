@@ -1,5 +1,10 @@
+import { execFileSync } from "node:child_process";
+import { resolve } from "node:path";
+
 import { expect, test, type Page } from "@playwright/test";
+
 import { signIn } from "./fixtures/auth";
+import { openCustomerByName } from "./fixtures/customers";
 
 // E2E spec for T-06-12 — UC-04（キャンセル）+ UC-05（月次クローズ）
 // (F-043 / F-046〜F-051, docs/02 §UC-04 §UC-05).
@@ -24,6 +29,13 @@ import { signIn } from "./fixtures/auth";
 // 注: gamma の dealerScope = FULL_CLOSING なので商談作成が可能。
 
 const RUN_ID = Date.now();
+
+const FIXTURE_DIR = resolve(__dirname, "fixtures");
+const DB_DIR = resolve(__dirname, "..", "..", "packages", "db");
+/** cleanup が完全一致で消すガンマ顧客名。 */
+const GAMMA_CUSTOMER_NAME = `UC05ガンマ顧客${RUN_ID}`;
+/** createWholesalerCustomer に渡す接頭辞。氏名は `<tag><RUN_ID>` になる。 */
+const WS_CUSTOMER_TAG = "UC04WS顧客";
 
 // Current month in YYYY-MM format for aggregation target.
 const NOW = new Date();
@@ -50,21 +62,18 @@ async function createWholesalerCustomer(page: Page, nameTag: string): Promise<st
     timeout: 30_000,
   });
 
-  await page.getByLabel("氏名").fill(`${nameTag} ${RUN_ID}`);
+  // 氏名は cleanup が完全一致で消せるよう、空白なしの一意な文字列にする。
+  const fullName = `${nameTag}${RUN_ID}`;
+  await page.getByLabel("氏名").fill(fullName);
   await page.getByLabel("電話番号").fill(`090${String(RUN_ID + nameTag.charCodeAt(0)).slice(-8)}`);
   await page.getByLabel("獲得チャネル").selectOption("WALK_IN");
   await page.getByRole("button", { name: "登録" }).click();
 
   await page.waitForURL("/customers", { timeout: 60_000 });
-  await page.goto(`/customers?query=${encodeURIComponent(nameTag)}+${RUN_ID}`);
-  await page.waitForLoadState("networkidle");
 
-  const link = page.locator("table tbody tr:first-child td:first-child a");
-  await expect(link).toBeVisible({ timeout: 20_000 });
-  const href = await link.getAttribute("href");
-  const m = href?.match(/\/customers\/([A-Za-z0-9_-]+)/);
-  expect(m, "顧客 ID を取得できなかった").not.toBeNull();
-  return m![1]!;
+  // 一覧の行はリンクではなく role="button" の <tr> になったので、共有ヘルパーで
+  // 氏名検索 → 行クリック → URL から ID を取る（先頭行が自分の登録とは限らない）。
+  return openCustomerByName(page, fullName);
 }
 
 /**
@@ -91,10 +100,12 @@ async function advanceDealToLikelyContract(page: Page, dId: string): Promise<voi
   for (const label of transitions) {
     await page.goto(`/deals/${dId}`);
     await expect(page.getByRole("heading", { name: "商談詳細" })).toBeVisible({ timeout: 30_000 });
-    const btn = page.getByRole("button", { name: label });
+    const btn = page.getByRole("button", { name: label, exact: true });
     await expect(btn).toBeVisible({ timeout: 20_000 });
     await btn.click();
-    await page.waitForLoadState("networkidle");
+    // networkidle だけだと Server Action の再描画前に次の遷移へ進んでしまうことがある。
+    // ステータス表示が実際に切り替わるまで待ってから次のボタンを押す。
+    await expect(page.getByText(label, { exact: true }).first()).toBeVisible({ timeout: 30_000 });
   }
 }
 
@@ -102,11 +113,7 @@ async function advanceDealToLikelyContract(page: Page, dId: string): Promise<voi
  * Create contract for the given deal and return contractId.
  * contractDateIso: YYYY-MM-DD (defaults to today).
  */
-async function createContract(
-  page: Page,
-  dId: string,
-  contractDateIso?: string,
-): Promise<string> {
+async function createContract(page: Page, dId: string, contractDateIso?: string): Promise<string> {
   await page.goto(`/contracts/new?dealId=${dId}`);
   await expect(page.getByRole("heading", { name: "契約を登録" })).toBeVisible({
     timeout: 30_000,
@@ -132,6 +139,16 @@ async function createContract(
 test.describe.serial("UC-04/05 — キャンセル + 月次クローズ", () => {
   test.describe.configure({ timeout: 180_000 });
 
+  // 途中のステップが落ちても顧客は残るので、afterAll で必ず消す
+  // （「UC-02 花子 <timestamp>」がローカルへ積み上がった経緯があるため）。
+  test.afterAll(() => {
+    execFileSync(
+      "pnpm",
+      ["exec", "tsx", resolve(FIXTURE_DIR, "cleanup-uc0405-customers.ts"), String(RUN_ID)],
+      { cwd: DB_DIR, stdio: "inherit", shell: process.platform === "win32" },
+    );
+  });
+
   // -------------------------------------------------------------------------
   // SETUP-A: wholesaler_admin が顧客 + 商談A → 契約A（今日付、期限内キャンセル用）
   // -------------------------------------------------------------------------
@@ -141,7 +158,7 @@ test.describe.serial("UC-04/05 — キャンセル + 月次クローズ", () => 
   }) => {
     await signIn(page, "wholesaler_admin@solar-saas.dev");
 
-    wholesalerCustomerId = await createWholesalerCustomer(page, "UC04-WS顧客");
+    wholesalerCustomerId = await createWholesalerCustomer(page, WS_CUSTOMER_TAG);
     const dealAId = await createDeal(page, wholesalerCustomerId);
     await advanceDealToLikelyContract(page, dealAId);
     contractAId = await createContract(page, dealAId);
@@ -174,9 +191,7 @@ test.describe.serial("UC-04/05 — キャンセル + 月次クローズ", () => 
   //          → 月次集計で DEALER スコープのレポートが gamma の関係 ID で生成される
   // -------------------------------------------------------------------------
 
-  test("setup-C: gamma-admin creates customer + deal-C (FULL_CLOSING dealer)", async ({
-    page,
-  }) => {
+  test("setup-C: gamma-admin creates customer + deal-C (FULL_CLOSING dealer)", async ({ page }) => {
     await signIn(page, "gamma-admin@solar-saas.dev");
 
     // Dealers use the dealer-side customer creation route.
@@ -185,22 +200,15 @@ test.describe.serial("UC-04/05 — キャンセル + 月次クローズ", () => 
       timeout: 30_000,
     });
 
-    await page.getByLabel("氏名").fill(`UC05-ガンマ顧客 ${RUN_ID}`);
+    await page.getByLabel("氏名").fill(GAMMA_CUSTOMER_NAME);
     await page.getByLabel("電話番号").fill(`080${String(RUN_ID + 7).slice(-8)}`);
     await page.getByLabel("獲得チャネル").selectOption("WALK_IN");
     await page.getByRole("button", { name: "登録" }).click();
 
     // Wait for redirect after customer creation.
     await page.waitForURL("/customers", { timeout: 60_000 });
-    await page.goto(`/customers?query=${encodeURIComponent("UC05-ガンマ顧客")}+${RUN_ID}`);
-    await page.waitForLoadState("networkidle");
 
-    const link = page.locator("table tbody tr:first-child td:first-child a");
-    await expect(link).toBeVisible({ timeout: 20_000 });
-    const href = await link.getAttribute("href");
-    const cm = href?.match(/\/customers\/([A-Za-z0-9_-]+)/);
-    expect(cm, "ガンマ顧客 ID を取得できなかった").not.toBeNull();
-    gammaCustomerId = cm![1]!;
+    gammaCustomerId = await openCustomerByName(page, GAMMA_CUSTOMER_NAME);
 
     // Create deal via wholesaler route (DEALER_ADMIN can call deal.create)
     gammaDealId = await createDeal(page, gammaCustomerId);
@@ -287,9 +295,9 @@ test.describe.serial("UC-04/05 — キャンセル + 月次クローズ", () => 
     await page.getByRole("button", { name: "キャンセルを実行" }).click();
 
     // Toast: 期限後キャンセル → 負調整作成
-    await expect(
-      page.getByText("翌月分に負調整が作成されます", { exact: false }),
-    ).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText("翌月分に負調整が作成されます", { exact: false })).toBeVisible({
+      timeout: 30_000,
+    });
 
     // Contract detail shows CANCELLED
     await page.reload();
@@ -340,7 +348,7 @@ test.describe.serial("UC-04/05 — キャンセル + 月次クローズ", () => 
     for (const row of allRows) {
       const scopeCell = row.locator("td").nth(1);
       const scopeText = await scopeCell.textContent();
-      if (scopeText?.includes("二次店開催")) {
+      if (scopeText?.includes("取引先開催")) {
         const detailLink = row.getByRole("link", { name: "詳細" });
         const href = await detailLink.getAttribute("href");
         const m = href?.match(/\/monthly-reports\/([A-Za-z0-9_-]+)/);

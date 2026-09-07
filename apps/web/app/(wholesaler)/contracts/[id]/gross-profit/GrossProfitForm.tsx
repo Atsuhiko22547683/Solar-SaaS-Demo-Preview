@@ -12,13 +12,10 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { formatDateTime } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
-import {
-  recalcGrossProfitAction,
-  adjustGrossProfitAction,
-  type GrossProfitResult,
-} from "./actions";
+import { recalcGrossProfitAction, adjustGrossProfitAction } from "./actions";
 
 interface GrossProfitData {
   id: string;
@@ -52,7 +49,12 @@ function formatRate(v: string) {
   return (Number(v) * 100).toFixed(2) + "%";
 }
 
-export function GrossProfitForm({ contractId, grossProfit: initial, hasItems, contractAmount }: Props) {
+export function GrossProfitForm({
+  contractId,
+  grossProfit: initial,
+  hasItems,
+  contractAmount,
+}: Props) {
   const t = labels.grossProfit;
   const c = labels.common;
 
@@ -142,7 +144,7 @@ export function GrossProfitForm({ contractId, grossProfit: initial, hasItems, co
               step="0.01"
               value={salesPrice}
               onChange={(e) => setSalesPrice(e.target.value)}
-              className="border rounded px-3 py-2 text-sm"
+              className="rounded border px-3 py-2 text-sm"
               disabled={!hasItems}
             />
           </label>
@@ -155,7 +157,7 @@ export function GrossProfitForm({ contractId, grossProfit: initial, hasItems, co
               step="0.01"
               value={constructionFee}
               onChange={(e) => setConstructionFee(e.target.value)}
-              className="border rounded px-3 py-2 text-sm"
+              className="rounded border px-3 py-2 text-sm"
               disabled={!hasItems}
             />
           </label>
@@ -168,7 +170,7 @@ export function GrossProfitForm({ contractId, grossProfit: initial, hasItems, co
               step="0.01"
               value={otherCost}
               onChange={(e) => setOtherCost(e.target.value)}
-              className="border rounded px-3 py-2 text-sm"
+              className="rounded border px-3 py-2 text-sm"
               disabled={!hasItems}
             />
           </label>
@@ -181,7 +183,7 @@ export function GrossProfitForm({ contractId, grossProfit: initial, hasItems, co
               step="0.01"
               value={discount}
               onChange={(e) => setDiscount(e.target.value)}
-              className="border rounded px-3 py-2 text-sm"
+              className="rounded border px-3 py-2 text-sm"
               disabled={!hasItems}
             />
           </label>
@@ -193,7 +195,7 @@ export function GrossProfitForm({ contractId, grossProfit: initial, hasItems, co
               onChange={(e) =>
                 setTargetType(e.target.value as "PROJECT_PROFIT" | "WHOLESALE_PROFIT" | "MANUAL")
               }
-              className="border rounded px-3 py-2 text-sm bg-background"
+              className="bg-background rounded border px-3 py-2 text-sm"
               disabled={!hasItems}
             >
               {(["PROJECT_PROFIT", "WHOLESALE_PROFIT", "MANUAL"] as const).map((k) => (
@@ -213,7 +215,7 @@ export function GrossProfitForm({ contractId, grossProfit: initial, hasItems, co
                 step="0.01"
                 value={manualValue}
                 onChange={(e) => setManualValue(e.target.value)}
-                className="border rounded px-3 py-2 text-sm"
+                className="rounded border px-3 py-2 text-sm"
                 disabled={!hasItems}
               />
             </label>
@@ -233,31 +235,41 @@ export function GrossProfitForm({ contractId, grossProfit: initial, hasItems, co
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-medium">{t.sections.summary}</h2>
             {gp.incentiveTargetType === "MANUAL" && (
-              <span className="text-xs rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 font-medium">
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
                 {t.manualBadge}
               </span>
             )}
           </div>
-          <dl className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm border rounded-md p-4">
+          <dl className="grid grid-cols-2 gap-x-8 gap-y-2 rounded-md border p-4 text-sm">
             <dt className="text-muted-foreground">{t.fields.salesPrice}</dt>
             <dd className="font-medium">
               {formatAmount(gp.salesPrice)} {c.currencySuffix}
             </dd>
 
             <dt className="text-muted-foreground">{t.fields.purchaseTotal}</dt>
-            <dd>{formatAmount(gp.purchaseTotal)} {c.currencySuffix}</dd>
+            <dd>
+              {formatAmount(gp.purchaseTotal)} {c.currencySuffix}
+            </dd>
 
             <dt className="text-muted-foreground">{t.fields.dealerTotal}</dt>
-            <dd>{formatAmount(gp.dealerTotal)} {c.currencySuffix}</dd>
+            <dd>
+              {formatAmount(gp.dealerTotal)} {c.currencySuffix}
+            </dd>
 
             <dt className="text-muted-foreground">{t.fields.constructionFee}</dt>
-            <dd>{formatAmount(gp.constructionFee)} {c.currencySuffix}</dd>
+            <dd>
+              {formatAmount(gp.constructionFee)} {c.currencySuffix}
+            </dd>
 
             <dt className="text-muted-foreground">{t.fields.otherCost}</dt>
-            <dd>{formatAmount(gp.otherCost)} {c.currencySuffix}</dd>
+            <dd>
+              {formatAmount(gp.otherCost)} {c.currencySuffix}
+            </dd>
 
             <dt className="text-muted-foreground">{t.fields.discount}</dt>
-            <dd>{formatAmount(gp.discount)} {c.currencySuffix}</dd>
+            <dd>
+              {formatAmount(gp.discount)} {c.currencySuffix}
+            </dd>
 
             <dt className="text-muted-foreground font-medium">{t.fields.projectProfit}</dt>
             <dd className="font-semibold">
@@ -274,7 +286,11 @@ export function GrossProfitForm({ contractId, grossProfit: initial, hasItems, co
 
             <dt className="text-muted-foreground">{t.fields.incentiveTargetType}</dt>
             <dd>
-              {t.incentiveTargetTypes[gp.incentiveTargetType as "PROJECT_PROFIT" | "WHOLESALE_PROFIT" | "MANUAL"]}
+              {
+                t.incentiveTargetTypes[
+                  gp.incentiveTargetType as "PROJECT_PROFIT" | "WHOLESALE_PROFIT" | "MANUAL"
+                ]
+              }
             </dd>
 
             <dt className="text-muted-foreground font-medium">{t.fields.incentiveTargetProfit}</dt>
@@ -285,7 +301,7 @@ export function GrossProfitForm({ contractId, grossProfit: initial, hasItems, co
             {gp.manualAdjustedAt && (
               <>
                 <dt className="text-muted-foreground">{t.fields.manualAdjustedAt}</dt>
-                <dd>{new Date(gp.manualAdjustedAt).toLocaleString("ja-JP")}</dd>
+                <dd>{formatDateTime(gp.manualAdjustedAt)}</dd>
 
                 <dt className="text-muted-foreground">{t.fields.manualAdjustmentReason}</dt>
                 <dd>{gp.manualAdjustmentReason}</dd>
@@ -311,7 +327,7 @@ export function GrossProfitForm({ contractId, grossProfit: initial, hasItems, co
                 value={adjustValue}
                 onChange={(e) => setAdjustValue(e.target.value)}
                 placeholder={t.placeholders.manualValue}
-                className="border rounded px-3 py-2 text-sm"
+                className="rounded border px-3 py-2 text-sm"
               />
             </label>
 
@@ -322,7 +338,7 @@ export function GrossProfitForm({ contractId, grossProfit: initial, hasItems, co
                 value={adjustReason}
                 onChange={(e) => setAdjustReason(e.target.value)}
                 placeholder={t.placeholders.adjustReason}
-                className="border rounded px-3 py-2 text-sm"
+                className="rounded border px-3 py-2 text-sm"
               />
             </label>
           </div>

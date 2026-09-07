@@ -16,8 +16,6 @@
 //   - `event.manage_shift`: WHOLESALER_ADMIN / WHOLESALER_EVENT_TEAM only.
 //   - Cross-tenant: Event.wholesalerId must match ctx.wholesalerId.
 
-import { revalidatePath } from "next/cache";
-
 import {
   ShiftAssignSchema,
   ShiftUpdateSchema,
@@ -26,6 +24,7 @@ import {
   type ShiftUpdateInput,
   type ShiftUnassignInput,
 } from "@solar/contracts";
+import { revalidatePath } from "next/cache";
 
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
 import { notificationService } from "@/lib/notifications/notification-service";

@@ -7,8 +7,8 @@
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { labels } from "@/lib/i18n/labels";
 
-import { AppointmentForm } from "../appointment-form";
 import { createAppointmentAction } from "../actions";
+import { AppointmentForm } from "../appointment-form";
 
 interface PageProps {
   searchParams: Promise<{ customerId?: string }>;
@@ -22,12 +22,9 @@ export default async function NewAppointmentPage({ searchParams }: PageProps) {
   return (
     <div className="mx-auto max-w-xl space-y-6">
       <Breadcrumb
-        items={[
-          { label: bc.appointments, href: "/appointments" },
-          { label: bc.appointmentNew },
-        ]}
+        items={[{ label: bc.appointments, href: "/appointments" }, { label: bc.appointmentNew }]}
       />
-      <h1 className="text-2xl font-semibold tracking-tight">{t.new}</h1>
+      <h1 className="text-ink text-xl font-bold">{t.new}</h1>
       <AppointmentForm
         mode={{ kind: "create", initialCustomerId: params.customerId }}
         onSubmitAction={createAppointmentAction}

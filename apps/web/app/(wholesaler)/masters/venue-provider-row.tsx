@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+
 import type { KeyboardEvent, MouseEvent, ReactNode } from "react";
 
 // Whole-row clickable wrapper for the venue-provider summary table in the
@@ -39,7 +40,7 @@ export function VenueProviderRow({ href, children }: VenueProviderRowProps) {
       tabIndex={0}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
-      className="border-border hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:ring-primary/40 border-t cursor-pointer align-top focus:outline-none focus-visible:ring-2 focus-visible:ring-inset"
+      className="border-border hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:ring-primary/40 cursor-pointer border-t align-top focus:outline-none focus-visible:ring-2 focus-visible:ring-inset"
     >
       {children}
     </tr>

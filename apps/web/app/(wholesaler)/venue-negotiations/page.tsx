@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { formatDateTime } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
 import { listVenueNegotiations } from "./data";
@@ -55,15 +56,15 @@ export default async function VenueNegotiationsListPage({ searchParams }: PagePr
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-medium text-carbon-dark">{t.title}</h1>
-          <p className="text-pewter text-sm mt-1">{t.listTitle}</p>
+          <h1 className="text-ink text-xl font-bold">{t.title}</h1>
+          <p className="text-mute-light mt-1 text-sm">{t.listTitle}</p>
         </div>
         <Button asChild>
           <Link href="/venue-negotiations/new">{t.new}</Link>
         </Button>
       </div>
 
-      <form method="get" className="flex max-w-2xl items-center gap-3 mb-4">
+      <form method="get" className="mb-4 flex max-w-2xl items-center gap-3">
         <Input
           type="search"
           name="storeName"
@@ -76,7 +77,7 @@ export default async function VenueNegotiationsListPage({ searchParams }: PagePr
           name="status"
           defaultValue={status ?? ""}
           aria-label={t.filterByStatus}
-          className="border border-cloud-gray bg-white rounded-sm h-9 px-3 py-2 text-sm text-carbon-dark focus:outline-none focus:ring-2 focus:ring-electric-blue/20 focus:border-electric-blue"
+          className="border-hairline-light text-ink focus:ring-primary/20 focus:border-primary h-9 rounded-sm border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2"
         >
           <option value="">{t.allStatuses}</option>
           {VALID_STATUSES.map((s) => (
@@ -91,15 +92,15 @@ export default async function VenueNegotiationsListPage({ searchParams }: PagePr
       </form>
 
       {rows.length === 0 ? (
-        <div className="border border-cloud-gray rounded-lg p-12 text-center">
-          <p className="text-carbon-dark font-medium">{t.empty}</p>
-          <p className="text-pewter mt-2 text-sm">{t.emptyCta}</p>
+        <div className="border-hairline-light rounded-lg border p-12 text-center">
+          <p className="text-ink font-medium">{t.empty}</p>
+          <p className="text-mute-light mt-2 text-sm">{t.emptyCta}</p>
           <Button asChild className="mt-4">
             <Link href="/venue-negotiations/new">{t.new}</Link>
           </Button>
         </div>
       ) : (
-        <div className="border border-cloud-gray overflow-x-auto rounded-lg">
+        <div className="border-hairline-light overflow-x-auto rounded-lg border">
           <table>
             <thead>
               <tr>
@@ -114,14 +115,12 @@ export default async function VenueNegotiationsListPage({ searchParams }: PagePr
             <tbody>
               {rows.map((r) => (
                 <NegotiationRow key={r.id} href={`/venue-negotiations/${r.id}`}>
-                  <td className="text-electric-blue">{r.venueProviderName}</td>
+                  <td className="text-primary">{r.venueProviderName}</td>
                   <td>{r.venueProviderArea ?? "—"}</td>
                   <td>{t.statuses[r.status]}</td>
                   <td>{r.nextAction ?? "—"}</td>
                   <td>{r.assigneeId ?? "—"}</td>
-                  <td className="text-pewter text-xs">
-                    {new Date(r.updatedAt).toLocaleString("ja-JP")}
-                  </td>
+                  <td className="text-mute-light text-xs">{formatDateTime(r.updatedAt)}</td>
                 </NegotiationRow>
               ))}
             </tbody>

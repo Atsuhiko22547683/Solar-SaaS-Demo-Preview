@@ -20,12 +20,12 @@ export {
   listActiveVenueProviders,
   listActiveAreas,
   listActiveStores,
-  listWholesalerUsers,
+  listSelfStaff,
   listActiveDealers,
   type ActiveVenueProviderOption,
   type AreaOption,
   type StoreOption,
-  type WholesalerUserOption,
+  type SelfStaffOption,
   type DealerOption,
 } from "../event-detail/data";
 
@@ -185,15 +185,19 @@ export async function getLineEvent(id: string): Promise<LineEventDetail | null> 
         })
       : null;
 
-    // Resolve assignee display names. assignStaffIds → User.name (self),
+    // Resolve assignee display names. assignStaffIds → Salesperson.name (self),
     // assignDealerIds → Relationship.dealer.name (dealer)。単発の event-detail
     // と同じ手法（findMany → Map 化）。venueProvider 同様 relation を張らない
     // 柔リンクなので別クエリで解決する。
+    // 自社要員の人物マスタは Salesperson。System User は使わない。
     const staffIds = Array.isArray(r.assignStaffIds) ? (r.assignStaffIds as string[]) : [];
     const dealerIds = Array.isArray(r.assignDealerIds) ? (r.assignDealerIds as string[]) : [];
-    const [users, rels] = await Promise.all([
+    const [staff, rels] = await Promise.all([
       staffIds.length > 0
-        ? tx.user.findMany({ where: { id: { in: staffIds } }, select: { id: true, name: true } })
+        ? tx.salesperson.findMany({
+            where: { id: { in: staffIds } },
+            select: { id: true, name: true },
+          })
         : [],
       dealerIds.length > 0
         ? tx.relationship.findMany({
@@ -202,12 +206,12 @@ export async function getLineEvent(id: string): Promise<LineEventDetail | null> 
           })
         : [],
     ]);
-    const userName = new Map(users.map((u) => [u.id, u.name]));
+    const staffName = new Map(staff.map((u) => [u.id, u.name]));
     const dealerName = new Map(rels.map((rel) => [rel.id, rel.dealer.name]));
     const assignees: LineAssigneeRow[] = [
       ...staffIds.map<LineAssigneeRow>((sid) => ({
         id: sid,
-        name: userName.get(sid) ?? sid,
+        name: staffName.get(sid) ?? sid,
         affiliation: "self",
       })),
       ...dealerIds.map<LineAssigneeRow>((did) => ({

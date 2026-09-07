@@ -96,6 +96,17 @@ function assertNonDraftPatchAllowed(patch: EventCandidateUpdate): void {
   }
 }
 
+// 催事ブース場所の自由記述は「その他」を選んだときだけ保持する。
+// 種別を戻したのに旧メモが残ると、一覧・詳細で矛盾した表示になるため。
+function normalizeBoothAreaNote(
+  boothArea: EventCandidateUpdate["boothArea"],
+  boothAreaNote: EventCandidateUpdate["boothAreaNote"],
+): string | null {
+  if (boothArea !== "OTHER") return null;
+  const trimmed = boothAreaNote?.trim();
+  return trimmed && trimmed.length > 0 ? trimmed : null;
+}
+
 export interface CreateEventCandidateResult {
   id: string;
 }
@@ -160,6 +171,10 @@ export const createEventCandidateAction = withServerActionContext<
         performanceRate: parsed.performanceRate,
         internalNote: parsed.internalNote,
         contractNote: parsed.contractNote,
+        venueChain: parsed.venueChain ?? null,
+        boothArea: parsed.boothArea ?? null,
+        boothAreaNote: normalizeBoothAreaNote(parsed.boothArea, parsed.boothAreaNote),
+        productCategory: parsed.productCategory ?? null,
         status: initialStatus,
         createdBy: ctx.actorUserId,
       },
@@ -226,6 +241,16 @@ export const updateEventCandidateAction = withServerActionContext<
         ...("fixedFee" in parsed ? { fixedFee: parsed.fixedFee } : {}),
         ...("performanceRate" in parsed ? { performanceRate: parsed.performanceRate } : {}),
         ...("internalNote" in parsed ? { internalNote: parsed.internalNote } : {}),
+        ...("venueChain" in parsed ? { venueChain: parsed.venueChain ?? null } : {}),
+        // boothAreaNote は boothArea=OTHER のときだけ意味を持つ。boothArea を
+        // 変更するパッチでは note 側も必ず整合させる（OTHER 以外なら null）。
+        ...("boothArea" in parsed || "boothAreaNote" in parsed
+          ? {
+              ...("boothArea" in parsed ? { boothArea: parsed.boothArea ?? null } : {}),
+              boothAreaNote: normalizeBoothAreaNote(parsed.boothArea, parsed.boothAreaNote),
+            }
+          : {}),
+        ...("productCategory" in parsed ? { productCategory: parsed.productCategory ?? null } : {}),
       },
       select: { id: true },
     });

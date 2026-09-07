@@ -4,22 +4,17 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  AcquiredAppointmentsTable,
-  EventReportsView,
-} from "@/components/reports/result-report-dialog";
 import {
   buildDemoAppointments,
   buildDemoEventReports,
 } from "@/components/reports/result-report-data";
+import {
+  AcquiredAppointmentsTable,
+  EventReportsView,
+} from "@/components/reports/result-report-dialog";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { labels } from "@/lib/i18n/labels";
 
 import { updateLineDatesAction } from "./actions";
@@ -51,7 +46,7 @@ function dayOfWeek(targetMonth: string, day: number): number {
 }
 
 function dowColor(dow: number): string {
-  return dow === 0 ? "text-warning" : dow === 6 ? "text-link-light" : "text-mute-light";
+  return dow === 0 ? "text-danger" : dow === 6 ? "text-link-light" : "text-mute-light";
 }
 
 // 開催予定日チップ用ラベル（6/03(水) 形式）。曜日色付けのため dow も返す。
@@ -79,7 +74,6 @@ export function LineScheduleSection({
 }: LineScheduleSectionProps) {
   const router = useRouter();
   const t = labels.lineEvent;
-  const tl = labels.eventList;
   const c = labels.common;
 
   const [editOpen, setEditOpen] = useState(false);
@@ -177,15 +171,15 @@ export function LineScheduleSection({
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             {/* 左: 月カレンダー（月曜始まり） */}
             <div className="lg:col-span-2">
-              <div className="rounded-md border border-hairline-light p-3">
+              <div className="border-hairline-light rounded-md border p-3">
                 {/* 曜日ヘッダー */}
-                <div className="grid grid-cols-7 gap-1.5 mb-1.5">
+                <div className="mb-1.5 grid grid-cols-7 gap-1.5">
                   {MON_WEEK_LABELS.map((d, i) => (
                     <div
                       key={d}
                       className={[
                         "text-center text-xs font-medium",
-                        i === 5 ? "text-link-light" : i === 6 ? "text-warning" : "text-mute-light",
+                        i === 5 ? "text-link-light" : i === 6 ? "text-danger" : "text-mute-light",
                       ].join(" ")}
                     >
                       {d}
@@ -194,14 +188,14 @@ export function LineScheduleSection({
                 </div>
                 {/* 日付グリッド */}
                 <div className="grid grid-cols-7 gap-1.5">
-                  {Array.from({ length: total > 0 ? mondayColumn(dayOfWeek(targetMonth, 1)) : 0 }).map(
-                    (_, i) => (
-                      <div
-                        key={`blank-${i}`}
-                        className="rounded-md border border-hairline-light/50 bg-surface-soft/40 py-2.5"
-                      />
-                    ),
-                  )}
+                  {Array.from({
+                    length: total > 0 ? mondayColumn(dayOfWeek(targetMonth, 1)) : 0,
+                  }).map((_, i) => (
+                    <div
+                      key={`blank-${i}`}
+                      className="border-hairline-light/50 bg-surface-soft/40 rounded-md border py-2.5"
+                    />
+                  ))}
                   {days.map((day) => {
                     const ds = dayStr(targetMonth, day);
                     const isHeld = held.has(ds);
@@ -214,7 +208,7 @@ export function LineScheduleSection({
                         className={[
                           "relative flex flex-col items-center justify-center rounded-md border py-2.5 text-sm",
                           isHeld
-                            ? "border-primary bg-primary text-white font-semibold cursor-pointer hover:shadow-sm"
+                            ? "border-primary bg-primary cursor-pointer font-semibold text-white hover:shadow-sm"
                             : "border-hairline-light text-body-light cursor-default",
                         ].join(" ")}
                       >
@@ -241,13 +235,13 @@ export function LineScheduleSection({
                   })}
                 </div>
                 {/* 凡例 */}
-                <div className="mt-3 flex items-center gap-4 text-xs text-mute-light">
+                <div className="text-mute-light mt-3 flex items-center gap-4 text-xs">
                   <span className="flex items-center gap-1.5">
-                    <span className="inline-block h-3 w-3 rounded-sm bg-primary" />
+                    <span className="bg-primary inline-block h-3 w-3 rounded-sm" />
                     {t.calendar.held}
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <span className="inline-block h-3 w-3 rounded-sm border border-hairline-light/50 bg-surface-soft/40" />
+                    <span className="border-hairline-light/50 bg-surface-soft/40 inline-block h-3 w-3 rounded-sm border" />
                     {t.calendar.outOfRange}
                   </span>
                 </div>
@@ -257,7 +251,7 @@ export function LineScheduleSection({
             {/* 右: 開催予定日 / 開催回数 / 備考 */}
             <div className="space-y-5">
               <div>
-                <p className="text-xs font-medium text-mute-light mb-2">
+                <p className="text-mute-light mb-2 text-xs font-semibold">
                   {t.calendar.scheduledDatesHeading}
                 </p>
                 {heldDays.length > 0 ? (
@@ -271,7 +265,7 @@ export function LineScheduleSection({
                           type="button"
                           onClick={() => setPopupDate(ds)}
                           className={[
-                            "inline-flex items-center rounded-full border border-hairline-light bg-surface-soft/40 px-2.5 py-1 text-xs font-medium tabular-nums cursor-pointer hover:border-primary/40 hover:bg-primary/5 transition-colors",
+                            "border-hairline-light bg-surface-soft/40 hover:border-primary/40 hover:bg-primary/5 inline-flex cursor-pointer items-center rounded-full border px-2.5 py-1 text-xs font-medium tabular-nums transition-colors",
                             dowColor(dow),
                           ].join(" ")}
                         >
@@ -281,21 +275,23 @@ export function LineScheduleSection({
                     })}
                   </div>
                 ) : (
-                  <p className="text-sm text-mute-light">—</p>
+                  <p className="text-mute-light text-sm">—</p>
                 )}
               </div>
 
               <div>
-                <p className="text-xs font-medium text-mute-light mb-1">{t.calendar.holdingCount}</p>
-                <p className="text-sm font-semibold text-ink">
+                <p className="text-mute-light mb-1 text-xs font-semibold">
+                  {t.calendar.holdingCount}
+                </p>
+                <p className="text-ink text-sm font-semibold">
                   {scheduledDates.length}
                   {t.holdingCountSuffix}
                 </p>
               </div>
 
               <div>
-                <p className="text-xs font-medium text-mute-light mb-1">{t.calendar.note}</p>
-                <p className="text-sm text-ink whitespace-pre-wrap">{contractNote || "—"}</p>
+                <p className="text-mute-light mb-1 text-xs font-semibold">{t.calendar.note}</p>
+                <p className="text-ink whitespace-pre-wrap text-sm">{contractNote || "—"}</p>
               </div>
             </div>
           </div>
@@ -315,24 +311,24 @@ export function LineScheduleSection({
             <DialogTitle>{t.editSchedule.dialogTitle}</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-2 mt-2">
+          <div className="mt-2 space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-medium text-mute-light">
-                {t.fields.scheduledDates} <span className="text-warning">*</span>
+              <label className="text-mute-light text-xs font-semibold">
+                {t.fields.scheduledDates} <span className="text-danger">*</span>
               </label>
-              <span className="text-xs text-mute-light tabular-nums">
+              <span className="text-mute-light text-xs tabular-nums">
                 {t.form.selectedCount.replace("{n}", String(selectedDates.size))}
               </span>
             </div>
-            <div className="rounded-md border border-hairline-light p-3">
+            <div className="border-hairline-light rounded-md border p-3">
               {/* 曜日ヘッダー（月曜始まり） */}
-              <div className="grid grid-cols-7 gap-1.5 mb-1.5">
+              <div className="mb-1.5 grid grid-cols-7 gap-1.5">
                 {MON_WEEK_LABELS.map((w, i) => (
                   <div
                     key={w}
                     className={[
                       "text-center text-[10px] font-medium",
-                      i === 5 ? "text-link-light" : i === 6 ? "text-warning" : "text-mute-light",
+                      i === 5 ? "text-link-light" : i === 6 ? "text-danger" : "text-mute-light",
                     ].join(" ")}
                   >
                     {w}
@@ -350,16 +346,16 @@ export function LineScheduleSection({
                   const ds = dayStr(targetMonth, day);
                   const dow = dayOfWeek(targetMonth, day);
                   const checked = selectedDates.has(ds);
-                  const numColor = dow === 0 ? "text-warning" : dow === 6 ? "text-link-light" : "";
+                  const numColor = dow === 0 ? "text-danger" : dow === 6 ? "text-link-light" : "";
                   return (
                     <button
                       key={ds}
                       type="button"
                       onClick={() => toggleDate(ds)}
                       className={[
-                        "flex items-center justify-center rounded-md border py-2 text-sm transition-colors tabular-nums",
+                        "flex items-center justify-center rounded-md border py-2 text-sm tabular-nums transition-colors",
                         checked
-                          ? "border-primary bg-primary text-white font-semibold"
+                          ? "border-primary bg-primary font-semibold text-white"
                           : `border-hairline-light hover:bg-surface-soft/50 ${numColor || "text-body-light"}`,
                       ].join(" ")}
                     >
@@ -371,7 +367,7 @@ export function LineScheduleSection({
             </div>
 
             {error && (
-              <p role="alert" className="text-sm font-medium text-warning">
+              <p role="alert" className="text-danger text-sm font-medium">
                 {error}
               </p>
             )}
@@ -395,13 +391,15 @@ export function LineScheduleSection({
             <DialogTitle>{popupTitle}</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-6 mt-2">
+          <div className="mt-2 space-y-6">
             {/* 報告（開始/終了/成果）— 入れ子ダイアログにせずポップアップ内に直接表示。 */}
             {popupReports ? <EventReportsView reports={popupReports} /> : null}
 
             {/* アポ取り顧客一覧 — イベントで獲得したアポ顧客（デモ値、成果のアポ数に整合） */}
             <div>
-              <p className="mb-2 text-sm font-semibold text-ink">{t.datePopup.appointmentSection}</p>
+              <p className="text-ink mb-2 text-sm font-semibold">
+                {t.datePopup.appointmentSection}
+              </p>
               <AcquiredAppointmentsTable customers={popupAppointments} />
             </div>
           </div>

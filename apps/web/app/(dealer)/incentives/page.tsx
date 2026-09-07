@@ -5,6 +5,7 @@
 
 import "server-only";
 
+import { formatDate } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
 import { listDealerIncentives } from "./data";
@@ -26,7 +27,7 @@ export default async function DealerIncentivesPage({ searchParams }: Props) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
+        <h1 className="text-ink text-xl font-bold">{t.title}</h1>
         <p className="text-muted-foreground mt-1 text-sm">{t.subtitle}</p>
       </div>
 
@@ -40,7 +41,7 @@ export default async function DealerIncentivesPage({ searchParams }: Props) {
           name="month"
           type="month"
           defaultValue={targetMonth ?? ""}
-          className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring h-9 rounded-md border px-3 py-1 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+          className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring h-9 rounded-md border px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
           placeholder={t.filterPlaceholder}
         />
         <button
@@ -76,10 +77,8 @@ export default async function DealerIncentivesPage({ searchParams }: Props) {
                 const badgeClass = t.statusBadgeClass[item.status] ?? "text-foreground";
 
                 return (
-                  <tr key={item.id} className="border-b last:border-0 hover:bg-muted/30">
-                    <td className="px-4 py-3 tabular-nums">
-                      {new Date(item.contractDate).toLocaleDateString("ja-JP")}
-                    </td>
+                  <tr key={item.id} className="hover:bg-muted/30 border-b last:border-0">
+                    <td className="px-4 py-3 tabular-nums">{formatDate(item.contractDate)}</td>
                     <td className="px-4 py-3 tabular-nums">{item.settledMonth}</td>
                     <td className="px-4 py-3 text-right tabular-nums">
                       {Number(item.targetProfit).toLocaleString("ja-JP")}
@@ -94,10 +93,8 @@ export default async function DealerIncentivesPage({ searchParams }: Props) {
                       {t.currencySuffix}
                     </td>
                     <td className={`px-4 py-3 font-medium ${badgeClass}`}>{statusLabel}</td>
-                    <td className="px-4 py-3 tabular-nums text-xs">
-                      {item.finalizedAt
-                        ? new Date(item.finalizedAt).toLocaleDateString("ja-JP")
-                        : "—"}
+                    <td className="px-4 py-3 text-xs tabular-nums">
+                      {item.finalizedAt ? formatDate(item.finalizedAt) : "—"}
                     </td>
                   </tr>
                 );

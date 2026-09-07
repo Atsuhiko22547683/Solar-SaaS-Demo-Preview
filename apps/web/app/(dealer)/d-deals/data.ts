@@ -7,13 +7,14 @@
 
 import "server-only";
 
+import { canDealerCloseDeal, type DealerScope } from "@solar/contracts";
+import { rawPrisma } from "@solar/db";
+
 import { auth } from "@/auth";
 import { UnauthorizedError } from "@/lib/errors";
 import { assertCan } from "@/lib/permissions/can";
 import { getTenantContext } from "@/lib/tenancy/context";
 import { withTenant } from "@/lib/tenancy/with-tenant";
-import { rawPrisma } from "@solar/db";
-import { canDealerCloseDeal, type DealerScope } from "@solar/contracts";
 
 import type { DealStatus } from "@solar/db";
 

@@ -12,7 +12,7 @@ import { assertCan } from "@/lib/permissions/can";
 import { getTenantContext } from "@/lib/tenancy/context";
 import { withTenant } from "@/lib/tenancy/with-tenant";
 
-export type RelationshipStatusValue = "ACTIVE" | "SUSPENDED";
+export type RelationshipStatusValue = "ACTIVE" | "SUSPENDED" | "TERMINATED";
 export type DealerScopeValue = "APPOINTMENT_ONLY" | "FIRST_VISIT" | "FULL_CLOSING";
 
 export interface RelationshipListItem {
@@ -56,6 +56,9 @@ export async function listRelationships(): Promise<RelationshipListItem[]> {
   const ctx = await requireWholesalerCtx();
   return withTenant(ctx, async (tx) => {
     const rows = await tx.relationship.findMany({
+      // 論理削除（TERMINATED）は通常の一覧から除く。行自体は残っているので、
+      // 過去データからの参照や取引先名の表示は壊れない。
+      where: { status: { not: "TERMINATED" } },
       orderBy: [{ status: "asc" }, { createdAt: "desc" }],
       select: {
         id: true,

@@ -2,8 +2,8 @@ import { expect, test, type Page } from "@playwright/test";
 
 // 顧客ページ「担当者」カードの担当者変更ダイアログ（トスアップ担当 / クロージング担当）の検証。
 //
-// 以前は 1 つの select に optgroup で自社社員と二次店を詰めていたが、
-//   【所属区分】（未設定 / 自社社員 / 二次店）→【担当者】
+// 以前は 1 つの select に optgroup で自社社員と取引先を詰めていたが、
+//   【所属区分】（未設定 / 自社社員 / 取引先）→【担当者】
 // の 2 段階に分割した。所属区分を変えると担当者の選択肢が入れ替わり、選択済みの担当者は
 // リセットされる。保存形式は従来どおり tossUpUserId / tossUpRelationshipId /
 // closingUserId / closingRelationshipId の 4 列（排他）で、所属区分は保存しない。
@@ -54,9 +54,24 @@ function personSelect(page: Page, role: "tossup" | "closing") {
   return page.locator(`#edit-${role}-select`);
 }
 
-/** 担当者 select の選択肢テキスト（先頭の「未設定」を除く）。 */
+/**
+ * 取引先（会社）select。所属区分 = 取引先 のときだけ描画される。
+ * 取引先は 会社 → 所属スタッフ の 2 段になったため、会社はこちらで選ぶ
+ * （#edit-*-select は「担当スタッフ」側）。
+ */
+function dealerSelect(page: Page, role: "tossup" | "closing") {
+  return page.locator(`#edit-${role}-dealer`);
+}
+
+/** 担当者 select の選択肢テキスト（先頭の「未設定」/「未登録」を除く）。 */
 async function personOptions(page: Page, role: "tossup" | "closing"): Promise<string[]> {
   const texts = await personSelect(page, role).locator("option").allInnerTexts();
+  return texts.map((v) => v.trim()).filter((v) => v !== "未設定" && v !== "未登録");
+}
+
+/** 取引先 select の選択肢テキスト（先頭の「未設定」を除く）。 */
+async function dealerOptions(page: Page, role: "tossup" | "closing"): Promise<string[]> {
+  const texts = await dealerSelect(page, role).locator("option").allInnerTexts();
   return texts.map((v) => v.trim()).filter((v) => v !== "未設定");
 }
 
@@ -88,27 +103,28 @@ test.describe("顧客 担当者変更ダイアログ（所属区分 → 担当�
     await expect(kindSelect(page, "closing")).toBeVisible();
     await expect(personSelect(page, "closing")).toBeVisible();
 
-    // 所属区分の選択肢は 未設定 / 自社社員 / 二次店 の 3 つ。
+    // 所属区分の選択肢は 未設定 / 自社社員 / 取引先 の 3 つ。
     await expect(kindSelect(page, "tossup").locator("option")).toHaveText([
       "未設定",
       "自社社員",
-      "二次店",
+      "取引先",
     ]);
 
     await kindSelect(page, "tossup").selectOption("user");
     const own = await personOptions(page, "tossup");
     expect(own.length, "自社ユーザーが 1 件以上").toBeGreaterThan(0);
 
-    // 二次店（会社名）は自社側の候補に混ざらない。
+    // 取引先（会社名）は自社側の候補に混ざらない。
+    // 取引先は 会社 → 担当スタッフ の 2 段なので、会社は dealerSelect 側で見る。
     await kindSelect(page, "closing").selectOption("dealer");
-    const dealerNames = await personOptions(page, "closing");
-    expect(dealerNames.length, "二次店が 1 件以上").toBeGreaterThan(0);
+    const dealerNames = await dealerOptions(page, "closing");
+    expect(dealerNames.length, "取引先が 1 件以上").toBeGreaterThan(0);
     for (const name of dealerNames) {
-      expect(own, `二次店「${name}」は自社候補に出ない`).not.toContain(name);
+      expect(own, `取引先「${name}」は自社候補に出ない`).not.toContain(name);
     }
   });
 
-  test("シナリオ2: 所属区分 = 二次店 なら二次店だけが候補に出る", async ({ page }) => {
+  test("シナリオ2: 所属区分 = 取引先 なら取引先だけが候補に出る", async ({ page }) => {
     await signInAsDemo(page);
     await openFirstCustomer(page);
     await openAssigneeDialog(page);
@@ -117,12 +133,21 @@ test.describe("顧客 担当者変更ダイアログ（所属区分 → 担当�
     const own = await personOptions(page, "tossup");
 
     await kindSelect(page, "tossup").selectOption("dealer");
-    const dealerNames = await personOptions(page, "tossup");
+    const dealerNames = await dealerOptions(page, "tossup");
 
     expect(dealerNames.length).toBeGreaterThan(0);
     // 区分を切り替えると候補集合が完全に入れ替わる。
     for (const name of dealerNames) {
       expect(own).not.toContain(name);
+    }
+
+    // 会社を選ぶまで担当スタッフ select は空（会社名がスタッフ候補に混ざらない）。
+    await expect(personSelect(page, "tossup")).toBeDisabled();
+    await dealerSelect(page, "tossup").selectOption({ label: dealerNames[0]! });
+    await expect(personSelect(page, "tossup")).toBeEnabled();
+    const staffNames = await personOptions(page, "tossup");
+    for (const name of staffNames) {
+      expect(dealerNames, `スタッフ「${name}」に会社名が混ざらない`).not.toContain(name);
     }
   });
 
@@ -136,16 +161,20 @@ test.describe("顧客 担当者変更ダイアログ（所属区分 → 担当�
     await personSelect(page, "tossup").selectOption({ label: own[0]! });
     await expect(personSelect(page, "tossup")).not.toHaveValue("");
 
-    // 二次店へ切り替え → 自社ユーザーが選ばれたままにならない。
+    // 取引先へ切り替え → 自社ユーザーが選ばれたままにならない。
+    // 取引先は 会社 → 担当スタッフ の 2 段で、会社未選択のうちはスタッフを選べない。
     await kindSelect(page, "tossup").selectOption("dealer");
-    await expect(personSelect(page, "tossup"), "担当者は未設定へ戻る").toHaveValue("");
+    await expect(dealerSelect(page, "tossup"), "取引先は未選択へ戻る").toHaveValue("");
+    await expect(personSelect(page, "tossup"), "担当スタッフは未設定へ戻る").toHaveValue("");
+    await expect(personSelect(page, "tossup")).toBeDisabled();
 
     // 逆方向も同じ。
-    const dealerNames = await personOptions(page, "tossup");
-    await personSelect(page, "tossup").selectOption({ label: dealerNames[0]! });
-    await expect(personSelect(page, "tossup")).not.toHaveValue("");
+    const dealerNames = await dealerOptions(page, "tossup");
+    await dealerSelect(page, "tossup").selectOption({ label: dealerNames[0]! });
+    await expect(dealerSelect(page, "tossup")).not.toHaveValue("");
     await kindSelect(page, "tossup").selectOption("user");
     await expect(personSelect(page, "tossup")).toHaveValue("");
+    await expect(dealerSelect(page, "tossup"), "自社では取引先 select 自体が消える").toHaveCount(0);
 
     // 所属区分 = 未設定 のときは担当者 select を無効化する。
     await kindSelect(page, "tossup").selectOption("unset");
@@ -173,24 +202,27 @@ test.describe("顧客 担当者変更ダイアログ（所属区分 → 担当�
     expect(selected.trim()).toBe(picked);
   });
 
-  test("シナリオ5: 二次店担当を保存し、再編集で所属区分と担当者が復元される", async ({ page }) => {
+  test("シナリオ5: 取引先担当を保存し、再編集で所属区分と担当者が復元される", async ({ page }) => {
     await signInAsDemo(page);
     await openFirstCustomer(page);
     await openAssigneeDialog(page);
 
     await kindSelect(page, "tossup").selectOption("dealer");
-    const dealerNames = await personOptions(page, "tossup");
+    const dealerNames = await dealerOptions(page, "tossup");
     const picked = dealerNames[0]!;
-    await personSelect(page, "tossup").selectOption({ label: picked });
+    await dealerSelect(page, "tossup").selectOption({ label: picked });
     await save(page);
 
+    // 会社だけ選んだ場合、個人スタッフは「未登録」のまま復元される
+    // （勝手にスタッフを選ばない）。
     await openAssigneeDialog(page);
     await expect(kindSelect(page, "tossup")).toHaveValue("dealer");
-    const selected = await personSelect(page, "tossup").locator("option:checked").innerText();
+    const selected = await dealerSelect(page, "tossup").locator("option:checked").innerText();
     expect(selected.trim()).toBe(picked);
+    await expect(personSelect(page, "tossup")).toHaveValue("");
   });
 
-  test("シナリオ6: トスアップ = 二次店 / クロージング = 自社 を独立して保存できる", async ({
+  test("シナリオ6: トスアップ = 取引先 / クロージング = 自社 を独立して保存できる", async ({
     page,
   }) => {
     await signInAsDemo(page);
@@ -198,9 +230,9 @@ test.describe("顧客 担当者変更ダイアログ（所属区分 → 担当�
     await openAssigneeDialog(page);
 
     await kindSelect(page, "tossup").selectOption("dealer");
-    const dealerNames = await personOptions(page, "tossup");
+    const dealerNames = await dealerOptions(page, "tossup");
     const dealerPick = dealerNames[0]!;
-    await personSelect(page, "tossup").selectOption({ label: dealerPick });
+    await dealerSelect(page, "tossup").selectOption({ label: dealerPick });
 
     await kindSelect(page, "closing").selectOption("user");
     const own = await personOptions(page, "closing");
@@ -213,7 +245,7 @@ test.describe("顧客 担当者変更ダイアログ（所属区分 → 担当�
     await openAssigneeDialog(page);
     await expect(kindSelect(page, "tossup")).toHaveValue("dealer");
     await expect(kindSelect(page, "closing")).toHaveValue("user");
-    expect((await personSelect(page, "tossup").locator("option:checked").innerText()).trim()).toBe(
+    expect((await dealerSelect(page, "tossup").locator("option:checked").innerText()).trim()).toBe(
       dealerPick,
     );
     expect((await personSelect(page, "closing").locator("option:checked").innerText()).trim()).toBe(
@@ -233,11 +265,11 @@ test.describe("顧客 担当者変更ダイアログ（所属区分 → 担当�
     await personSelect(page, "tossup").selectOption({ label: baseline });
     await save(page);
 
-    // 二次店へ変更してキャンセル。
+    // 取引先へ変更してキャンセル。
     await openAssigneeDialog(page);
     await kindSelect(page, "tossup").selectOption("dealer");
-    const dealerNames = await personOptions(page, "tossup");
-    await personSelect(page, "tossup").selectOption({ label: dealerNames[0]! });
+    const dealerNames = await dealerOptions(page, "tossup");
+    await dealerSelect(page, "tossup").selectOption({ label: dealerNames[0]! });
     await page.getByRole("dialog").getByRole("button", { name: "キャンセル" }).click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
 

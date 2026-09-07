@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import { formatDate } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
 import { listIncentiveRates } from "./data";
@@ -21,7 +22,7 @@ export default async function IncentiveRatesListPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
+          <h1 className="text-ink text-xl font-bold">{t.title}</h1>
           <p className="text-muted-foreground text-sm">{t.listTitle}</p>
         </div>
         <Button asChild>
@@ -82,13 +83,9 @@ export default async function IncentiveRatesListPage() {
                           </Link>
                         </td>
                         <td className="px-3 py-2">{r.rate}%</td>
+                        <td className="px-3 py-2">{formatDate(r.effectiveFrom)}</td>
                         <td className="px-3 py-2">
-                          {new Date(r.effectiveFrom).toLocaleDateString("ja-JP")}
-                        </td>
-                        <td className="px-3 py-2">
-                          {r.effectiveTo
-                            ? new Date(r.effectiveTo).toLocaleDateString("ja-JP")
-                            : "—"}
+                          {r.effectiveTo ? formatDate(r.effectiveTo) : "—"}
                         </td>
                         <td className="px-3 py-2">{r.isCurrent ? c.active : "—"}</td>
                       </tr>

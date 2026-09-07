@@ -15,6 +15,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
+import { formatDateTime } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
 import { recordPreCallAction } from "./actions";
@@ -44,7 +45,7 @@ export default async function PreCallPage({ params }: PageProps) {
         ]}
       />
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
+        <h1 className="text-ink text-xl font-bold">{t.title}</h1>
         <Button asChild variant="outline" size="sm">
           <Link href={`/appointments`}>{t.backToAppointment}</Link>
         </Button>
@@ -60,9 +61,7 @@ export default async function PreCallPage({ params }: PageProps) {
           </div>
           <div>
             <dt className="text-muted-foreground">{ta.fields.scheduledAt}</dt>
-            <dd className="tabular-nums">
-              {new Date(data.scheduledAt).toLocaleString("ja-JP")}
-            </dd>
+            <dd className="tabular-nums">{formatDateTime(data.scheduledAt)}</dd>
           </div>
           <div>
             <dt className="text-muted-foreground">{ta.fields.status}</dt>
@@ -83,11 +82,11 @@ export default async function PreCallPage({ params }: PageProps) {
               <div className="flex items-center justify-between">
                 <Badge variant="secondary">{t.resultBadges[data.preCall.result]}</Badge>
                 <span className="text-muted-foreground text-xs tabular-nums">
-                  {new Date(data.preCall.calledAt).toLocaleString("ja-JP")}
+                  {formatDateTime(data.preCall.calledAt)}
                 </span>
               </div>
               {data.preCall.note ? (
-                <p className="mt-2 text-sm whitespace-pre-line">{data.preCall.note}</p>
+                <p className="mt-2 whitespace-pre-line text-sm">{data.preCall.note}</p>
               ) : null}
             </div>
           </div>
@@ -97,14 +96,10 @@ export default async function PreCallPage({ params }: PageProps) {
       </section>
 
       {/* マエカク記録フォーム (未記録時のみ表示) */}
-      {!data.preCall && (
-        <PreCallForm appointmentId={id} action={recordPreCallAction} />
-      )}
+      {!data.preCall && <PreCallForm appointmentId={id} action={recordPreCallAction} />}
 
       {data.preCall && (
-        <p className="text-muted-foreground rounded-md border p-4 text-sm">
-          {t.alreadyRecorded}
-        </p>
+        <p className="text-muted-foreground rounded-md border p-4 text-sm">{t.alreadyRecorded}</p>
       )}
     </div>
   );

@@ -17,8 +17,8 @@ export default async function CommissionSettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-ink">{t.title}</h1>
-        <p className="mt-1 text-sm text-body-light">{t.subtitle}</p>
+        <h1 className="text-ink text-xl font-bold">{t.title}</h1>
+        <p className="text-body-light mt-1 text-sm">{t.subtitle}</p>
       </div>
 
       <SettingsPanel dealers={dealers} />

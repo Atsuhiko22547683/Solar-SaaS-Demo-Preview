@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+
 import { signIn } from "../fixtures/auth";
 
 // E2E smoke spec for SP-02 T-02-12 — masters end-to-end regression net.
@@ -39,22 +40,21 @@ test("wholesaler_admin walks through hub + all 5 masters in one session", async 
 
   await signIn(page, "wholesaler_admin@solar-saas.dev");
 
-  // ----- a. /masters ハブ：5 タブが全部 visible -----
+  // ----- a. /masters（エリア・場所管理）：2 タブが visible -----
+  // 施工業者 / インセンティブ率 等は独立画面へ、取引先は設定 > 取引先管理へ分離済み。
   await page.goto("/masters");
-  await expect(page.getByRole("heading", { name: "マスタ管理", level: 1 })).toBeVisible();
-  for (const label of [
-    "二次店関係",
-    "施工業者",
-    "インセンティブ率",
-    "キャンセル期限",
-    "年度開始月",
-  ]) {
+  await expect(page.getByRole("heading", { name: "エリア・場所管理", level: 1 })).toBeVisible();
+  for (const label of ["エリア設定", "場所提供元"]) {
     await expect(page.getByRole("tab", { name: label })).toBeVisible();
   }
+  await expect(page.getByRole("tab", { name: "取引先一覧" })).toHaveCount(0);
 
-  // ----- b. 施工業者タブクリック → パネル切替 -----
-  await page.getByRole("tab", { name: "施工業者" }).click();
-  await expect(page.getByRole("heading", { name: "施工業者", level: 2 })).toBeVisible();
+  // ----- b. 場所提供元タブクリック → パネル切替 -----
+  await page.getByRole("tab", { name: "場所提供元" }).click();
+  await expect(page.getByRole("tab", { name: "場所提供元" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
 
   // ----- c. /masters/installers 独立画面 → 新規作成 → 一覧反映 -----
   await page.goto("/masters/installers");
@@ -92,7 +92,7 @@ test("wholesaler_admin walks through hub + all 5 masters in one session", async 
   await page.getByLabel("商品名", { exact: false }).fill(productName);
   await page.getByLabel("単位", { exact: false }).fill("枚");
   await page.getByLabel("仕入値（円）").fill("31000");
-  await page.getByLabel("二次店向け卸値（円）").fill("41000");
+  await page.getByLabel("取引先向け卸値（円）").fill("41000");
   await page.getByLabel("参考売価（円）").fill("56000");
   await page.getByRole("button", { name: "登録" }).click();
 
@@ -112,7 +112,7 @@ test("wholesaler_admin walks through hub + all 5 masters in one session", async 
 
   const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   await page.getByLabel("適用開始日", { exact: false }).fill(tomorrow);
-  await page.getByLabel("二次店向け卸値（円）").fill("39000");
+  await page.getByLabel("取引先向け卸値（円）").fill("39000");
   await page.getByLabel("改定理由").fill("スモーク改定");
   await page.getByRole("button", { name: "価格改定を確定" }).click();
 

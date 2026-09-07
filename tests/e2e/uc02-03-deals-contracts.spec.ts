@@ -1,5 +1,10 @@
+import { execFileSync } from "node:child_process";
+import { resolve } from "node:path";
+
 import { expect, test } from "@playwright/test";
+
 import { signIn } from "./fixtures/auth";
+import { openCustomerByName } from "./fixtures/customers";
 
 // E2E spec for T-05-12 — UC-02 後半 + UC-03
 // (F-038 / F-040 / F-041 / F-042 / F-044 / F-045).
@@ -24,6 +29,12 @@ import { signIn } from "./fixtures/auth";
 // 前提: globalSetup が pnpm db:seed を実行済み（pilotWholesaler と各ユーザーが存在）。
 
 const RUN_ID = Date.now();
+/** cleanup が完全一致で消す顧客名 / 商品名。 */
+const CUSTOMER_NAME = `UC03顧客${RUN_ID}`;
+const PRODUCT_NAME = `UC03商品${RUN_ID}`;
+
+const FIXTURE_DIR = resolve(__dirname, "fixtures");
+const DB_DIR = resolve(__dirname, "..", "..", "packages", "db");
 
 // Module-level state shared across serial steps.
 let customerId = "";
@@ -43,6 +54,16 @@ let snapshotListPrice = "";
 test.describe.serial("UC-02/03 — 商談 → 契約 → 明細 → 粗利 → スナップショット不変性", () => {
   test.describe.configure({ timeout: 180_000 });
 
+  // 途中のステップが落ちても顧客・商品は残るので、afterAll で必ず消す
+  // （「UC-02 花子 <timestamp>」がローカルへ積み上がった経緯があるため）。
+  test.afterAll(() => {
+    execFileSync(
+      "pnpm",
+      ["exec", "tsx", resolve(FIXTURE_DIR, "cleanup-uc03-deal.ts"), String(RUN_ID)],
+      { cwd: DB_DIR, stdio: "inherit", shell: process.platform === "win32" },
+    );
+  });
+
   // -------------------------------------------------------------------------
   // Setup-1: wholesaler_admin が顧客を登録
   // -------------------------------------------------------------------------
@@ -55,7 +76,7 @@ test.describe.serial("UC-02/03 — 商談 → 契約 → 明細 → 粗利 → �
       timeout: 30_000,
     });
 
-    await page.getByLabel("氏名").fill(`UC-03 テスト顧客 ${RUN_ID}`);
+    await page.getByLabel("氏名").fill(CUSTOMER_NAME);
     await page.getByLabel("電話番号").fill(`090${String(RUN_ID).slice(-8)}`);
     await page.getByLabel("獲得チャネル").selectOption("WALK_IN");
 
@@ -67,16 +88,9 @@ test.describe.serial("UC-02/03 — 商談 → 契約 → 明細 → 粗利 → �
     });
     await expect(page.getByRole("heading", { name: "顧客一覧" })).toBeVisible({ timeout: 30_000 });
 
-    // Find the customer we just created by searching.
-    await page.goto(`/customers?query=UC-03+テスト顧客+${RUN_ID}`);
-    await page.waitForLoadState("networkidle");
-
-    const firstLink = page.locator("table tbody tr:first-child td:first-child a");
-    await expect(firstLink).toBeVisible({ timeout: 20_000 });
-    const href = await firstLink.getAttribute("href");
-    const m = href?.match(/\/customers\/([A-Za-z0-9_-]+)/);
-    expect(m, "顧客一覧から ID を取得できなかった").not.toBeNull();
-    customerId = m![1]!;
+    // 一覧の行はリンクではなく role="button" の <tr> になったので、共有ヘルパーで
+    // 氏名検索 → 行クリック → URL から ID を取る（先頭行が自分の登録とは限らない）。
+    customerId = await openCustomerByName(page, CUSTOMER_NAME);
     expect(customerId).toBeTruthy();
   });
 
@@ -87,7 +101,7 @@ test.describe.serial("UC-02/03 — 商談 → 契約 → 明細 → 粗利 → �
   test("setup-2: wholesaler_admin registers a product for snapshot test", async ({ page }) => {
     await signIn(page, "wholesaler_admin@solar-saas.dev");
 
-    productName = `UC-03 テスト商品 ${RUN_ID}`;
+    productName = PRODUCT_NAME;
 
     await page.goto("/masters/products/new");
     await expect(page.getByRole("heading", { name: "商品を新規登録" })).toBeVisible({
@@ -99,7 +113,7 @@ test.describe.serial("UC-02/03 — 商談 → 契約 → 明細 → 粗利 → �
     await page.getByLabel("商品名", { exact: false }).fill(productName);
     await page.getByLabel("単位", { exact: false }).fill("枚");
     await page.getByLabel("仕入値（円）").fill("30000");
-    await page.getByLabel("二次店向け卸値（円）").fill("40000");
+    await page.getByLabel("取引先向け卸値（円）").fill("40000");
     await page.getByLabel("参考売価（円）").fill("55000");
 
     await page.getByRole("button", { name: "登録" }).click();
@@ -133,7 +147,7 @@ test.describe.serial("UC-02/03 — 商談 → 契約 → 明細 → 粗利 → �
     });
 
     // The customer name should be shown.
-    await expect(page.getByText(`UC-03 テスト顧客 ${RUN_ID}`, { exact: false })).toBeVisible({
+    await expect(page.getByText(CUSTOMER_NAME, { exact: false })).toBeVisible({
       timeout: 10_000,
     });
 
@@ -324,7 +338,7 @@ test.describe.serial("UC-02/03 — 商談 → 契約 → 明細 → 粗利 → �
     await page.getByLabel("適用開始日", { exact: false }).fill(tomorrow);
 
     // New prices — significantly different from original (40000 → 99000 dealer price).
-    await page.getByLabel("二次店向け卸値（円）").fill("99000");
+    await page.getByLabel("取引先向け卸値（円）").fill("99000");
     await page.getByLabel("参考売価（円）").fill("120000");
     await page.getByLabel("改定理由").fill(`UC-03 E2E スナップショット検証用 ${RUN_ID}`);
 
@@ -336,7 +350,7 @@ test.describe.serial("UC-02/03 — 商談 → 契約 → 明細 → 粗利 → �
     });
 
     // Verify the new price is shown.
-    await expect(page.getByLabel("二次店向け卸値（円）", { exact: false })).toHaveValue("99000", {
+    await expect(page.getByLabel("取引先向け卸値（円）", { exact: false })).toHaveValue("99000", {
       timeout: 20_000,
     });
   });

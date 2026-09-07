@@ -8,11 +8,12 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { formatDate } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
-import type { DealStatus } from "@solar/db";
-
 import { listDealReports } from "./data";
+
+import type { DealStatus } from "@solar/db";
 
 export const dynamic = "force-dynamic";
 
@@ -63,7 +64,7 @@ export default async function DealerReportsPage({ searchParams }: PageProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t.listTitle}</h1>
+        <h1 className="text-ink text-xl font-bold">{t.listTitle}</h1>
         <p className="text-muted-foreground mt-1 text-sm">{t.subtitle}</p>
       </div>
 
@@ -116,25 +117,23 @@ export default async function DealerReportsPage({ searchParams }: PageProps) {
                 {result.items.map((row) => (
                   <tr
                     key={row.id}
-                    className={`border-border border-t${row.status === "LIKELY_CONTRACT" ? " bg-amber-50 dark:bg-amber-950/20" : ""}`}
+                    className={`border-border border-t${row.status === "LIKELY_CONTRACT" ? "bg-amber-50 dark:bg-amber-950/20" : ""}`}
                   >
                     <td className="px-3 py-2">{row.customerName}</td>
                     <td className="px-3 py-2">
                       <span
                         className={
                           row.status === "LIKELY_CONTRACT"
-                            ? "text-amber-700 font-semibold dark:text-amber-400"
+                            ? "font-semibold text-amber-700 dark:text-amber-400"
                             : undefined
                         }
                       >
                         {d.statuses[row.status]}
                       </span>
                     </td>
-                    <td className="text-muted-foreground px-3 py-2">
-                      {row.dealerName ?? "—"}
-                    </td>
+                    <td className="text-muted-foreground px-3 py-2">{row.dealerName ?? "—"}</td>
                     <td className="text-muted-foreground px-3 py-2 text-xs">
-                      {new Date(row.updatedAt).toLocaleDateString("ja-JP")}
+                      {formatDate(row.updatedAt)}
                     </td>
                     <td className="px-3 py-2">
                       <Button asChild variant="outline" size="sm">

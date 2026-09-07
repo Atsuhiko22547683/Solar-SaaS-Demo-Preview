@@ -52,8 +52,8 @@ export default async function CommissionsPage({ searchParams }: PageProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-ink">{t.list.title}</h1>
-        <p className="mt-1 text-sm text-body-light">{t.list.subtitle}</p>
+        <h1 className="text-ink text-xl font-bold">{t.list.title}</h1>
+        <p className="text-body-light mt-1 text-sm">{t.list.subtitle}</p>
       </div>
 
       <Card className="p-4">
@@ -66,9 +66,9 @@ export default async function CommissionsPage({ searchParams }: PageProps) {
       </Card>
 
       <Card className="overflow-hidden p-0">
-        <div className="flex items-center justify-between border-b border-hairline-light px-6 py-4">
-          <h2 className="text-sm font-medium text-ink">{lp.sectionTitle}</h2>
-          <span className="text-xs tabular-nums text-mute-light">
+        <div className="border-hairline-light flex items-center justify-between border-b px-6 py-4">
+          <h2 className="text-ink text-sm font-medium">{lp.sectionTitle}</h2>
+          <span className="text-mute-light text-xs tabular-nums">
             {total}
             {lp.resultCount}
           </span>
@@ -76,7 +76,7 @@ export default async function CommissionsPage({ searchParams }: PageProps) {
 
         {/* Bulk toolbar + column headers now live inside CommissionAccordion. */}
         {total === 0 ? (
-          <div className="px-6 py-12 text-center text-sm text-mute-light">{lp.empty}</div>
+          <div className="text-mute-light px-6 py-12 text-center text-sm">{lp.empty}</div>
         ) : (
           <CommissionAccordion dealers={dealers} />
         )}
@@ -84,7 +84,7 @@ export default async function CommissionsPage({ searchParams }: PageProps) {
 
       {total > 0 && (
         <div className="flex items-center justify-end">
-          <span className="text-sm tabular-nums text-mute-light">{rangeText}</span>
+          <span className="text-mute-light text-sm tabular-nums">{rangeText}</span>
         </div>
       )}
     </div>

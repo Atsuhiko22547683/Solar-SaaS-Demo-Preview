@@ -7,10 +7,9 @@
 // consumed (usedCount increment). All DB work runs under SYSTEM_TENANT_CONTEXT
 // because the caller is unauthenticated.
 
-import { type NextRequest, NextResponse } from "next/server";
-
 import { consumeInviteCode, hashPassword, UnauthorizedError } from "@solar/auth";
 import { SYSTEM_TENANT_CONTEXT, withTenant } from "@solar/db";
+import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 const signupSchema = z.object({
@@ -31,7 +30,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const parsed = signupSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: "validation_error", issues: parsed.error.issues }, { status: 400 });
+    return NextResponse.json(
+      { error: "validation_error", issues: parsed.error.issues },
+      { status: 400 },
+    );
   }
 
   const { inviteCode, companyName, adminEmail, adminName, password } = parsed.data;

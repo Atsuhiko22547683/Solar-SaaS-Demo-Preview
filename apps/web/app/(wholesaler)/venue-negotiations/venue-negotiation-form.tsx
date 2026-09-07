@@ -57,10 +57,7 @@ interface FormState {
   note: string;
 }
 
-function toFormState(
-  mode: Mode,
-  providers: ActiveVenueProviderOption[],
-): FormState {
+function toFormState(mode: Mode, providers: ActiveVenueProviderOption[]): FormState {
   if (mode.kind === "create") {
     return {
       venueProviderId: "",
@@ -94,14 +91,16 @@ function toFormState(
 }
 
 function parseCandidateDates(values: string[]): Date[] {
-  return values
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0)
-    // Anchor to 12:00 UTC so the calendar date matches across timezones —
-    // a yyyy-mm-dd without a time would otherwise be interpreted as
-    // midnight UTC which displays as the previous day in JST.
-    .map((s) => new Date(`${s}T12:00:00.000Z`))
-    .filter((d) => !Number.isNaN(d.getTime()));
+  return (
+    values
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0)
+      // Anchor to 12:00 UTC so the calendar date matches across timezones —
+      // a yyyy-mm-dd without a time would otherwise be interpreted as
+      // midnight UTC which displays as the previous day in JST.
+      .map((s) => new Date(`${s}T12:00:00.000Z`))
+      .filter((d) => !Number.isNaN(d.getTime()))
+  );
 }
 
 export function VenueNegotiationForm({ mode, venueProviders }: VenueNegotiationFormProps) {
@@ -259,7 +258,7 @@ export function VenueNegotiationForm({ mode, venueProviders }: VenueNegotiationF
             <button
               type="button"
               onClick={addCandidateDate}
-              className="text-electric-blue hover:text-electric-blue/80 text-xs font-medium leading-none underline-offset-2 hover:underline"
+              className="text-primary hover:text-primary/80 text-xs font-medium leading-none underline-offset-2 hover:underline"
             >
               + 候補日を追加
             </button>

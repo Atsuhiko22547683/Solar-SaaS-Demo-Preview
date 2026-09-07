@@ -55,7 +55,7 @@ export default async function InstallerDetailPage({ params }: PageProps) {
           <Button asChild variant="outline" size="sm">
             <Link href="/masters/installers">{labels.common.back}</Link>
           </Button>
-          <h1 className="text-2xl font-semibold tracking-tight">{t.edit}</h1>
+          <h1 className="text-ink text-xl font-bold">{t.edit}</h1>
         </div>
         <span className="text-muted-foreground text-sm">
           {row.isActive ? labels.common.active : labels.common.inactive}

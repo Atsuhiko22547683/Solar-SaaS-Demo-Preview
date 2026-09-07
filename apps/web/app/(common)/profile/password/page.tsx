@@ -60,8 +60,8 @@ export default function ChangePasswordPage() {
 
   if (success) {
     return (
-      <div className="space-y-4 max-w-xl">
-        <p className="text-carbon-dark font-medium">{t.success}</p>
+      <div className="max-w-xl space-y-4">
+        <p className="text-ink font-medium">{t.success}</p>
         <Button asChild variant="outline">
           <Link href="/profile">{labels.common.back}</Link>
         </Button>
@@ -70,10 +70,10 @@ export default function ChangePasswordPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-xl">
+    <div className="max-w-xl space-y-6">
       <div>
-        <h1 className="text-2xl font-medium text-carbon-dark">{t.title}</h1>
-        <p className="text-pewter text-sm mt-1">{t.subtitle}</p>
+        <h1 className="text-ink text-xl font-bold">{t.title}</h1>
+        <p className="text-mute-light mt-1 text-sm">{t.subtitle}</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>

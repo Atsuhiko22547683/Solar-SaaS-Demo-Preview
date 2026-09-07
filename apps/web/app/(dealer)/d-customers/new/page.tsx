@@ -3,6 +3,7 @@
 // ownerRelationshipId is auto-injected from ctx in createDealerCustomerAction.
 // PII masking: masking applies at read/list time via the DTO + MaskingService.
 
+import { CustomerForm } from "@/app/(wholesaler)/customers/customer-form";
 import { auth } from "@/auth";
 import { UnauthorizedError } from "@/lib/errors";
 import { labels } from "@/lib/i18n/labels";
@@ -10,7 +11,7 @@ import { assertCan } from "@/lib/permissions/can";
 import { getTenantContext } from "@/lib/tenancy/context";
 
 import { createDealerCustomerAction } from "../actions";
-import { CustomerForm } from "@/app/(wholesaler)/customers/customer-form";
+
 import type { CustomerFormValues } from "@/app/(wholesaler)/customers/customer-form";
 
 export const dynamic = "force-dynamic";
@@ -56,7 +57,7 @@ export default async function DealerNewCustomerPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">{t.new}</h1>
+      <h1 className="text-ink text-xl font-bold">{t.new}</h1>
       <CustomerForm
         mode={{ kind: "create" }}
         onSubmitAction={submitAction}

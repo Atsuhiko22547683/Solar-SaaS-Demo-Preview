@@ -87,14 +87,14 @@ export function ListSortSelect({
   );
 
   return (
-    <div className="flex shrink-0 items-center gap-2">
+    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0 sm:flex-nowrap">
       <span className="text-mute-light shrink-0 text-sm">{t.sortField}</span>
 
       <select
         value={sortField}
         onChange={(e) => onFieldChange(e.target.value)}
         aria-label={t.sortField}
-        className={`${SELECT_CLASS} w-60`}
+        className={`${SELECT_CLASS} min-w-0 flex-1 sm:w-60 sm:flex-none`}
       >
         {options.map((o) => (
           <option key={o.value} value={o.value}>
@@ -107,7 +107,7 @@ export function ListSortSelect({
         value={sortDirection}
         onChange={(e) => onDirectionChange(e.target.value)}
         aria-label={t.sortDirection}
-        className={`${SELECT_CLASS} w-24`}
+        className={`${SELECT_CLASS} w-24 shrink-0`}
       >
         {(["asc", "desc"] as const).map((v) => (
           <option key={v} value={v}>

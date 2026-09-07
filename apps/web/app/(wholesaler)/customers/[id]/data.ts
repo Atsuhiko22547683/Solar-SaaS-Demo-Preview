@@ -7,23 +7,24 @@
 
 import "server-only";
 
+import { maskName, maskPhone, maskAddress } from "@solar/contracts/services/masking";
+
 import { auth } from "@/auth";
 import { UnauthorizedError } from "@/lib/errors";
 import { assertCan } from "@/lib/permissions/can";
 import { getTenantContext } from "@/lib/tenancy/context";
 import { withTenant } from "@/lib/tenancy/with-tenant";
-import { maskName, maskPhone, maskAddress } from "@solar/contracts/services/masking";
-import type { ViewerContext } from "@solar/contracts/services/masking";
-import type { InflowRoute } from "@solar/contracts";
 
-import type { AcquisitionChannel } from "@solar/db";
+import { deriveArea } from "../data";
 
 import type {
   ContractStatusValue,
   ConstructionStatusValue,
   SubsidyStatusValue,
 } from "../constants";
-import { deriveArea } from "../data";
+import type { InflowRoute, SalesChannel } from "@solar/contracts";
+import type { ViewerContext } from "@solar/contracts/services/masking";
+import type { AcquisitionChannel } from "@solar/db";
 
 // 商談履歴のカテゴリ CODE（ラベル/チップ色は UI 側で解決）。
 // "quote" は見積提示の記録（amount に提示金額を保持できる）。
@@ -122,6 +123,15 @@ export interface CustomerDetail {
   area: string | null;
   channel: AcquisitionChannel;
   inflowRoute: InflowRoute | null; // 流入経路（顧客情報で手動選択、未設定は null）
+  salesChannel: SalesChannel | null; // 販売チャネル（channel: AcquisitionChannel とは別項目）
+  faceToFace: boolean | null; // 対面者（true=主権者 / false=非主権者 / null=未設定）
+  // NOTE: 加盟店番号 / マエカク実施者はここでは返さない。
+  //   - 加盟店番号: Customer は owner / registeredBy / tossUp / closing の 4 つの
+  //     Relationship と sourceEvent→EventDealer を持ち、どれを指すかが業務上一意に
+  //     決まらない。closing 固定は推測でしかないので導出しない。
+  //   - マエカク実施者: CustomerCallLog は種別列を持たない汎用の架電履歴で、
+  //     マエカク / サンキュー / ローン審査完了 / 施工完了 の区別は Customer 側の
+  //     ステータス列にしか無い。最新ログの対応者はマエカク実施者と同義ではない。
   maekakuStatus: "pending" | "done" | "unnecessary" | null; // マエカク状況（商談履歴タブで入力）
   maekakuPreferredAt: string | null; // マエカク希望日時（ISO、商談履歴タブで入力）
   nextAction: string | null; // 次回アクション（商談履歴タブで入力）
@@ -240,6 +250,8 @@ export async function getCustomerDetail(id: string): Promise<CustomerDetail | nu
         area: true,
         channel: true,
         inflowRoute: true,
+        salesChannel: true,
+        faceToFace: true,
         maekakuStatus: true,
         maekakuPreferredAt: true,
         nextAction: true,
@@ -250,6 +262,8 @@ export async function getCustomerDetail(id: string): Promise<CustomerDetail | nu
         tossUpRelationshipId: true,
         closingUserId: true,
         closingRelationshipId: true,
+        tossUpSalespersonId: true,
+        closingSalespersonId: true,
         note: true,
         createdAt: true,
         updatedAt: true,
@@ -349,7 +363,10 @@ export async function getCustomerDetail(id: string): Promise<CustomerDetail | nu
     ];
     const userRows =
       userIds.length > 0
-        ? await tx.user.findMany({ where: { id: { in: userIds } }, select: { id: true, name: true } })
+        ? await tx.user.findMany({
+            where: { id: { in: userIds } },
+            select: { id: true, name: true },
+          })
         : [];
     const nameByUserId = new Map(userRows.map((u) => [u.id, u.name]));
 
@@ -371,14 +388,42 @@ export async function getCustomerDetail(id: string): Promise<CustomerDetail | nu
         : [];
     const dealerNameByRelId = new Map(relationshipRows.map((r) => [r.id, r.dealer.name]));
 
+    // 担当者に個人スタッフが紐付いている場合の氏名解決（RLS スコープ内）。
+    const staffIds = [
+      ...new Set(
+        [customer.tossUpSalespersonId, customer.closingSalespersonId].filter(
+          (v): v is string => !!v,
+        ),
+      ),
+    ];
+    const staffRows =
+      staffIds.length > 0
+        ? await tx.salesperson.findMany({
+            where: { id: { in: staffIds } },
+            select: { id: true, name: true },
+          })
+        : [];
+    const staffNameById = new Map(staffRows.map((s) => [s.id, s.name]));
+
     // 担当主体の表示解決：二次店(Relationship) を優先、無ければ自社社員(User)、共に無ければ null。
     function resolveAssignee(
       userId: string | null,
       relationshipId: string | null,
+      salespersonId: string | null,
     ): AssigneeDisplay | null {
+      // 個人スタッフが特定できていればスタッフ名を優先する。
+      // 自社スタッフはログイン User と紐付いていないことがあり、その場合
+      // userId は null なので、スタッフ名を出さないと担当者が消えて見える。
+      const staffName = salespersonId ? staffNameById.get(salespersonId) : undefined;
       if (relationshipId) {
-        return { name: dealerNameByRelId.get(relationshipId) ?? "—", kind: "dealer" };
+        const dealerName = dealerNameByRelId.get(relationshipId) ?? "—";
+        // 二次店は「会社名（担当スタッフ名）」。スタッフ未登録なら会社名だけ。
+        return {
+          name: staffName ? `${dealerName}（${staffName}）` : dealerName,
+          kind: "dealer",
+        };
       }
+      if (staffName) return { name: staffName, kind: "user" };
       if (userId) {
         return { name: nameByUserId.get(userId) ?? "—", kind: "user" };
       }
@@ -467,14 +512,24 @@ export async function getCustomerDetail(id: string): Promise<CustomerDetail | nu
       area: customer.area ?? deriveArea(customer.address),
       channel: customer.channel,
       inflowRoute: (customer.inflowRoute as InflowRoute | null) ?? null,
+      salesChannel: customer.salesChannel,
+      faceToFace: customer.faceToFace,
       maekakuStatus: (customer.maekakuStatus as "pending" | "done" | "unnecessary" | null) ?? null,
       maekakuPreferredAt: isoOrNull(customer.maekakuPreferredAt),
       nextAction: customer.nextAction,
       nextAppointmentAt: isoOrNull(customer.nextAppointmentAt),
       nextAppointmentAssigneeUserId: customer.nextAppointmentAssigneeUserId,
       assigneeName: assigneeDisplay,
-      tossUp: resolveAssignee(customer.tossUpUserId, customer.tossUpRelationshipId),
-      closing: resolveAssignee(customer.closingUserId, customer.closingRelationshipId),
+      tossUp: resolveAssignee(
+        customer.tossUpUserId,
+        customer.tossUpRelationshipId,
+        customer.tossUpSalespersonId,
+      ),
+      closing: resolveAssignee(
+        customer.closingUserId,
+        customer.closingRelationshipId,
+        customer.closingSalespersonId,
+      ),
       note: customer.note,
       createdAt: customer.createdAt.toISOString(),
       updatedAt: customer.updatedAt.toISOString(),

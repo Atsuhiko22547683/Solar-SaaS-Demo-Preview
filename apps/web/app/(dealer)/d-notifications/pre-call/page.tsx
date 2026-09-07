@@ -2,12 +2,13 @@
 // マエカク結果通知一覧 + ステータスフィルタ + 確認ボタン。
 
 import { Badge } from "@/components/ui/badge";
+import { formatDateTime } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
-import type { PreCallNotificationStatus } from "@solar/db";
-
-import { listDealerPreCallNotifications } from "./data";
 import { AcknowledgeButton } from "./acknowledge-button";
+import { listDealerPreCallNotifications } from "./data";
+
+import type { PreCallNotificationStatus } from "@solar/db";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +32,7 @@ export default async function DealerPreCallNotificationsPage({ searchParams }: P
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
+        <h1 className="text-ink text-xl font-bold">{t.title}</h1>
         <p className="text-muted-foreground text-sm">{t.subtitle}</p>
       </div>
 
@@ -81,7 +82,7 @@ export default async function DealerPreCallNotificationsPage({ searchParams }: P
                 <tr key={n.id} className="border-border border-t">
                   <td className="px-3 py-2 font-medium">{n.customerName}</td>
                   <td className="text-muted-foreground px-3 py-2 tabular-nums">
-                    {new Date(n.scheduledAt).toLocaleString("ja-JP")}
+                    {formatDateTime(n.scheduledAt)}
                   </td>
                   <td className="px-3 py-2">
                     <Badge variant="secondary" className="text-xs">
@@ -103,12 +104,10 @@ export default async function DealerPreCallNotificationsPage({ searchParams }: P
                     </Badge>
                   </td>
                   <td className="text-muted-foreground px-3 py-2 text-xs tabular-nums">
-                    {n.notifiedAt ? new Date(n.notifiedAt).toLocaleString("ja-JP") : "—"}
+                    {n.notifiedAt ? formatDateTime(n.notifiedAt) : "—"}
                   </td>
                   <td className="px-3 py-2">
-                    {n.status !== "ACKNOWLEDGED" && (
-                      <AcknowledgeButton notificationId={n.id} />
-                    )}
+                    {n.status !== "ACKNOWLEDGED" && <AcknowledgeButton notificationId={n.id} />}
                   </td>
                 </tr>
               ))}

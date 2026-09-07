@@ -325,3 +325,144 @@ describe("toEventCandidateDealerDto", () => {
     expect(dealerDto.status).toBe("OPEN");
   });
 });
+
+// ---------------------------------------------------------------------------
+// 催事の基本情報（催事種別 / ブース場所 / 商材種別）— #8 の確認項目。
+//
+// 3 項目とも「未設定（null）」を持てること、ブース場所の自由記述は
+// 「その他」を選んだときだけ保持され、別の種別へ変えると null に戻ること。
+// ---------------------------------------------------------------------------
+
+describe("イベント候補の催事種別 / ブース場所 / 商材種別", () => {
+  function createdData(): Record<string, unknown> {
+    return (eventCandidateCreateMock.mock.calls[0]![0] as { data: Record<string, unknown> }).data;
+  }
+  function updatedData(): Record<string, unknown> {
+    return (eventCandidateUpdateMock.mock.calls[0]![0] as { data: Record<string, unknown> }).data;
+  }
+
+  it.each([
+    ["カインズV", "CAINZ_V"],
+    ["島忠", "SHIMACHU"],
+    ["コメリ", "KOMERI"],
+  ])("催事種別 %s を保存できる", async (_label, venueChain) => {
+    authMock.mockResolvedValue(WS_SESSION);
+    eventCandidateCreateMock.mockResolvedValue({ id: "ec_vc" });
+
+    await createEventCandidateAction({ ...VALID_INPUT, venueChain } as never);
+
+    expect(createdData().venueChain).toBe(venueChain);
+  });
+
+  it("催事種別 / 商材種別の未設定は null で保存される", async () => {
+    authMock.mockResolvedValue(WS_SESSION);
+    eventCandidateCreateMock.mockResolvedValue({ id: "ec_unset" });
+
+    await createEventCandidateAction(VALID_INPUT);
+
+    expect(createdData().venueChain).toBeNull();
+    expect(createdData().productCategory).toBeNull();
+    expect(createdData().boothArea).toBeNull();
+    expect(createdData().boothAreaNote).toBeNull();
+  });
+
+  it.each([
+    ["店頭入口付近", "ENTRANCE"],
+    ["リフォームコーナー付近", "REFORM_CORNER"],
+  ])("ブース場所 %s では自由記述を保持しない", async (_label, boothArea) => {
+    authMock.mockResolvedValue(WS_SESSION);
+    eventCandidateCreateMock.mockResolvedValue({ id: "ec_ba" });
+
+    await createEventCandidateAction({
+      ...VALID_INPUT,
+      boothArea,
+      // 種別が「その他」でないので、送られてきても捨てる。
+      boothAreaNote: "捨てられるべきメモ",
+    } as never);
+
+    expect(createdData().boothArea).toBe(boothArea);
+    expect(createdData().boothAreaNote).toBeNull();
+  });
+
+  it("ブース場所が「その他」のときだけ自由記述を保存する", async () => {
+    authMock.mockResolvedValue(WS_SESSION);
+    eventCandidateCreateMock.mockResolvedValue({ id: "ec_other" });
+
+    await createEventCandidateAction({
+      ...VALID_INPUT,
+      boothArea: "OTHER",
+      boothAreaNote: "  園芸コーナー横 特設スペース  ",
+    } as never);
+
+    expect(createdData().boothArea).toBe("OTHER");
+    // 前後の空白は落として保存する。
+    expect(createdData().boothAreaNote).toBe("園芸コーナー横 特設スペース");
+  });
+
+  it.each([
+    ["住設設備", "HOUSING_EQUIPMENT"],
+    ["不動産", "REAL_ESTATE"],
+  ])("商材種別 %s を保存できる", async (_label, productCategory) => {
+    authMock.mockResolvedValue(WS_SESSION);
+    eventCandidateCreateMock.mockResolvedValue({ id: "ec_pc" });
+
+    await createEventCandidateAction({ ...VALID_INPUT, productCategory } as never);
+
+    expect(createdData().productCategory).toBe(productCategory);
+  });
+
+  it("「その他」から別のブース場所へ変更すると boothAreaNote が null に戻る", async () => {
+    authMock.mockResolvedValue(WS_SESSION);
+    eventCandidateFindUniqueMock.mockResolvedValue({ id: "ec_1", status: "DRAFT" });
+    eventCandidateUpdateMock.mockResolvedValue({ id: "ec_1" });
+
+    await updateEventCandidateAction({
+      id: "ec_1",
+      patch: { boothArea: "ENTRANCE" } as never,
+    });
+
+    expect(updatedData().boothArea).toBe("ENTRANCE");
+    expect(updatedData().boothAreaNote).toBeNull();
+  });
+
+  it("ブース場所を未設定へ戻すと boothAreaNote も null になる", async () => {
+    authMock.mockResolvedValue(WS_SESSION);
+    eventCandidateFindUniqueMock.mockResolvedValue({ id: "ec_1", status: "DRAFT" });
+    eventCandidateUpdateMock.mockResolvedValue({ id: "ec_1" });
+
+    await updateEventCandidateAction({
+      id: "ec_1",
+      patch: { boothArea: null, boothAreaNote: "残ってはいけないメモ" } as never,
+    });
+
+    expect(updatedData().boothArea).toBeNull();
+    expect(updatedData().boothAreaNote).toBeNull();
+  });
+
+  it("催事種別 / 商材種別を未設定へ戻せる（null を明示送信）", async () => {
+    authMock.mockResolvedValue(WS_SESSION);
+    eventCandidateFindUniqueMock.mockResolvedValue({ id: "ec_1", status: "DRAFT" });
+    eventCandidateUpdateMock.mockResolvedValue({ id: "ec_1" });
+
+    await updateEventCandidateAction({
+      id: "ec_1",
+      patch: { venueChain: null, productCategory: null } as never,
+    });
+
+    expect(updatedData().venueChain).toBeNull();
+    expect(updatedData().productCategory).toBeNull();
+  });
+
+  it("公開後（非 DRAFT）は催事の基本情報を編集できない", async () => {
+    authMock.mockResolvedValue(WS_SESSION);
+    eventCandidateFindUniqueMock.mockResolvedValue({ id: "ec_2", status: "OPEN" });
+
+    await expect(
+      updateEventCandidateAction({
+        id: "ec_2",
+        patch: { venueChain: "KOMERI" } as never,
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
+    expect(eventCandidateUpdateMock).not.toHaveBeenCalled();
+  });
+});

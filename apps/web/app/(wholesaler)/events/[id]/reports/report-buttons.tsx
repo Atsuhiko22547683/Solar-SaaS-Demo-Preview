@@ -8,17 +8,12 @@
 // Action and shows a sonner toast on success or error.
 
 import { useState } from "react";
-
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { labels } from "@/lib/i18n/labels";
 
-import {
-  submitEndReportAction,
-  submitStartReportAction,
-  type EventReportResult,
-} from "./actions";
+import { submitEndReportAction, submitStartReportAction, type EventReportResult } from "./actions";
 
 interface ReportButtonsProps {
   eventId: string;
@@ -26,7 +21,11 @@ interface ReportButtonsProps {
   hasWholesalerEnd: boolean;
 }
 
-export function ReportButtons({ eventId, hasWholesalerStart, hasWholesalerEnd }: ReportButtonsProps) {
+export function ReportButtons({
+  eventId,
+  hasWholesalerStart,
+  hasWholesalerEnd,
+}: ReportButtonsProps) {
   const t = labels.eventReport;
   const [submittingStart, setSubmittingStart] = useState(false);
   const [submittingEnd, setSubmittingEnd] = useState(false);
@@ -38,9 +37,7 @@ export function ReportButtons({ eventId, hasWholesalerStart, hasWholesalerEnd }:
       toast.success(t.startSuccess);
     } catch (err) {
       const msg =
-        err instanceof Error && err.message.includes("すでに")
-          ? t.conflictError
-          : t.unknownError;
+        err instanceof Error && err.message.includes("すでに") ? t.conflictError : t.unknownError;
       toast.error(msg);
     } finally {
       setSubmittingStart(false);
@@ -58,9 +55,7 @@ export function ReportButtons({ eventId, hasWholesalerStart, hasWholesalerEnd }:
       }
     } catch (err) {
       const msg =
-        err instanceof Error && err.message.includes("すでに")
-          ? t.conflictError
-          : t.unknownError;
+        err instanceof Error && err.message.includes("すでに") ? t.conflictError : t.unknownError;
       toast.error(msg);
     } finally {
       setSubmittingEnd(false);
@@ -69,12 +64,12 @@ export function ReportButtons({ eventId, hasWholesalerStart, hasWholesalerEnd }:
 
   return (
     <div className="flex flex-wrap gap-3">
-      <Button
-        onClick={handleStart}
-        disabled={hasWholesalerStart || submittingStart}
-        size="sm"
-      >
-        {submittingStart ? t.submitting : hasWholesalerStart ? t.startAlreadySubmitted : t.submitStart}
+      <Button onClick={handleStart} disabled={hasWholesalerStart || submittingStart} size="sm">
+        {submittingStart
+          ? t.submitting
+          : hasWholesalerStart
+            ? t.startAlreadySubmitted
+            : t.submitStart}
       </Button>
       <Button
         onClick={handleEnd}

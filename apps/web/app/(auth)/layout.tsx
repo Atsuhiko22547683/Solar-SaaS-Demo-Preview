@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 
 export default function AuthGroupLayout({ children }: { children: ReactNode }) {
   return (
-    <main className="flex min-h-screen w-full items-center justify-center bg-light-ash px-4 py-12">
+    <main className="bg-surface-soft flex min-h-screen w-full items-center justify-center px-4 py-12">
       <div className="w-full max-w-md space-y-8">
         <header className="flex flex-col items-center text-center">
           <Image
@@ -20,7 +20,7 @@ export default function AuthGroupLayout({ children }: { children: ReactNode }) {
         </header>
         <section
           aria-label={labels.groups.auth}
-          className="border border-border bg-white rounded-lg p-8"
+          className="border-border rounded-lg border bg-white p-8"
         >
           {children}
         </section>

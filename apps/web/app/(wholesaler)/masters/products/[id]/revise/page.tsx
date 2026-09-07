@@ -52,7 +52,7 @@ export default async function ReviseProductPage({ params }: PageProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t.revise}</h1>
+        <h1 className="text-ink text-xl font-bold">{t.revise}</h1>
         <p className="text-muted-foreground text-sm">
           {t.categories[row.category]} / {row.maker} / {row.name}
         </p>

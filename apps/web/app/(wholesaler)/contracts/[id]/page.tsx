@@ -11,6 +11,7 @@ import { notFound } from "next/navigation";
 
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
+import { formatDate } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
 import { getContractDetail } from "../data";
@@ -37,16 +38,13 @@ export default async function WholesalerContractDetailPage({ params }: PageProps
   return (
     <div className="space-y-6">
       <Breadcrumb
-        items={[
-          { label: bc.contracts, href: "/contracts" },
-          { label: bc.contractDetail },
-        ]}
+        items={[{ label: bc.contracts, href: "/contracts" }, { label: bc.contractDetail }]}
       />
       <div className="flex items-center gap-4">
         <Button asChild variant="outline" size="sm">
           <Link href="/contracts">{c.back}</Link>
         </Button>
-        <h1 className="text-2xl font-semibold tracking-tight">{t.detailTitle}</h1>
+        <h1 className="text-ink text-xl font-bold">{t.detailTitle}</h1>
         {contract.status !== "CANCELLED" && contract.status !== "DONE" && (
           <div className="ml-auto">
             <CancelContractDialog
@@ -58,7 +56,7 @@ export default async function WholesalerContractDetailPage({ params }: PageProps
       </div>
 
       {/* Basic info */}
-      <div className="border-border rounded-md border p-4 space-y-3">
+      <div className="border-border space-y-3 rounded-md border p-4">
         <h2 className="font-medium">{t.sections.basic}</h2>
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
           <dt className="text-muted-foreground">{t.fields.customer}</dt>
@@ -82,7 +80,7 @@ export default async function WholesalerContractDetailPage({ params }: PageProps
           </dd>
 
           <dt className="text-muted-foreground">{t.fields.contractDate}</dt>
-          <dd>{new Date(contract.contractDate).toLocaleDateString("ja-JP")}</dd>
+          <dd>{formatDate(contract.contractDate)}</dd>
 
           <dt className="text-muted-foreground">{t.fields.totalAmount}</dt>
           <dd>
@@ -90,7 +88,7 @@ export default async function WholesalerContractDetailPage({ params }: PageProps
           </dd>
 
           <dt className="text-muted-foreground">{t.fields.cancelDeadline}</dt>
-          <dd>{new Date(contract.cancelDeadline).toLocaleDateString("ja-JP")}</dd>
+          <dd>{formatDate(contract.cancelDeadline)}</dd>
 
           <dt className="text-muted-foreground">{t.fields.status}</dt>
           <dd>
@@ -116,14 +114,18 @@ export default async function WholesalerContractDetailPage({ params }: PageProps
           {contract.incentiveTargetTypeSnapshot && (
             <>
               <dt className="text-muted-foreground">{t.fields.incentiveTargetTypeSnapshot}</dt>
-              <dd>{tg.incentiveTargetTypes[contract.incentiveTargetTypeSnapshot as keyof typeof tg.incentiveTargetTypes] ?? contract.incentiveTargetTypeSnapshot}</dd>
+              <dd>
+                {tg.incentiveTargetTypes[
+                  contract.incentiveTargetTypeSnapshot as keyof typeof tg.incentiveTargetTypes
+                ] ?? contract.incentiveTargetTypeSnapshot}
+              </dd>
             </>
           )}
         </dl>
       </div>
 
       {/* Items section */}
-      <div className="border-border rounded-md border p-4 space-y-3">
+      <div className="border-border space-y-3 rounded-md border p-4">
         <div className="flex items-center justify-between">
           <h2 className="font-medium">{t.sections.items}</h2>
           <Button asChild variant="outline" size="sm">
@@ -131,7 +133,7 @@ export default async function WholesalerContractDetailPage({ params }: PageProps
           </Button>
         </div>
         {contract.items.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t.detail.noItems}</p>
+          <p className="text-muted-foreground text-sm">{t.detail.noItems}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -151,9 +153,9 @@ export default async function WholesalerContractDetailPage({ params }: PageProps
                 {contract.items.map((item) => (
                   <tr key={item.id} className="border-border border-t">
                     <td className="px-3 py-2">{item.productName}</td>
-                    <td className="px-3 py-2 text-muted-foreground">{item.maker}</td>
+                    <td className="text-muted-foreground px-3 py-2">{item.maker}</td>
                     <td className="px-3 py-2">{item.qty}</td>
-                    <td className="px-3 py-2 text-muted-foreground">{item.unit}</td>
+                    <td className="text-muted-foreground px-3 py-2">{item.unit}</td>
                     <td className="px-3 py-2">
                       {Number(item.snapshotPurchasePrice).toLocaleString("ja-JP")}
                     </td>
@@ -175,7 +177,7 @@ export default async function WholesalerContractDetailPage({ params }: PageProps
       </div>
 
       {/* Gross profit section */}
-      <div className="border-border rounded-md border p-4 space-y-3">
+      <div className="border-border space-y-3 rounded-md border p-4">
         <div className="flex items-center justify-between">
           <h2 className="font-medium">{t.sections.grossProfit}</h2>
           <Button asChild variant="outline" size="sm">
@@ -183,7 +185,7 @@ export default async function WholesalerContractDetailPage({ params }: PageProps
           </Button>
         </div>
         {!contract.grossProfit ? (
-          <p className="text-sm text-muted-foreground">{t.detail.noGrossProfit}</p>
+          <p className="text-muted-foreground text-sm">{t.detail.noGrossProfit}</p>
         ) : (
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
             <dt className="text-muted-foreground">{tg.fields.salesPrice}</dt>
@@ -192,7 +194,8 @@ export default async function WholesalerContractDetailPage({ params }: PageProps
             </dd>
             <dt className="text-muted-foreground">{tg.fields.purchaseTotal}</dt>
             <dd>
-              {Number(contract.grossProfit.purchaseTotal).toLocaleString("ja-JP")} {c.currencySuffix}
+              {Number(contract.grossProfit.purchaseTotal).toLocaleString("ja-JP")}{" "}
+              {c.currencySuffix}
             </dd>
             <dt className="text-muted-foreground">{tg.fields.dealerTotal}</dt>
             <dd>
@@ -200,41 +203,42 @@ export default async function WholesalerContractDetailPage({ params }: PageProps
             </dd>
             <dt className="text-muted-foreground">{tg.fields.projectProfit}</dt>
             <dd className="font-medium">
-              {Number(contract.grossProfit.projectProfit).toLocaleString("ja-JP")} {c.currencySuffix}
+              {Number(contract.grossProfit.projectProfit).toLocaleString("ja-JP")}{" "}
+              {c.currencySuffix}
             </dd>
             <dt className="text-muted-foreground">{tg.fields.wholesaleProfit}</dt>
             <dd>
-              {Number(contract.grossProfit.wholesaleProfit).toLocaleString("ja-JP")} {c.currencySuffix}
+              {Number(contract.grossProfit.wholesaleProfit).toLocaleString("ja-JP")}{" "}
+              {c.currencySuffix}
             </dd>
             <dt className="text-muted-foreground">{tg.fields.profitRate}</dt>
-            <dd>
-              {(Number(contract.grossProfit.profitRate) * 100).toFixed(1)} %
-            </dd>
+            <dd>{(Number(contract.grossProfit.profitRate) * 100).toFixed(1)} %</dd>
             <dt className="text-muted-foreground">{tg.fields.incentiveTargetType}</dt>
             <dd>
-              {tg.incentiveTargetTypes[contract.grossProfit.incentiveTargetType as keyof typeof tg.incentiveTargetTypes] ?? contract.grossProfit.incentiveTargetType}
+              {tg.incentiveTargetTypes[
+                contract.grossProfit.incentiveTargetType as keyof typeof tg.incentiveTargetTypes
+              ] ?? contract.grossProfit.incentiveTargetType}
             </dd>
             <dt className="text-muted-foreground">{tg.fields.incentiveTargetProfit}</dt>
             <dd>
-              {Number(contract.grossProfit.incentiveTargetProfit).toLocaleString("ja-JP")} {c.currencySuffix}
+              {Number(contract.grossProfit.incentiveTargetProfit).toLocaleString("ja-JP")}{" "}
+              {c.currencySuffix}
             </dd>
           </dl>
         )}
       </div>
 
       {/* Constructions section */}
-      <div className="border-border rounded-md border p-4 space-y-3">
+      <div className="border-border space-y-3 rounded-md border p-4">
         <h2 className="font-medium">{t.sections.constructions}</h2>
         {contract.constructions.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t.detail.noConstructions}</p>
+          <p className="text-muted-foreground text-sm">{t.detail.noConstructions}</p>
         ) : (
           <ul className="space-y-2 text-sm">
             {contract.constructions.map((con) => (
               <li key={con.id} className="flex gap-4">
                 <span className="text-muted-foreground">{con.status}</span>
-                {con.plannedDate && (
-                  <span>{new Date(con.plannedDate).toLocaleDateString("ja-JP")}</span>
-                )}
+                {con.plannedDate && <span>{formatDate(con.plannedDate)}</span>}
                 {con.fee && (
                   <span>
                     {Number(con.fee).toLocaleString("ja-JP")} {c.currencySuffix}
@@ -247,10 +251,10 @@ export default async function WholesalerContractDetailPage({ params }: PageProps
       </div>
 
       {/* Applications section */}
-      <div className="border-border rounded-md border p-4 space-y-3">
+      <div className="border-border space-y-3 rounded-md border p-4">
         <h2 className="font-medium">{t.sections.applications}</h2>
         {contract.applications.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t.detail.noApplications}</p>
+          <p className="text-muted-foreground text-sm">{t.detail.noApplications}</p>
         ) : (
           <ul className="space-y-2 text-sm">
             {contract.applications.map((app) => (
@@ -259,12 +263,14 @@ export default async function WholesalerContractDetailPage({ params }: PageProps
                 <span className="text-muted-foreground">{app.status}</span>
                 {app.expectedAmount && (
                   <span>
-                    {ta.estimatedPrefix}: {Number(app.expectedAmount).toLocaleString("ja-JP")} {c.currencySuffix}
+                    {ta.estimatedPrefix}: {Number(app.expectedAmount).toLocaleString("ja-JP")}{" "}
+                    {c.currencySuffix}
                   </span>
                 )}
                 {app.grantedAmount && (
                   <span>
-                    {ta.confirmedPrefix}: {Number(app.grantedAmount).toLocaleString("ja-JP")} {c.currencySuffix}
+                    {ta.confirmedPrefix}: {Number(app.grantedAmount).toLocaleString("ja-JP")}{" "}
+                    {c.currencySuffix}
                   </span>
                 )}
               </li>
@@ -274,14 +280,14 @@ export default async function WholesalerContractDetailPage({ params }: PageProps
       </div>
 
       {/* Incentive section */}
-      <div className="border-border rounded-md border p-4 space-y-3">
+      <div className="border-border space-y-3 rounded-md border p-4">
         <div className="flex items-center justify-between">
           <h2 className="font-medium">{t.sections.incentive}</h2>
           <Button asChild variant="outline" size="sm">
             <Link href={`/contracts/${id}/incentive`}>{t.actions.goToIncentive}</Link>
           </Button>
         </div>
-        <p className="text-sm text-muted-foreground">{t.detail.incentiveNote}</p>
+        <p className="text-muted-foreground text-sm">{t.detail.incentiveNote}</p>
       </div>
     </div>
   );

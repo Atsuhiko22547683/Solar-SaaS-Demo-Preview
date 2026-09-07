@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { config } from "dotenv";
 
 // E2E データクリーンアップ — UC-02 spec が画面から新規登録する顧客
-// （`UC-02 花子 <RUN_ID>`）とその配下データを削除する。
+// （`UC02花子<RUN_ID>`）とその配下データを削除する。
 //
 // この spec は「顧客登録 → アポ登録 → マエカク」を UI 操作で通すため、実データを
 // 作って永続化する。cleanup が無いと実行のたびに顧客が 1 件ずつ増え、顧客一覧・
@@ -36,15 +36,14 @@ async function main(): Promise<void> {
     return;
   }
   // uc02-precall.spec.ts の CUSTOMER_NAME と同じ組み立て方をする。
-  const customerName = `UC-02 花子 ${runId}`;
+  const customerName = `UC02花子${runId}`;
 
   const customers = await rawPrisma.customer.findMany({
     where: { name: customerName },
     select: { id: true, name: true },
   });
   if (customers.length === 0) {
-    // eslint-disable-next-line no-console
-    console.log(`[cleanup-uc02-customer] "${customerName}" は存在しない — 何もしない`);
+    console.info(`[cleanup-uc02-customer] "${customerName}" は存在しない — 何もしない`);
     await rawPrisma.$disconnect();
     return;
   }
@@ -95,8 +94,7 @@ async function main(): Promise<void> {
 
   const removed = await rawPrisma.customer.deleteMany({ where: { id: { in: customerIds } } });
 
-  // eslint-disable-next-line no-console
-  console.log(`[cleanup-uc02-customer] removed customers=${removed.count} name="${customerName}"`);
+  console.info(`[cleanup-uc02-customer] removed customers=${removed.count} name="${customerName}"`);
 
   await rawPrisma.$disconnect();
 }

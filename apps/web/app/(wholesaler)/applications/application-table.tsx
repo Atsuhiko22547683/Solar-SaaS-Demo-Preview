@@ -21,6 +21,9 @@ import { toast } from "sonner";
 
 import { toDateInputValue } from "@/components/list/inline-date-input";
 import {
+  COL_LG,
+  COL_MD,
+  COL_XL,
   LIST_ROW,
   LIST_TD,
   LIST_TD_NUM,
@@ -29,6 +32,7 @@ import {
 } from "@/components/list/list-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { formatDate as fmtDate } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
 import { saveProjectApplicationAction } from "../customers/actions";
@@ -38,11 +42,7 @@ import type { ApplicationListItem } from "./data";
 
 function formatDate(iso: string | null): string | null {
   if (!iso) return null;
-  return new Date(iso).toLocaleDateString("ja-JP", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
+  return fmtDate(iso);
 }
 
 /** 顧客詳細の設置申請タブ。 */
@@ -114,7 +114,7 @@ function ApplicationDetail({ row }: { row: ApplicationListItem }) {
   return (
     <div className="space-y-4">
       <div className="min-w-0 space-y-2">
-        <h4 className="border-hairline-light text-mute-light border-b pb-1 text-xs font-semibold uppercase tracking-wider">
+        <h4 className="border-hairline-light text-mute-light border-b pb-1 text-xs font-semibold">
           {t.editSection.title}
         </h4>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 lg:max-w-2xl">
@@ -166,20 +166,58 @@ export function ApplicationTable({ applications }: ApplicationTableProps) {
   // 展開状態は画面上の一時的な UI 状態（保存しない / リロードで閉じる）。
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  // 一覧の主目的は「未提出 / 審査中 / 完了のどこで滞留しているか」。
+  // 顧客・申請状態・提出日を常時、種別と担当・添付は幅に余裕があるときに出す。
+  const COL = {
+    type: COL_MD,
+    approvedDate: COL_LG,
+    assignee: COL_XL,
+    files: COL_XL,
+  } as const;
+
+  // 列幅は固定（table-fixed）。申請種別や氏名の長さで列位置が動かないようにする。
+  const W = {
+    plannedDate: "w-[22%] lg:w-[11%]",
+    customer: "w-[38%] lg:w-[20%]",
+    assignee: "xl:w-[10%]",
+    type: "md:w-[14%]",
+    status: "w-[18%] lg:w-[12%]",
+    submittedDate: "w-[16%] lg:w-[11%]",
+    approvedDate: "lg:w-[11%]",
+    files: "xl:w-[8%]",
+    chevron: "w-[6%] lg:w-[4%]",
+  } as const;
+
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+      <table className="w-full table-fixed text-sm">
         <thead>
           <tr className="border-hairline-light bg-surface-soft/50 border-b">
-            <th className={LIST_TH}>{t.columns.plannedDate}</th>
-            <th className={LIST_TH}>{t.columns.customerName}</th>
-            <th className={LIST_TH}>{t.columns.assignee}</th>
-            <th className={LIST_TH}>{t.columns.type}</th>
-            <th className={LIST_TH}>{t.columns.status}</th>
-            <th className={LIST_TH}>{t.columns.submittedDate}</th>
-            <th className={LIST_TH}>{t.columns.approvedDate}</th>
-            <th className={LIST_TH}>{t.columns.files}</th>
-            <th className="w-10 px-3 py-3" aria-hidden />
+            <th scope="col" className={`${LIST_TH} ${W.plannedDate}`}>
+              {t.columns.plannedDate}
+            </th>
+            <th scope="col" className={`${LIST_TH} ${W.customer}`}>
+              {t.columns.customerName}
+            </th>
+            <th scope="col" className={`${LIST_TH} ${COL.assignee} ${W.assignee}`}>
+              {t.columns.assignee}
+            </th>
+            <th scope="col" className={`${LIST_TH} ${COL.type} ${W.type}`}>
+              {t.columns.type}
+            </th>
+            <th scope="col" className={`${LIST_TH} ${W.status}`}>
+              {t.columns.status}
+            </th>
+            <th scope="col" className={`${LIST_TH} ${W.submittedDate}`}>
+              {t.columns.submittedDate}
+            </th>
+            <th scope="col" className={`${LIST_TH} ${COL.approvedDate} ${W.approvedDate}`}>
+              {t.columns.approvedDate}
+            </th>
+            <th scope="col" className={`${LIST_TH} ${COL.files} ${W.files}`}>
+              {t.columns.files}
+            </th>
+            <th className={W.chevron} aria-hidden />
           </tr>
         </thead>
         <tbody className="divide-hairline-light divide-y">
@@ -191,7 +229,7 @@ export function ApplicationTable({ applications }: ApplicationTableProps) {
             return [
               <tr
                 key={row.id}
-                className={`group ${LIST_ROW} ${isExpanded ? "bg-mist-light" : ""}`}
+                className={`group ${LIST_ROW} ${isExpanded ? "bg-page" : ""}`}
                 onClick={toggle}
               >
                 {/* 日付は read-only。編集は展開バナー側（列幅を使いすぎないため）。 */}
@@ -206,36 +244,38 @@ export function ApplicationTable({ applications }: ApplicationTableProps) {
                     {row.customerName} {c.honorific}
                   </Link>
                 </td>
-                <td className={LIST_TD}>{row.assigneeName ?? c.none}</td>
-                <td className={LIST_TD}>
+                <td className={`${LIST_TD} ${COL.assignee}`}>{row.assigneeName ?? c.none}</td>
+                <td className={`${LIST_TD} ${COL.type}`}>
                   {row.type || t.noType}
                   {row.agency ? (
                     <span className="text-mute-light ml-2 text-xs">{row.agency}</span>
                   ) : null}
                 </td>
-                <td className="whitespace-nowrap px-6 py-3">
+                {/* 申請状態が行の主 status。バッジはここ 1 つだけに絞る。 */}
+                <td className={LIST_TD}>
                   <Badge variant={subsidyVariant(row.status)}>
                     {c.subsidyStatusLabels[row.status]}
                   </Badge>
                 </td>
+                {/* 未提出は滞留の起点なので、他の未設定より強く出す。 */}
                 <td className={LIST_TD_NUM}>
                   {formatDate(row.submittedDate) ?? (
-                    <span className="text-mute-light text-xs">{t.notSubmitted}</span>
+                    <span className="text-danger font-medium">{t.notSubmitted}</span>
                   )}
                 </td>
-                <td className={LIST_TD_NUM}>
+                <td className={`${LIST_TD_NUM} ${COL.approvedDate}`}>
                   {formatDate(row.approvedDate) ?? (
-                    <span className="text-mute-light text-xs">{t.notApproved}</span>
+                    <span className="text-mute-light">{t.notApproved}</span>
                   )}
                 </td>
-                <td className={LIST_TD_NUM}>
+                <td className={`${LIST_TD_NUM} ${COL.files}`}>
                   {row.fileCount > 0 ? (
                     t.fileCount.replace("{n}", String(row.fileCount))
                   ) : (
-                    <span className="text-mute-light text-xs">{t.noFiles}</span>
+                    <span className="text-mute-light">{t.noFiles}</span>
                   )}
                 </td>
-                <td className="px-3 py-3 text-right">
+                <td className={`${LIST_TD} text-right`}>
                   <button
                     type="button"
                     aria-expanded={isExpanded}

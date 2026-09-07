@@ -42,7 +42,7 @@ export default function SignupCodePage() {
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">{t.codeTitle}</h1>
+        <h1 className="text-ink text-xl font-bold">{t.codeTitle}</h1>
         <p className="text-muted-foreground text-sm">{t.codeSubtitle}</p>
       </div>
 
@@ -57,7 +57,7 @@ export default function SignupCodePage() {
             value={inviteCode}
             onChange={(e) => setInviteCode(e.target.value)}
             disabled={pending}
-            className="font-mono tracking-widest uppercase"
+            className="font-mono uppercase tracking-widest"
           />
           <p className="text-muted-foreground text-xs">{t.codeHint}</p>
         </div>

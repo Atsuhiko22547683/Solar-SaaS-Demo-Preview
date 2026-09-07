@@ -5,38 +5,49 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { Input } from "@/components/ui/input";
+import { formatDateTime } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
 import { updateRelationshipAction } from "./actions";
 
 import type { DealerScopeValue, RelationshipListItem, RelationshipStatusValue } from "./data";
+import type { ReactNode } from "react";
 
-// Inline row for the 二次店一覧 table. Status / Scope are <select>s that
+// Inline row for the 取引先一覧 table. Status / Scope are <select>s that
 // auto-save on change; the note is a debounced text input that saves on blur.
 
-const STATUS_PILL_CLASS: Record<RelationshipStatusValue, string> = {
+/** 画面のプルダウンから選べるステータス（TERMINATED は削除操作のみ）。 */
+type EditableStatus = Exclude<RelationshipStatusValue, "TERMINATED">;
+
+const STATUS_PILL_CLASS: Record<EditableStatus, string> = {
   ACTIVE: "bg-emerald-50 text-emerald-700 ring-emerald-200",
   SUSPENDED: "bg-zinc-100 text-zinc-500 ring-zinc-200",
 };
 
 interface RelationshipRowProps {
   row: RelationshipListItem;
+  /** 行末の操作（削除など）。行の編集責務とは分けて差し込む。 */
+  action?: ReactNode;
 }
 
-export function RelationshipRow({ row }: RelationshipRowProps) {
+export function RelationshipRow({ row, action }: RelationshipRowProps) {
   const router = useRouter();
   const t = labels.dealerRelationships;
   const c = labels.common;
 
   const [franchiseNo, setFranchiseNo] = useState<string>(row.franchiseNo ?? "");
-  const [status, setStatus] = useState<RelationshipStatusValue>(row.status);
+  // 画面のプルダウンから選べるのは「有効 / 停止」だけ。TERMINATED（取引終了）は
+  // 削除操作だけが設定する状態なので、選択肢には出さない。
+  const [status, setStatus] = useState<EditableStatus>(
+    row.status === "TERMINATED" ? "SUSPENDED" : row.status,
+  );
   const [scope, setScope] = useState<DealerScopeValue>(row.defaultScope);
   const [note, setNote] = useState<string>(row.note ?? "");
   const [, startTransition] = useTransition();
 
   function save(patch: {
     franchiseNo?: string | null;
-    status?: RelationshipStatusValue;
+    status?: EditableStatus;
     defaultScope?: DealerScopeValue;
     note?: string | null;
   }) {
@@ -74,7 +85,7 @@ export function RelationshipRow({ row }: RelationshipRowProps) {
           aria-label={t.fields.status}
           value={status}
           onChange={(e) => {
-            const next = e.target.value as RelationshipStatusValue;
+            const next = e.target.value as EditableStatus;
             setStatus(next);
             save({ status: next });
           }}
@@ -114,9 +125,8 @@ export function RelationshipRow({ row }: RelationshipRowProps) {
           placeholder="—"
         />
       </td>
-      <td className="text-pewter px-3 py-2 text-xs">
-        {new Date(row.updatedAt).toLocaleString("ja-JP")}
-      </td>
+      <td className="text-mute-light px-3 py-2 text-xs">{formatDateTime(row.updatedAt)}</td>
+      <td className="px-3 py-2 text-right">{action}</td>
     </tr>
   );
 }

@@ -10,6 +10,10 @@ import { useRouter } from "next/navigation";
 
 import { InlineSelectInput } from "@/components/list/inline-select-input";
 import {
+  COL_LG,
+  COL_MD,
+  COL_SM,
+  COL_XL,
   LIST_ROW,
   LIST_TD,
   LIST_TD_NUM,
@@ -17,6 +21,7 @@ import {
   LIST_TH,
 } from "@/components/list/list-shell";
 import { Badge } from "@/components/ui/badge";
+import { formatDate as fmtDate } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
 import { contractStatusVariant } from "./constants";
@@ -25,11 +30,7 @@ import { saveProjectContractAction } from "../customers/actions";
 import type { ContractListItem } from "./data";
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("ja-JP", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
+  return fmtDate(iso);
 }
 
 /** 契約金額（Decimal 文字列）→ "¥3,500,000"。小数は切り捨てず整数部のみ表示する。 */
@@ -62,18 +63,50 @@ export function ContractTable({ contracts }: ContractTableProps) {
     router.push(`/customers/${customerId}?tab=contract`);
   }
 
+  // 契約一覧は「誰の契約か」と「いま何の段階か」が主。
+  // 金額・入金はスクロールせずとも中型画面から見える位置に置く。
+  const COL = {
+    date: COL_SM,
+    amount: COL_MD,
+    payment: COL_LG,
+    assignee: COL_XL,
+  } as const;
+
+  // 列幅は固定（table-fixed）。絞り込み結果や金額の桁数で列位置が動かないようにする。
+  const W = {
+    date: "sm:w-[12%]",
+    customer: "w-[52%] lg:w-[24%]",
+    assignee: "xl:w-[13%]",
+    status: "w-[24%] lg:w-[14%]",
+    amount: "md:w-[15%]",
+    payment: "lg:w-[18%]",
+    chevron: "w-[10%] lg:w-[4%]",
+  } as const;
+
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+      <table className="w-full table-fixed text-sm">
         <thead>
           <tr className="border-hairline-light bg-surface-soft/50 border-b">
-            <th className={LIST_TH}>{t.columns.contractDate}</th>
-            <th className={LIST_TH}>{t.columns.customerName}</th>
-            <th className={LIST_TH}>{t.columns.assignee}</th>
-            <th className={LIST_TH}>{t.columns.status}</th>
-            <th className={LIST_TH}>{t.columns.contractAmount}</th>
-            <th className={LIST_TH}>{t.columns.paymentStatus}</th>
-            <th className="w-10 px-3 py-3" aria-hidden />
+            <th scope="col" className={`${LIST_TH} ${COL.date} ${W.date}`}>
+              {t.columns.contractDate}
+            </th>
+            <th scope="col" className={`${LIST_TH} ${W.customer}`}>
+              {t.columns.customerName}
+            </th>
+            <th scope="col" className={`${LIST_TH} ${COL.assignee} ${W.assignee}`}>
+              {t.columns.assignee}
+            </th>
+            <th scope="col" className={`${LIST_TH} ${W.status}`}>
+              {t.columns.status}
+            </th>
+            <th scope="col" className={`${LIST_TH} ${COL.amount} ${W.amount} text-right`}>
+              {t.columns.contractAmount}
+            </th>
+            <th scope="col" className={`${LIST_TH} ${COL.payment} ${W.payment}`}>
+              {t.columns.paymentStatus}
+            </th>
+            <th className={W.chevron} aria-hidden />
           </tr>
         </thead>
         <tbody className="divide-hairline-light divide-y">
@@ -92,21 +125,23 @@ export function ContractTable({ contracts }: ContractTableProps) {
                 }
               }}
             >
-              <td className={LIST_TD_NUM}>{formatDate(row.contractDate)}</td>
+              <td className={`${LIST_TD_NUM} ${COL.date}`}>{formatDate(row.contractDate)}</td>
               <td className={LIST_TD_STRONG}>
                 {row.customerName} {c.honorific}
               </td>
-              <td className={LIST_TD}>{row.assigneeName ?? c.none}</td>
-              <td className="whitespace-nowrap px-6 py-3">
+              <td className={`${LIST_TD} ${COL.assignee}`}>{row.assigneeName ?? c.none}</td>
+              {/* 契約状況は行の主 status。バッジはここ 1 つだけに絞る。 */}
+              <td className={LIST_TD}>
                 <Badge variant={contractStatusVariant(row.status)}>
                   {labels.contract.statuses[row.status]}
                 </Badge>
               </td>
-              <td className="text-ink whitespace-nowrap px-6 py-3 text-right tabular-nums">
+              <td className={`${LIST_TD_NUM} text-ink text-right ${COL.amount}`}>
                 {formatAmount(row.contractAmount)}
               </td>
-              {/* 入金状況 — 一覧から直接変更（保存先は ContractPayment.paymentStatus）。 */}
-              <td className="whitespace-nowrap px-6 py-3">
+              {/* 入金状況 — 一覧から直接変更（保存先は ContractPayment.paymentStatus）。
+                  決済の詳細確認は決済管理（/payments）が担当で、ここは契約業務の進行管理。 */}
+              <td className={`${LIST_TD} ${COL.payment}`}>
                 <InlineSelectInput
                   value={row.paymentStatus ?? ""}
                   options={PAYMENT_STATUS_OPTIONS}
@@ -121,7 +156,7 @@ export function ContractTable({ contracts }: ContractTableProps) {
                   }
                 />
               </td>
-              <td className="px-3 py-3 text-right">
+              <td className={`${LIST_TD} text-right`}>
                 <ChevronRight className="text-mute-light inline size-4" />
               </td>
             </tr>

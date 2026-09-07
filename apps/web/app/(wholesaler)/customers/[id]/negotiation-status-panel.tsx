@@ -12,8 +12,8 @@ import { Label } from "@/components/ui/label";
 import { labels } from "@/lib/i18n/labels";
 
 import { updateCustomerAction } from "../actions";
-
 import { CONTRACT_STATUS_VALUES } from "../constants";
+
 import type { ContractStatusValue } from "../constants";
 
 interface NegotiationStatusPanelProps {
@@ -115,45 +115,45 @@ export function NegotiationStatusPanel({
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <div className="space-y-1.5">
             <Label htmlFor="neg-maekaku">{d.negotiation.maekaku}</Label>
-          <select
-            id="neg-maekaku"
-            value={maekaku}
-            onChange={(e) => setMaekaku(e.target.value)}
-            className={selectClass}
-          >
-            <option value={MAEKAKU_UNSET}>{d.unassigned}</option>
-            <option value="pending">{d.negotiation.maekakuLabels.pending}</option>
-            <option value="done">{d.negotiation.maekakuLabels.done}</option>
-            <option value="unnecessary">{d.negotiation.maekakuLabels.unnecessary}</option>
-          </select>
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="neg-maekaku-preferred">{d.negotiation.maekakuPreferredAt}</Label>
-          <input
-            id="neg-maekaku-preferred"
-            type="datetime-local"
-            value={maekakuPreferredAt}
-            onChange={(e) => setMaekakuPreferredAt(e.target.value)}
-            className={selectClass}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="neg-status">{d.negotiation.dealStatus}</Label>
-          <select
-            id="neg-status"
-            value={contractStatus}
-            onChange={(e) => setContractStatus(e.target.value as ContractStatusValue)}
-            className={selectClass}
-          >
-            {CONTRACT_STATUS_VALUES.map((s) => (
-              <option key={s} value={s}>
-                {t.contractStatusLabels[s]}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="neg-next-appointment">{d.negotiation.nextAppointment}</Label>
+            <select
+              id="neg-maekaku"
+              value={maekaku}
+              onChange={(e) => setMaekaku(e.target.value)}
+              className={selectClass}
+            >
+              <option value={MAEKAKU_UNSET}>{d.unassigned}</option>
+              <option value="pending">{d.negotiation.maekakuLabels.pending}</option>
+              <option value="done">{d.negotiation.maekakuLabels.done}</option>
+              <option value="unnecessary">{d.negotiation.maekakuLabels.unnecessary}</option>
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="neg-maekaku-preferred">{d.negotiation.maekakuPreferredAt}</Label>
+            <input
+              id="neg-maekaku-preferred"
+              type="datetime-local"
+              value={maekakuPreferredAt}
+              onChange={(e) => setMaekakuPreferredAt(e.target.value)}
+              className={selectClass}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="neg-status">{d.negotiation.dealStatus}</Label>
+            <select
+              id="neg-status"
+              value={contractStatus}
+              onChange={(e) => setContractStatus(e.target.value as ContractStatusValue)}
+              className={selectClass}
+            >
+              {CONTRACT_STATUS_VALUES.map((s) => (
+                <option key={s} value={s}>
+                  {t.contractStatusLabels[s]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="neg-next-appointment">{d.negotiation.nextAppointment}</Label>
             <input
               id="neg-next-appointment"
               type="date"
@@ -191,7 +191,7 @@ export function NegotiationStatusPanel({
             value={nextAction}
             onChange={(e) => setNextAction(e.target.value)}
             placeholder={d.negotiation.nextActionPlaceholder}
-            className="w-full resize-none rounded-md border border-hairline-light bg-white px-3 py-2 text-sm text-ink placeholder:text-mute-light focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="border-hairline-light text-ink placeholder:text-mute-light focus:border-primary focus:ring-primary/20 w-full resize-none rounded-md border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2"
           />
         </div>
       </div>

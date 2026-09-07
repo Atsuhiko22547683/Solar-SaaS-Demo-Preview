@@ -46,8 +46,11 @@ export function LanePreferenceFilter({
   return (
     <div className="flex flex-wrap items-end gap-3">
       <div className="space-y-1">
-        <label className="text-xs text-mute-light font-medium">{t.filter.month}</label>
+        <label htmlFor="lane-pref-filter-month" className="text-mute-light text-xs font-medium">
+          {t.filter.month}
+        </label>
         <Input
+          id="lane-pref-filter-month"
           type="month"
           value={currentMonth}
           onChange={(e) => updateParam("month", e.target.value)}
@@ -56,8 +59,11 @@ export function LanePreferenceFilter({
       </div>
 
       <div className="space-y-1">
-        <label className="text-xs text-mute-light font-medium">{t.filter.dealer}</label>
+        <label htmlFor="lane-pref-filter-dealer" className="text-mute-light text-xs font-medium">
+          {t.filter.dealer}
+        </label>
         <select
+          id="lane-pref-filter-dealer"
           value={currentRelationshipId}
           onChange={(e) => updateParam("relationshipId", e.target.value)}
           className={SELECT_CLASS}

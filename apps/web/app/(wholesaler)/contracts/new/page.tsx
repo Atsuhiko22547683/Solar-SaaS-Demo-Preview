@@ -6,16 +6,16 @@
 // 登録後は /contracts/<newId> へ遷移する。
 // cancelDeadline と incentiveRateSnapshot はサーバー側で自動計算される。
 
-import { redirect } from "next/navigation";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
+import { Button } from "@/components/ui/button";
 import { UnauthorizedError } from "@/lib/errors";
+import { labels } from "@/lib/i18n/labels";
 import { assertCan } from "@/lib/permissions/can";
 import { getTenantContext } from "@/lib/tenancy/context";
 import { withTenant } from "@/lib/tenancy/with-tenant";
-import { Button } from "@/components/ui/button";
-import { labels } from "@/lib/i18n/labels";
 
 import { createContractAction } from "../actions";
 
@@ -98,20 +98,20 @@ export default async function NewContractPage({ searchParams }: PageProps) {
             <Link href={`/deals/${dealId}`}>{c.back}</Link>
           </Button>
         )}
-        <h1 className="text-2xl font-semibold tracking-tight">{t.new}</h1>
+        <h1 className="text-ink text-xl font-bold">{t.new}</h1>
       </div>
 
       {!dealId ? (
         <p className="text-destructive text-sm">商談 ID を指定してください (?dealId=...)</p>
       ) : (
-        <form action={handleCreate} className="space-y-4 max-w-lg">
+        <form action={handleCreate} className="max-w-lg space-y-4">
           <input type="hidden" name="dealId" value={dealId} />
 
           {/* Deal info */}
-          <div className="border-border rounded-md border p-4 space-y-1">
-            <p className="text-sm text-muted-foreground">{t.fields.deal}</p>
+          <div className="border-border space-y-1 rounded-md border p-4">
+            <p className="text-muted-foreground text-sm">{t.fields.deal}</p>
             <p className="font-medium">{dealCustomerName}</p>
-            <p className="text-xs text-muted-foreground">ステータス: {dealStatus}</p>
+            <p className="text-muted-foreground text-xs">ステータス: {dealStatus}</p>
           </div>
 
           {/* Contract date */}
@@ -125,7 +125,7 @@ export default async function NewContractPage({ searchParams }: PageProps) {
               type="date"
               defaultValue={todayIso}
               required
-              className="block rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="border-input bg-background ring-offset-background focus-visible:ring-ring block rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
             />
           </div>
 
@@ -142,7 +142,7 @@ export default async function NewContractPage({ searchParams }: PageProps) {
               step={1}
               defaultValue={0}
               required
-              className="block w-48 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="border-input bg-background ring-offset-background focus-visible:ring-ring block w-48 rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
             />
           </div>
 

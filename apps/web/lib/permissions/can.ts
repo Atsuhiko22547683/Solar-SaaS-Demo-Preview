@@ -68,6 +68,67 @@ interface ActionPolicy {
   // caller must match it. Defaults to true — the few global actions that
   // genuinely don't scope (e.g. self-profile read) opt out explicitly.
   requireTenantScope?: boolean;
+  // 機能カテゴリ。システムロール（OWNER / SYSTEM_ADMIN / GENERAL_USER）は
+  // 単純な上下関係ではないので、ロール一覧ではなくこのカテゴリで振り分ける。
+  // 未指定なら「通常機能」= 3 ロールとも利用可。
+  capability?: Capability;
+}
+
+/**
+ * システムユーザーのロール（正式仕様の 3 種類）。
+ *
+ * 業務スタッフ（Salesperson）とは無関係。ここで扱うのは
+ * 「本アプリにログインできる User が何を触れるか」だけ。
+ */
+export const SYSTEM_ROLES = ["OWNER", "SYSTEM_ADMIN", "GENERAL_USER"] as const;
+export type SystemRole = (typeof SYSTEM_ROLES)[number];
+
+/** 設定 / 決済管理という、システムロールで可否が分かれる機能カテゴリ。 */
+export type Capability = "settings" | "payment";
+
+/**
+ * 権限マトリクス。包含関係ではないので、カテゴリごとに許可ロールを列挙する。
+ *
+ *                   通常機能   設定   決済管理
+ *   オーナー            ○       ○       ○
+ *   システム管理者       ○       ○       ×
+ *   一般ユーザー         ○       ×       ○
+ */
+const CAPABILITY_ROLES: Record<Capability, SystemRole[]> = {
+  settings: ["OWNER", "SYSTEM_ADMIN"],
+  payment: ["OWNER", "GENERAL_USER"],
+};
+
+export function isSystemRole(role: string): role is SystemRole {
+  return (SYSTEM_ROLES as readonly string[]).includes(role);
+}
+
+/** 指定ロールの集合がそのカテゴリを使えるか（サイドバー表示の判定にも使う）。 */
+export function hasCapability(roles: readonly string[], capability: Capability): boolean {
+  const systemRoles = roles.filter(isSystemRole);
+  // 旧ロールしか持たない既存ユーザーは、これまでどおりの挙動（カテゴリ制限なし）。
+  if (systemRoles.length === 0) return true;
+  return systemRoles.some((r) => CAPABILITY_ROLES[capability].includes(r));
+}
+
+/**
+ * システムロールを旧ロール語彙へ展開する。
+ *
+ * POLICY の 100 件超のエントリは旧ロール名で書かれているため、
+ * 全件を書き換える代わりにここで読み替える。「何を触れないか」は
+ * capability 側で表現するので、展開先は 3 ロールとも同じでよい。
+ */
+const SYSTEM_ROLE_EXPANSION: AppRole[] = [
+  "WHOLESALER_ADMIN",
+  "WHOLESALER_EVENT_TEAM",
+  "WHOLESALER_CALL_TEAM",
+  "WHOLESALER_DIRECT_SALES",
+  "WHOLESALER_FIELD_STAFF",
+];
+
+function expandRoles(roles: AppRole[]): AppRole[] {
+  if (!roles.some((r) => isSystemRole(r))) return roles;
+  return [...roles, ...SYSTEM_ROLE_EXPANSION];
 }
 
 const ALL_WHOLESALER_ROLES: AppRole[] = [
@@ -212,19 +273,28 @@ const POLICY: Record<PermissionAction, ActionPolicy> = {
   // --- Audit log (F-055) ---
   "audit_log.read": {
     roles: ["WHOLESALER_ADMIN"],
+    capability: "settings",
   },
 
   // --- User / role management (F-006〜F-008) ---
   "user.invite_wholesaler_member": {
     roles: ["WHOLESALER_ADMIN"],
+    capability: "settings",
   },
   "user.invite_dealer_member": {
     roles: ["DEALER_ADMIN"],
+  },
+  // 自テナントのシステムユーザーの更新（氏名・ロール・状態）と論理削除。
+  // 削除は物理 DELETE ではなく User.status = DELETED への遷移。
+  "user.update": {
+    roles: ["WHOLESALER_ADMIN"],
+    capability: "settings",
   },
   // `member.read` — ユーザー一覧閲覧。卸業者は WHOLESALER_ADMIN のみ、二次店は DEALER_ADMIN のみ。
   // requireTenantScope=true — wholesalerId / dealerId でテナント分離を確認。
   "member.read": {
     roles: ["WHOLESALER_ADMIN", "DEALER_ADMIN"],
+    capability: "settings",
   },
 
   // --- Relationship management (F-009 / F-010) ---
@@ -234,9 +304,32 @@ const POLICY: Record<PermissionAction, ActionPolicy> = {
   },
   "relationship.update": {
     roles: ["WHOLESALER_ADMIN"],
+    capability: "settings",
   },
   "relationship.generate_invite_code": {
     roles: ["WHOLESALER_ADMIN"],
+    capability: "settings",
+  },
+
+  // --- 設定セクション全体のアクセス可否 ---
+  //
+  // 設定配下の画面（スタッフ一覧 / 取引先管理 / システムユーザー /
+  // エリア・場所管理 / 監査ログ）は、まずこれで入口を塞ぐ。
+  // 個々のドメイン action（salesperson.read 等）は通常機能からも呼ばれるため
+  // capability を付けず、画面側の入口だけで判定する。
+  "settings.read": {
+    roles: ALL_WHOLESALER_ROLES,
+    capability: "settings",
+    requireTenantScope: false,
+  },
+
+  // --- 決済管理（/payments） ---
+  //
+  // 契約済み顧客の決済状況の確認。Stripe API はまだ接続しないので read のみ。
+  "payment.read": {
+    roles: ALL_WHOLESALER_ROLES,
+    capability: "payment",
+    requireTenantScope: false,
   },
 
   // --- Self-profile (read-only, no scope key required) ---
@@ -350,6 +443,18 @@ const POLICY: Record<PermissionAction, ActionPolicy> = {
     roles: ["WHOLESALER_ADMIN"],
   },
   "installer.update": {
+    roles: ["WHOLESALER_ADMIN"],
+  },
+
+  // --- 販売員マスタ（イベント管理配下）— installer と同じ運用ポリシー。
+  // 参照は催事運用で広く使うため卸業者側ロール全体へ、更新は管理者のみ。
+  "salesperson.read": {
+    roles: ALL_WHOLESALER_ROLES,
+  },
+  "salesperson.create": {
+    roles: ["WHOLESALER_ADMIN"],
+  },
+  "salesperson.update": {
     roles: ["WHOLESALER_ADMIN"],
   },
 
@@ -477,6 +582,15 @@ const POLICY: Record<PermissionAction, ActionPolicy> = {
   // dealer ロールは当然ながら 403。
   "masters.read": {
     roles: ["WHOLESALER_ADMIN"],
+  },
+  // 二次店管理（/masters/relationships）のインライン編集 —
+  // status / defaultScope / franchiseNo / note の更新に使う。
+  // 参照と同じく `wholesaler_admin` のみ。定義が漏れていると assertCan が
+  // fail-closed で 403（未定義のアクションです）になり、画面は開けるのに
+  // 保存だけが必ず失敗する状態になる。
+  "masters.update": {
+    roles: ["WHOLESALER_ADMIN"],
+    capability: "settings",
   },
 
   // --- Wholesaler dashboard (S-018 / T-02-11) ---
@@ -809,8 +923,19 @@ export function assertCan(input: AssertCanInput): void {
     throw new ForbiddenError("未定義のアクションです", { action });
   }
 
+  // システムロールは、カテゴリ判定 → 旧ロール語彙への展開、の順で見る。
+  if (policy.capability && !hasCapability(user.roles, policy.capability)) {
+    throw new ForbiddenError("この操作を実行する権限がありません", {
+      action,
+      actorRoles: user.roles,
+      capability: policy.capability,
+    });
+  }
+
+  const effectiveRoles = expandRoles(user.roles);
+
   if (policy.roles !== "*") {
-    const hasRole = user.roles.some((r) => (policy.roles as AppRole[]).includes(r));
+    const hasRole = effectiveRoles.some((r) => (policy.roles as AppRole[]).includes(r));
     if (!hasRole) {
       throw new ForbiddenError("この操作を実行する権限がありません", {
         action,

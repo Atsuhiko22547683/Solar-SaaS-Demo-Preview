@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+
 import { signIn } from "../fixtures/auth";
 
 // E2E spec for SP-02 T-02-12 — dealer_admin (= alpha-admin) のマスタ系
@@ -18,7 +19,7 @@ import { signIn } from "../fixtures/auth";
 //
 // 出典: apps/web/lib/permissions/can.ts の policy、docs/02 §F-012 §F-014、
 // docs/03 §4.3、docs/05 §6.5 関連、CLAUDE.md「単一テナント運営者向け SaaS
-// だが二次店ロールの権限境界は機能要件として明示」。
+// だが取引先ロールの権限境界は機能要件として明示」。
 //
 // 個別 spec (`venue-providers.spec.ts`) でも venue 単独の 403 は検証されているが、
 // 本 spec は SP-02 全体のリグレッション保護として、（A）4 URL の閉鎖 +
@@ -32,13 +33,13 @@ test.describe.configure({ timeout: 90_000 });
 // 各 URL の通常時の見出しを一緒に持つことで、spec 失敗時にどの URL の
 // アクセス制御が緩んだかを直接特定できる。
 const FORBIDDEN_URLS: ReadonlyArray<{ path: string; normalHeading: string }> = [
-  { path: "/masters", normalHeading: "マスタ管理" },
+  { path: "/masters", normalHeading: "エリア・場所管理" },
   { path: "/masters/venue-providers", normalHeading: "場所提供元マスタ" },
   { path: "/masters/installers", normalHeading: "施工業者マスタ" },
   { path: "/masters/wholesaler-settings", normalHeading: "卸業者設定" },
 ];
 
-// 二次店ロールは閲覧自体は許可されている URL。少なくとも 4xx/5xx で
+// 取引先ロールは閲覧自体は許可されている URL。少なくとも 4xx/5xx で
 // 拒否されず一覧が描画されることを確認する（書き込み導線そのものは page
 // レベルでは無条件描画され、submit 時の Server Action 側で 403 になる
 // 設計なので、ここでは到達可能性のみ検証する — T-02-04/T-02-06 の Vitest が

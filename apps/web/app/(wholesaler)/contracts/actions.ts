@@ -17,8 +17,6 @@
 // surfaces this as an InvalidStateTransitionError so the UI can show a
 // meaningful message.
 
-import { revalidatePath } from "next/cache";
-
 import {
   ContractCreateSchema,
   computeCancelDeadline,
@@ -26,21 +24,25 @@ import {
   snapshotIncentiveRate,
   WHOLESALER_SETTINGS_DEFAULTS,
   type ContractCreateInput,
+  type IncentiveTargetType as ContractIncentiveTargetType,
 } from "@solar/contracts";
+import { revalidatePath } from "next/cache";
 
+import { finalizeForContract } from "@/lib/domain/incentive";
 import { InvalidStateTransitionError, NotFoundError } from "@/lib/errors";
 import { notificationService } from "@/lib/notifications/notification-service";
-import { resolveDealerAdmins, resolveWholesalerAdmins } from "@/lib/notifications/recipient-helpers";
+import {
+  resolveDealerAdmins,
+  resolveWholesalerAdmins,
+} from "@/lib/notifications/recipient-helpers";
 import { withServerActionContext } from "@/lib/tenancy/server-action";
-import { finalizeForContract } from "@/lib/domain/incentive";
+
+import type { IncentiveTargetType as DbIncentiveTargetType } from "@solar/db";
 
 const CONTRACTS_PATH = "/contracts";
 const DEALS_PATH = "/deals";
 
-export const createContractAction = withServerActionContext<
-  ContractCreateInput,
-  { id: string }
->(
+export const createContractAction = withServerActionContext<ContractCreateInput, { id: string }>(
   { action: "contract.create" },
   async ({ tx, ctx, input }) => {
     const parsed = ContractCreateSchema.parse(input);
@@ -91,12 +93,15 @@ export const createContractAction = withServerActionContext<
       });
 
       try {
-        const snapshot = snapshotIncentiveRate(contractDate, rates.map((r) => ({
-          effectiveFrom: r.effectiveFrom,
-          effectiveTo: r.effectiveTo,
-          rate: r.rate.toString(),
-          targetType: r.targetType as import("@solar/contracts").IncentiveTargetType,
-        })));
+        const snapshot = snapshotIncentiveRate(
+          contractDate,
+          rates.map((r) => ({
+            effectiveFrom: r.effectiveFrom,
+            effectiveTo: r.effectiveTo,
+            rate: r.rate.toString(),
+            targetType: r.targetType as ContractIncentiveTargetType,
+          })),
+        );
         incentiveRateSnapshot = snapshot.rate;
         incentiveTargetTypeSnapshot = snapshot.targetType;
       } catch {
@@ -120,8 +125,7 @@ export const createContractAction = withServerActionContext<
         cancelDeadline,
         incentiveRateSnapshot: incentiveRateSnapshot ?? undefined,
         incentiveTargetTypeSnapshot:
-          (incentiveTargetTypeSnapshot as import("@solar/db").IncentiveTargetType | null) ??
-          undefined,
+          (incentiveTargetTypeSnapshot as DbIncentiveTargetType | null) ?? undefined,
         isSelfHosted: parsed.isSelfHosted,
         status: "CONTRACTED",
         createdBy: ctx.actorUserId,
@@ -150,8 +154,7 @@ export const createContractAction = withServerActionContext<
         profitRate: "0",
         incentiveTargetProfit: "0",
         incentiveTargetType:
-          (incentiveTargetTypeSnapshot as import("@solar/db").IncentiveTargetType | null) ??
-          "PROJECT_PROFIT",
+          (incentiveTargetTypeSnapshot as DbIncentiveTargetType | null) ?? "PROJECT_PROFIT",
       },
     });
 

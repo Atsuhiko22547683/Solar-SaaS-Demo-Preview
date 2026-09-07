@@ -22,25 +22,30 @@ import { z } from "zod";
 //
 // superRefine: validAppts + invalidAppts must not exceed totalAppts.
 
-const nonNegativeInt = z.number().int("整数で入力してください").min(0, "0 以上の値を入力してください");
+const nonNegativeInt = z
+  .number()
+  .int("整数で入力してください")
+  .min(0, "0 以上の値を入力してください");
 
-export const EventReportResultSchema = z.object({
-  eventId: z.string().min(1, "イベント ID が必要です"),
-  approachCount: nonNegativeInt,
-  surveyCount: nonNegativeInt,
-  totalAppts: nonNegativeInt,
-  validAppts: nonNegativeInt,
-  invalidAppts: nonNegativeInt,
-  comment: z.string().max(1000).optional(),
-}).superRefine((data, ctx) => {
-  if (data.validAppts + data.invalidAppts > data.totalAppts) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["validAppts"],
-      message: "有効アポ数 + 無効アポ数 はアポ取得数以下にしてください",
-    });
-  }
-});
+export const EventReportResultSchema = z
+  .object({
+    eventId: z.string().min(1, "イベント ID が必要です"),
+    approachCount: nonNegativeInt,
+    surveyCount: nonNegativeInt,
+    totalAppts: nonNegativeInt,
+    validAppts: nonNegativeInt,
+    invalidAppts: nonNegativeInt,
+    comment: z.string().max(1000).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.validAppts + data.invalidAppts > data.totalAppts) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["validAppts"],
+        message: "有効アポ数 + 無効アポ数 はアポ取得数以下にしてください",
+      });
+    }
+  });
 
 export type EventReportResultInput = z.infer<typeof EventReportResultSchema>;
 
@@ -61,3 +66,31 @@ export const EventReportEndSchema = z.object({
 });
 
 export type EventReportEndInput = z.infer<typeof EventReportEndSchema>;
+
+// ── EventReportMetric ────────────────────────────────────────────────────────
+//
+// 成果報告の「追加集計項目」。固定集計項目（アプローチ数 / 着座数 / アポ数 /
+// 所感）は EventReportResultSchema 側の固定列のままで、こちらは催事ごとに
+// その場で足したい数値だけを扱う（例: 「カインズPay対応数 12」）。
+//
+// 汎用カスタムフィールド機構ではない — 型は常に「名称 + 0 以上の整数」で、
+// 選択肢・日付・自由文などは扱わない。並び順は sortOrder で保持する。
+
+export const EventReportMetricCreateSchema = z.object({
+  reportId: z.string().min(1, "報告 ID が必要です"),
+  name: z.string().trim().min(1, "項目名を入力してください").max(60),
+  value: nonNegativeInt,
+});
+export type EventReportMetricCreateInput = z.infer<typeof EventReportMetricCreateSchema>;
+
+export const EventReportMetricUpdateSchema = z.object({
+  id: z.string().min(1, "項目 ID が必要です"),
+  name: z.string().trim().min(1, "項目名を入力してください").max(60),
+  value: nonNegativeInt,
+});
+export type EventReportMetricUpdateInput = z.infer<typeof EventReportMetricUpdateSchema>;
+
+export const EventReportMetricDeleteSchema = z.object({
+  id: z.string().min(1, "項目 ID が必要です"),
+});
+export type EventReportMetricDeleteInput = z.infer<typeof EventReportMetricDeleteSchema>;

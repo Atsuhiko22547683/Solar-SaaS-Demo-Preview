@@ -1,4 +1,5 @@
 import { Inter } from "next/font/google";
+
 import { Toaster } from "@/components/ui/sonner";
 
 import type { Metadata } from "next";
@@ -13,7 +14,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Solar SaaS",
+  title: "BizOrch",
   description: "太陽光卸・二次店営業管理 SaaS",
   manifest: "/site.webmanifest",
   icons: {
@@ -32,7 +33,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ja" suppressHydrationWarning className={inter.variable}>
-      <body className="bg-background text-foreground min-h-screen antialiased font-sans">
+      <body className="bg-background text-foreground min-h-screen font-sans antialiased">
         {children}
         <Toaster />
       </body>

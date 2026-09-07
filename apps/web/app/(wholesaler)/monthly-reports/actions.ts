@@ -10,8 +10,8 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { withServerActionContext } from "@/lib/tenancy/server-action";
 import { aggregateForMonth } from "@/lib/domain/monthly-report";
+import { withServerActionContext } from "@/lib/tenancy/server-action";
 
 const RunAggregateInputSchema = z.object({
   targetMonth: z.string().regex(/^\d{4}-\d{2}$/, "YYYY-MM 形式で入力してください"),
@@ -24,10 +24,7 @@ export interface RunAggregateResult {
   targetMonth: string;
 }
 
-export const runAggregateAction = withServerActionContext<
-  RunAggregateInput,
-  RunAggregateResult
->(
+export const runAggregateAction = withServerActionContext<RunAggregateInput, RunAggregateResult>(
   { action: "monthly_report.run_aggregate" },
   async ({ tx, ctx, input }) => {
     const parsed = RunAggregateInputSchema.parse(input);
