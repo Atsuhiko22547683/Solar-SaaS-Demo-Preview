@@ -11,6 +11,11 @@ import { maskName, maskPhone, maskAddress } from "@solar/contracts/services/mask
 
 import { auth } from "@/auth";
 import { UnauthorizedError } from "@/lib/errors";
+import {
+  CUSTOMER_VENUE_SELECT,
+  EVENT_VENUE_SELECT,
+  resolveVenueInfo,
+} from "@/lib/partner/venue-info";
 import { assertCan } from "@/lib/permissions/can";
 import { getTenantContext } from "@/lib/tenancy/context";
 import { withTenant } from "@/lib/tenancy/with-tenant";
@@ -22,6 +27,7 @@ import type {
   ConstructionStatusValue,
   SubsidyStatusValue,
 } from "../constants";
+import type { ResolvedVenueInfo } from "@/lib/partner/venue-info";
 import type { InflowRoute, SalesChannel } from "@solar/contracts";
 import type { ViewerContext } from "@solar/contracts/services/masking";
 import type { AcquisitionChannel } from "@solar/db";
@@ -101,6 +107,11 @@ export interface ChatMessage {
 }
 
 export interface CustomerDetail {
+  /**
+   * 二次店ポータルから登録された催事情報（読み取り専用表示用）。
+   * 代理店が直接登録した顧客では null。解決は lib/partner/venue-info.ts。
+   */
+  venueInfo: ResolvedVenueInfo | null;
   id: string;
   name: string; // masked
   kana: string | null;
@@ -243,6 +254,9 @@ export async function getCustomerDetail(id: string): Promise<CustomerDetail | nu
         buildYear: true,
         tossDept: true,
         belongDept: true,
+        // 二次店が登録した催事情報（イベント未選択時のフォールバック列）。
+        ...CUSTOMER_VENUE_SELECT,
+        sourceEvent: { select: { eventCandidate: { select: EVENT_VENUE_SELECT } } },
         electricContractStatus: true,
         electricAccountNo: true,
         supplyPointNo: true,
@@ -491,6 +505,8 @@ export async function getCustomerDetail(id: string): Promise<CustomerDetail | nu
     }));
 
     return {
+      // 二次店が登録した催事情報。イベント紐付けがあればそちらを正とする。
+      venueInfo: resolveVenueInfo(customer.sourceEvent?.eventCandidate ?? null, customer),
       id: customer.id,
       name: displayName,
       kana: customer.kana,

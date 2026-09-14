@@ -17,8 +17,15 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 
+import { homePathForVariant, isPathAllowedForVariant, resolveAppVariant } from "@/lib/app-variant";
+
 const REQUEST_ID_HEADER = "x-request-id";
 const REQUEST_ID_PATTERN = /^[a-zA-Z0-9-_]{8,128}$/;
+
+// 実行バリアント（代理店 / 二次店）。Railway では APP_VARIANT で切り替える。
+// Edge で判定できる純関数なので、ここで先に弾いて不要なレンダリングを避ける。
+// 認可そのものはこの先のサーバー側（レイアウト / Server Action）でも行う。
+const VARIANT = resolveAppVariant();
 
 const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password", "/reset-password", "/reset", "/invite", "/api/auth", "/api/health"];
 
@@ -46,6 +53,15 @@ export function middleware(req: NextRequest) {
       redirectRes.headers.set(REQUEST_ID_HEADER, requestId);
       return redirectRes;
     }
+  }
+
+  // バリアント外の画面は開かせない（二次店環境から代理店画面、その逆とも）。
+  // 画面を隠すだけでは URL 直打ちで到達できてしまうため、ここで経路ごと塞ぐ。
+  if (!isPathAllowedForVariant(VARIANT, pathname)) {
+    const homeUrl = new URL(homePathForVariant(VARIANT), req.url);
+    const redirectRes = NextResponse.redirect(homeUrl);
+    redirectRes.headers.set(REQUEST_ID_HEADER, requestId);
+    return redirectRes;
   }
 
   const res = NextResponse.next({ request: { headers: requestHeaders } });

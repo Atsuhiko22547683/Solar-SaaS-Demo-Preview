@@ -10,6 +10,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { auth } from "@/auth";
+import { CustomerVenueInfo } from "@/components/partner/customer-venue-info";
 import { Badge, type BadgeVariant } from "@/components/ui/badge";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
@@ -505,6 +506,12 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
                 <InfoRow label={d.fields.equipmentId} value={detail.equipmentId} />
               </dl>
             )}
+          </Card>
+
+          {/* 二次店ポータルから登録された催事情報（閲覧のみ）。
+              代理店側で編集はしない — 登録・修正は二次店ポータルが行う。 */}
+          <Card className="p-5">
+            <CustomerVenueInfo venue={detail.venueInfo} />
           </Card>
 
           {/* 現状情報の詳細 — 住環境ヒアリング(既設設備/家族属性/連絡先) + 概況。

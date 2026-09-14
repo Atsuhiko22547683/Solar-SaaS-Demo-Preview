@@ -16,6 +16,7 @@ import {
   Wallet,
   Package,
   CreditCard,
+  ClipboardList,
   type NavEntry,
 } from "@/components/layout/role-shell";
 import { hasCapability } from "@/lib/permissions/can";
@@ -45,6 +46,14 @@ export const wholesalerNav: NavEntry[] = [
       { label: "ローン審査一覧", href: "/loan-reviews" },
       { label: "施工一覧", href: "/constructions" },
       { label: "申請一覧", href: "/applications" },
+    ],
+  },
+  {
+    label: "二次店報告",
+    icon: ClipboardList,
+    children: [
+      // 二次店ポータルから提出された催事日報の閲覧のみ。登録・編集は二次店側。
+      { label: "二次店 催事日報", href: "/dealer-reports" },
     ],
   },
   {

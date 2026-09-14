@@ -10,6 +10,274 @@ export const labels = {
   brand: "BizOrch",
   brandTagline: "太陽光卸・取引先営業管理 SaaS",
 
+  // 二次店ポータル（Partner 環境）。Google フォームの置き換えに絞った 4 画面。
+  //
+  // 項目ラベルは既存のフォーム準拠定義（labels.customerReport /
+  // labels.resultReport）と揃える。フォームに無い項目は足さない。
+  partner: {
+    title: "二次店ポータル",
+    nav: {
+      ariaLabel: "二次店メニュー",
+      home: "トップ",
+      appointments: "アポイント",
+      reports: "催事日報",
+      salespeople: "販売員",
+    },
+    common: {
+      register: "登録する",
+      registering: "登録中…",
+      save: "保存",
+      saving: "保存中…",
+      cancel: "キャンセル",
+      edit: "編集",
+      backToList: "一覧へ戻る",
+      required: "必須",
+      optional: "（任意）",
+      notSet: "未設定",
+      dash: "—",
+      created: "登録しました",
+      updated: "保存しました",
+      resultCount: "{total}件",
+    },
+    home: {
+      title: "二次店ポータル",
+      subtitle: "アポイント・催事日報・販売員の登録を行えます。",
+      /** 所属表示（加盟店番号は認証情報から自動表示。入力はさせない）。 */
+      belongLabel: "ご所属",
+      franchiseNoLabel: "加盟店番号",
+      cards: {
+        appointments: {
+          title: "アポイント",
+          body: "催事で獲得したアポイントを登録・確認します。",
+          action: "アポイントを登録",
+          list: "登録済みのアポイント",
+        },
+        reports: {
+          title: "催事日報",
+          body: "催事の実績を登録・確認します。",
+          action: "催事日報を登録",
+          list: "登録済みの催事日報",
+        },
+        salespeople: {
+          title: "販売員",
+          body: "自社に所属する販売員を登録・確認します。",
+          action: "販売員を登録",
+          list: "登録済みの販売員",
+        },
+      },
+      unavailable: {
+        title: "この環境は二次店専用です",
+        body: "代理店アカウントではご利用いただけません。代理店向けの画面は従来の URL からご利用ください。",
+        signOut: "サインアウト",
+      },
+    },
+    // アポイント（Google フォーム「住設事業部/加盟店-①初訪アポフォーム」準拠）。
+    appointment: {
+      listTitle: "アポイント一覧",
+      newTitle: "アポイントを登録",
+      editTitle: "アポイントを編集",
+      detailTitle: "アポイント詳細",
+      empty: "登録されたアポイントがありません",
+      emptyCta: "「アポイントを登録」から追加してください。",
+      sections: {
+        org: "体制",
+        event: "催事",
+        customer: "お客様情報",
+        appointment: "アポ・マエカク",
+        note: "備考",
+      },
+      fields: {
+        franchiseNo: "加盟店番号",
+        tossDept: "トス部署",
+        tossGetter: "トス獲得者",
+        closeCompany: "クローズ会社",
+        salesRep: "営業担当者",
+        channel: "販売チャネル",
+        sourceEvent: "催事（登録済みイベント）",
+        eventDate: "催事実施日",
+        venuePlace: "催事場所",
+        eventType: "催事種別",
+        boothArea: "催事ブース場所",
+        faceToFace: "対面者",
+        customerName: "お客様名",
+        kana: "フリガナ",
+        landline: "固定電話番号",
+        mobile: "携帯番号",
+        postalCode: "郵便番号",
+        prefecture: "都道府県",
+        cityAddress: "市区町村・番地",
+        maekakuPreferredAt: "マエカク電話希望日時",
+        maekakuOperator: "マエカク実施者",
+        firstVisitAt: "初回訪問アポ日時",
+        note: "備考",
+        createdAt: "登録日時",
+      },
+      /** 催事（イベント）未選択のときの選択肢ラベル。 */
+      noSourceEvent: "選択しない（催事情報を直接入力）",
+      /** 登録済みイベントを選ぶと催事情報はイベント側が正になる旨。 */
+      eventOverrideHint: "登録済みの催事を選ぶと、催事情報はその催事の内容が使われます",
+      boothAreaNoteHint: "「その他」を選んだときだけ入力してください",
+      fromEventBadge: "登録済み催事から",
+      boothAreaLabels: {
+        ENTRANCE: "入口",
+        REFORM_CORNER: "リフォームコーナー",
+        OTHER: "その他",
+      } as Record<string, string>,
+      boothAreaNote: "ブース場所（その他の内容）",
+      venueChain: "催事種別",
+      phoneHint: "固定電話番号または携帯番号のいずれかを入力してください",
+      columns: {
+        customerName: "お客様名",
+        firstVisitAt: "初回訪問アポ日時",
+        venuePlace: "催事場所",
+        createdAt: "登録日時",
+      },
+    },
+    // 催事日報（Google フォーム「ES_日報」準拠）。
+    report: {
+      listTitle: "催事日報一覧",
+      newTitle: "催事日報を登録",
+      editTitle: "催事日報を編集",
+      detailTitle: "催事日報詳細",
+      empty: "登録された催事日報がありません",
+      emptyCta: "「催事日報を登録」から追加してください。",
+      sections: {
+        basic: "基本情報",
+        performance: "実績",
+        impression: "所感",
+      },
+      fields: {
+        eventDate: "催事実施日",
+        venuePlace: "催事場所",
+        category: "種別",
+        venueChain: "催事区分",
+        areaInFacility: "施設内エリア",
+        startTime: "稼働開始時間",
+        endTime: "稼働終了時間",
+        cainzPayCount: "カインズPay対応数",
+        impression: "所感",
+        franchiseNo: "加盟店番号",
+        createdAt: "登録日時",
+      },
+      metrics: {
+        lottery: "抽選数",
+        seated: "着座数",
+        appointment: "アポ数",
+        both: "両面",
+        single: "片面",
+        total: "合計",
+      },
+      /** 合計は入力させず算出する旨の注記。 */
+      totalHint: "合計は両面と片面の合計から自動計算されます",
+      categoryLabels: {
+        HOUSING_EQUIPMENT: "住宅設備",
+        REAL_ESTATE: "不動産",
+      },
+      venueChainLabels: {
+        CAINZ_W: "カインズ-W",
+        CAINZ_V: "カインズ-V",
+        SHIMACHU: "島忠",
+        KOMERI: "コメリ",
+        OTHER: "その他",
+      },
+      columns: {
+        eventDate: "催事実施日",
+        venuePlace: "催事場所",
+        venueChain: "催事区分",
+        apptTotal: "アポ数",
+      },
+    },
+    // 販売員（Google フォームの販売員登録準拠）。
+    salesperson: {
+      listTitle: "販売員一覧",
+      newTitle: "販売員を登録",
+      editTitle: "販売員を編集",
+      detailTitle: "販売員詳細",
+      empty: "登録された販売員がいません",
+      emptyCta: "「販売員を登録」から追加してください。",
+      fields: {
+        email: "メールアドレス",
+        franchiseNo: "加盟店番号",
+        name: "氏名（漢字）",
+        kana: "氏名（カナ）",
+        gender: "性別",
+        birthDate: "生年月日",
+        phone: "電話番号",
+        address: "現住所",
+        residentAddress: "住民票住所",
+        employmentType: "雇用形態",
+        salesExperience: "営業経験歴",
+        note: "備考",
+        isActive: "状態",
+      },
+      genderLabels: {
+        MALE: "男性",
+        FEMALE: "女性",
+        OTHER: "その他",
+      },
+      employmentTypeLabels: {
+        EMPLOYEE: "正社員",
+        CONTRACT: "契約社員",
+        PART_TIME: "アルバイト",
+        SUBCONTRACT: "業務委託",
+        OTHER: "その他",
+      },
+      activeLabels: {
+        active: "有効",
+        inactive: "無効",
+      },
+      columns: {
+        name: "氏名",
+        kana: "カナ",
+        phone: "電話番号",
+        employmentType: "雇用形態",
+      },
+    },
+    errors: {
+      notFound: "対象が見つかりません",
+      forbidden: "この情報にアクセスできません",
+    },
+  },
+
+  // 代理店側の顧客詳細に出す「二次店が登録した催事情報」（読み取り専用）。
+  // 二次店ポータルからの登録内容を代理店が確認できるようにするための最小表示で、
+  // 編集導線は置かない。
+  customerVenueInfo: {
+    section: "催事情報（二次店登録）",
+    fromEvent: "登録済み催事から",
+    directInput: "直接入力",
+    empty: "催事情報は登録されていません",
+    fields: {
+      eventDate: "催事実施日",
+      venuePlace: "催事場所",
+      venueChain: "催事種別",
+      boothArea: "催事ブース場所",
+    },
+  },
+
+  // 代理店側で二次店の催事日報を確認する読み取り専用画面。
+  dealerReportView: {
+    listTitle: "二次店 催事日報",
+    listSubtitle: "二次店から提出された催事日報です（閲覧のみ）",
+    detailTitle: "催事日報詳細",
+    backToList: "一覧へ戻る",
+    empty: "提出された催事日報がありません",
+    emptyCta: "二次店が二次店ポータルから登録すると、ここに表示されます。",
+    readOnlyNote: "この画面は閲覧専用です。編集は二次店ポータルから行われます。",
+    columns: {
+      eventDate: "催事実施日",
+      dealerName: "二次店",
+      venuePlace: "催事場所",
+      venueChain: "催事区分",
+      apptTotal: "アポ数",
+    },
+    filters: {
+      dealer: "二次店",
+      all: "すべて",
+      resultCount: "{total}件",
+    },
+  },
+
   // 製品カタログ（PV / 蓄電池）。MVP ではプレースホルダ。
   productCatalog: {
     title: "製品カタログ",

@@ -242,8 +242,12 @@ model Relationship {
   monthlyReports             MonthlyReport[]
   commissionRate             DealerCommissionRate?
   salespeople                Salesperson[]
+  dealerEventReports         DealerEventReport[]
 
   @@unique([wholesalerId, dealerId])
+  // DealerEventReport から (relationshipId, wholesalerId) の複合外部キーで参照するため。
+  // id は既に主キーなので新たな制約は課さず、参照整合性を張るためだけの宣言。
+  @@unique([id, wholesalerId])
   @@index([wholesalerId, status])
   @@index([dealerId, status])
 }
@@ -1189,6 +1193,69 @@ model EventReportMetric {
   @@index([reportId])
 }
 
+/**
+ * 二次店が単独で提出する催事日報（Google フォーム「ES_日報」の置き換え）。
+ *
+ * 既存 EventReport（Event に紐づく開始 / 終了 / 成果報告）とは別概念・別テーブル。
+ * あちらは Event 前提で RLS も Event 経由に組まれているため、イベントが事前登録
+ * されていなくても提出できるこのフォームを同居させない（既存の分離ロジックを
+ * 一切変更しないため）。
+ *
+ * 分離キーは relationshipId（提出した二次店）。wholesalerId は取引先の代理店で、
+ * どちらも認証済みユーザーからサーバー側で決定し、フォームからは受け取らない。
+ *
+ * 合計値（抽選数 / 着座数 / アポ数）は保存しない。両面 + 片面から表示時に算出する
+ * （保存値と表示値の二重管理による不整合を作らない）。
+ */
+model DealerEventReport {
+  id              String   @id @default(cuid())
+  /// 取引先の代理店（テナント分離キー）。
+  wholesalerId    String
+  /// 提出した二次店（卸業者×二次店）。RLS の分離キー。
+  relationshipId  String
+  /// 提出者（認証済みユーザー）。
+  createdByUserId String
+
+  // ── 基本情報（フォーム正本 result-report-data.ts 準拠） ──
+  /// 催事実施日（日付のみ）。
+  eventDate      DateTime
+  /// 催事場所（例: 群馬県 前橋みなみモール店）。
+  venuePlace     String
+  /// 種別（住宅設備 / 不動産）。既存 enum を再利用。
+  category       EventProductCategory
+  /// 催事区分（カインズ-V / 島忠 / コメリ 等）。既存 enum を再利用。
+  venueChain     VenueChain
+  /// 施設内エリア。フォーム正本が自由記述のため BoothArea enum は使わない。
+  areaInFacility String
+  /// 稼働開始 "HH:MM"。
+  startTime      String
+  /// 稼働終了 "HH:MM"。
+  endTime        String
+
+  // ── 成果（両面 / 片面のみ保存。合計は算出） ──
+  lotteryBoth   Int
+  lotterySingle Int
+  seatedBoth    Int
+  seatedSingle  Int
+  apptBoth      Int
+  apptSingle    Int
+  /// カインズPay対応数。フォームの固定項目なので専用列で持つ
+  /// （EventReportMetric は EventReport 専用の可変項目機構なので使わない）。
+  cainzPayCount Int?
+  /// 所感。
+  impression    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 複合外部キー。relationshipId 単独ではなく (relationshipId, wholesalerId) で参照し、
+  // 「自社の relationship なのに wholesalerId は別代理店」という不整合を DB で塞ぐ。
+  relationship Relationship @relation(fields: [relationshipId, wholesalerId], references: [id, wholesalerId])
+
+  @@index([wholesalerId, eventDate])
+  @@index([relationshipId, eventDate])
+}
+
 model Customer {
   id                         String             @id @default(cuid())
   wholesalerId               String
@@ -1223,6 +1290,21 @@ model Customer {
   // 編集できる手動値として保持する。
   inflowRoute                String?
   sourceEventId              String?
+  // 催事情報のフォールバック（Google フォーム「初訪アポフォーム」の催事欄）。
+  //
+  // 代理店が催事を事前登録していなくても二次店が提出できるようにするための列。
+  // sourceEventId があるときはイベント側（EventCandidate）を正とし、ここには
+  // 同じ値を重複保存しない。読み出しは lib/partner/venue-info.ts の 1 関数に集約する。
+  //
+  // sourceEventDate は日付のみ。既存 EventCandidate.scheduledDate と同じく
+  // UTC 0 時で保存し、フォームとの往復も UTC 基準（toISOString().slice(0,10)）で
+  // 行うことで時刻由来の日付ずれを起こさない。
+  sourceEventDate            DateTime?
+  sourceVenuePlace           String?
+  sourceVenueChain           VenueChain?
+  sourceBoothArea            BoothArea?
+  /// ブース場所が OTHER のときだけ使う自由記述。
+  sourceBoothAreaNote        String?
   registeredByUserId         String
   registeredByOrgType        TenantType
   registeredByRelationshipId String?
@@ -1276,6 +1358,11 @@ model Customer {
   proposedProduct            String?            // ご提案商材（自由記述・トスアップ時）
   proposedProductId          String?            // ご提案商材（商品マスタ参照、任意）
   maekakuPreferredAt         DateTime?          // マエカク電話希望日時（maekakuStatus と併存）
+  // マエカク実施者。Google フォーム「住設事業部/加盟店-①初訪アポフォーム」準拠の
+  // 自由記述（フォーム正本 customer-report-data.ts の maekakuOperator: string）。
+  // User / Salesperson への外部キーは張らない — フォームは氏名の記入欄であり、
+  // 実施者が自社社員か二次店販売員かを運用側で確定していないため。
+  maekakuOperator            String?
   // コール状況（バッチ B）。施工完了コール / ローン審査完了コールのステータス（CALL_STATUS_VALUES:
   // not_done/done/unnecessary）+ 希望日時。汎用コール希望時間帯は自由記述。マエカク希望時の
   // 連絡先電話は既存 maekakuPreferredAt（日時）とは別概念の「電話番号」。PII（電話番号）。

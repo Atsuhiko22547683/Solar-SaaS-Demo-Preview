@@ -458,6 +458,44 @@ const POLICY: Record<PermissionAction, ActionPolicy> = {
     roles: ["WHOLESALER_ADMIN"],
   },
 
+  // --- 二次店ポータル（Partner）---------------------------------------------
+  //
+  // Google フォームの置き換えとして、二次店が自社の販売員・アポイント・催事日報を
+  // 登録／編集する。代理店側の同名アクション（salesperson.create 等）とは別キーに
+  // する — あちらは設定配下のマスタ運用で、許可ロールも対象データも異なるため。
+  //
+  // スコープはロールでは決まらない。実際に読み書きできる範囲は
+  // getTenantContext() が解決する relationshipIds と RLS が決める。
+  "partner_salesperson.read": {
+    roles: ALL_DEALER_ROLES,
+    requireTenantScope: false,
+  },
+  "partner_salesperson.write": {
+    roles: ALL_DEALER_ROLES,
+    requireTenantScope: false,
+  },
+  "partner_appointment.read": {
+    roles: ALL_DEALER_ROLES,
+    requireTenantScope: false,
+  },
+  "partner_appointment.write": {
+    roles: ALL_DEALER_ROLES,
+    requireTenantScope: false,
+  },
+  "partner_event_report.read": {
+    roles: ALL_DEALER_ROLES,
+    requireTenantScope: false,
+  },
+  "partner_event_report.write": {
+    roles: ALL_DEALER_ROLES,
+    requireTenantScope: false,
+  },
+  // 代理店側の読み取り専用ビュー（二次店が提出した日報の一覧・詳細）。
+  // 登録・編集は二次店だけが行うので read しか無い。
+  "dealer_event_report.read": {
+    roles: ALL_WHOLESALER_ROLES,
+  },
+
   // --- Area master (エリアマスタ) — installer と同じ運用ポリシー.
   //
   // `area.read` はイベント候補登録フォームのエリア選択肢として

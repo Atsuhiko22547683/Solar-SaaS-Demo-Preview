@@ -12,6 +12,7 @@ import {
   Wallet,
   Package,
   CreditCard,
+  ClipboardList,
   type LucideIcon,
 } from "lucide-react";
 import Image from "next/image";
@@ -464,4 +465,4 @@ export function RoleShell({ navItems = [], children }: RoleShellProps) {
 }
 
 /* ── Re-export icons for layout files ── */
-export { Home, Calendar, Users, LineChart, Settings, Wallet, Package, CreditCard };
+export { Home, Calendar, Users, LineChart, Settings, Wallet, Package, CreditCard, ClipboardList };
