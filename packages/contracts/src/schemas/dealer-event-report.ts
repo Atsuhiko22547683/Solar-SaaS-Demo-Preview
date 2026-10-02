@@ -12,6 +12,8 @@
 
 import { z } from "zod";
 
+import { partnerOriginFields } from "./partner-origin.js";
+
 /** 種別（住宅設備 / 不動産）。Prisma の EventProductCategory と 1:1。 */
 export const DEALER_REPORT_CATEGORY_VALUES = ["HOUSING_EQUIPMENT", "REAL_ESTATE"] as const;
 export type DealerReportCategory = (typeof DEALER_REPORT_CATEGORY_VALUES)[number];
@@ -55,7 +57,13 @@ function toMinutes(hhmm: string): number {
   return (h ?? 0) * 60 + (m ?? 0);
 }
 
+/** 催事日報の数値が誰の実績か。合計の水増しを防ぐための区別。 */
+export const DEALER_REPORT_SCOPE_VALUES = ["PERSON", "COMPANY", "BOOTH", "UNKNOWN"] as const;
+export type DealerReportScopeValue = (typeof DEALER_REPORT_SCOPE_VALUES)[number];
+
 const baseFields = {
+  // 依頼元代理店（取引先が 1 社なら省略可）。
+  ...partnerOriginFields,
   eventDate: dateOnly,
   venuePlace: requiredText("催事場所"),
   category: z.enum(DEALER_REPORT_CATEGORY_VALUES),
@@ -70,6 +78,14 @@ const baseFields = {
   seatedSingle: count,
   apptBoth: count,
   apptSingle: count,
+
+  // 共通の催事への紐付け。対象を選ばずに提出することも許す（マスタ未登録の場所、
+  // 催事が登録される前の提出など）。紐付かない分は代理店側の「未紐付け」から扱う。
+  eventId: z.string().min(1).nullable().optional(),
+  eventDayId: z.string().min(1).nullable().optional(),
+  // 数値の集計単位。既存フォームは聞いていなかったので、未選択は UNKNOWN のまま。
+  // 合計に混ぜないための区別で、値を推測して埋めることはしない。
+  reportScope: z.enum(DEALER_REPORT_SCOPE_VALUES).optional(),
 
   cainzPayCount: count.optional(),
   impression: z

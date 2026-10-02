@@ -1,36 +1,44 @@
-// 二次店のアポイント登録（Google フォーム「住設事業部/加盟店-①初訪アポフォーム」
-// の置き換え）の入力スキーマ。
+// 二次店のアポイント登録の入力スキーマ。
 //
-// 項目定義の正本は apps/web/components/reports/customer-report-data.ts と
-// labels.customerReport。当初指示と差異がある場合はフォーム準拠の既存定義を優先する。
-// （「クローズ部署」は正本に存在しないため対象外。）
+// Google フォーム 2 種を置き換える。1 つの登録画面のタブとして見せるが、
+// 項目も保存先も別なのでスキーマは分ける。
 //
-// 加盟店番号 / 所属二次店 / 登録者は認証済みユーザーから決まるのでここに含めない。
-// クローズ会社も同様に、提出した二次店を自動設定する。
+//   FIRST_VISIT … 「住設事業部/加盟店-①初訪アポフォーム」（21 項目）
+//                 保存先: Customer（顧客情報・体制・催事・マエカク）
+//                       + Appointment（初回訪問アポ日時・partnerKind）
+//   VISIT       … 「住設事業部/加盟店-②訪問アポフォーム」（5 項目）
+//                 保存先: DealerVisitAppointment（専用テーブル）
 //
-// 保存先:
-//   Customer    … 顧客情報・担当・販売チャネル・マエカク関連
-//   Appointment … 初回訪問アポ日時・催事場所
+// 加盟店番号 / 所属二次店 / 登録者は認証済みユーザーから決まるので入力に含めない。
+//
+// フォームに無い項目は持たない。初訪アポの「トス部署」は①フォームに存在しない
+// ため対象外で、②訪問アポフォームでのみ使う。
 
 import { z } from "zod";
+
+import { partnerOriginFields } from "./partner-origin.js";
+
+/** アポイント区分。Prisma の PartnerAppointmentKind と 1:1。 */
+export const PARTNER_APPOINTMENT_KIND_VALUES = ["FIRST_VISIT", "VISIT"] as const;
+export type PartnerAppointmentKind = (typeof PARTNER_APPOINTMENT_KIND_VALUES)[number];
 
 /** 対面者区分。Customer.faceToFace（true=主権者 / false=非主権者 / null=未設定）。 */
 export const FACE_TO_FACE_VALUES = ["SOVEREIGN", "NON_SOVEREIGN"] as const;
 export type FaceToFaceValue = (typeof FACE_TO_FACE_VALUES)[number];
 
-/** 催事種別。Prisma の VenueChain と 1:1。 */
-export const PARTNER_VENUE_CHAIN_VALUES = [
-  "CAINZ_W",
-  "CAINZ_V",
-  "SHIMACHU",
-  "KOMERI",
-  "OTHER",
-] as const;
+/**
+ * 初訪アポフォームの催事種別。カインズ / 島忠 / コメリ の 3 択。
+ *
+ * 催事日報（ES_日報）が使う CAINZ_W / CAINZ_V とは粒度が違うため、
+ * そちらの値域（DEALER_REPORT_CHAIN_VALUES）とは別に持つ。DB の VenueChain は
+ * 両方の値を持つ 1 つの enum で、値の統合・置換はしていない。
+ */
+export const PARTNER_FIRST_VISIT_VENUE_CHAIN_VALUES = ["CAINZ", "SHIMACHU", "KOMERI"] as const;
 
 /** 催事ブース場所。Prisma の BoothArea と 1:1。 */
 export const PARTNER_BOOTH_AREA_VALUES = ["ENTRANCE", "REFORM_CORNER", "OTHER"] as const;
 
-/** 販売チャネル。Prisma の SalesChannel と 1:1。 */
+/** 販売チャネル。Prisma の SalesChannel と 1:1。両フォーム共通。 */
 export const PARTNER_SALES_CHANNEL_VALUES = [
   "VISIT_SALES",
   "INBOUND",
@@ -38,6 +46,11 @@ export const PARTNER_SALES_CHANNEL_VALUES = [
   "REFERRAL",
   "OTHER",
 ] as const;
+
+/** 催事種別を入力する販売チャネル（フォームの注記に合わせる）。 */
+export const VENUE_CHAIN_REQUIRED_CHANNEL = "EVENT";
+/** 対面者を入力する販売チャネル。 */
+export const FACE_TO_FACE_REQUIRED_CHANNEL = "VISIT_SALES";
 
 const optionalText = (max = 255) =>
   z
@@ -50,116 +63,175 @@ const optionalText = (max = 255) =>
 const requiredText = (label: string, max = 255) =>
   z.string().trim().min(1, `${label}を入力してください`).max(max);
 
-/** 日本の電話番号（ハイフン・全角も許容して数字だけ見る）。 */
-const phone = z
+const PHONE_PATTERN = /^[0-9０-９+\-() ]+$/;
+
+/** 任意の電話番号（ハイフン・全角も許容して形だけ見る）。 */
+const optionalPhone = z
   .string()
   .trim()
   .max(32)
   .optional()
   .transform((v) => (v && v.length > 0 ? v : undefined))
-  .refine((v) => v === undefined || /^[0-9０-９+\-() ]+$/.test(v), {
+  .refine((v) => v === undefined || PHONE_PATTERN.test(v), {
     message: "電話番号は数字とハイフンで入力してください",
   });
+
+/** 必須の電話番号。 */
+const requiredPhone = (label: string) =>
+  z
+    .string()
+    .trim()
+    .min(1, `${label}を入力してください`)
+    .max(32)
+    .refine((v) => PHONE_PATTERN.test(v), {
+      message: "電話番号は数字とハイフンで入力してください",
+    });
+
+/**
+ * 必須の選択欄（enum）。
+ *
+ * 画面の select は未選択のとき "" を送る。Zod の required_error /
+ * invalid_type_error は undefined・型違いにしか効かないので、"" は
+ * invalid_enum_value になり既定の英文メッセージ（Invalid enum value. Expected …）
+ * が出る。errorMap で「未選択」も「値域外」も同じ日本語メッセージに揃える。
+ */
+const requiredEnum = <T extends readonly [string, ...string[]]>(values: T, message: string) =>
+  z.enum(values, { errorMap: () => ({ message }) });
+
+const toDate = (v: string | Date) => (v instanceof Date ? v : new Date(v));
 
 const dateTimeOptional = z
   .union([z.string(), z.date()])
   .optional()
   .transform((v) => {
     if (v === undefined || v === "") return undefined;
-    const d = v instanceof Date ? v : new Date(v);
+    const d = toDate(v);
     return Number.isNaN(d.getTime()) ? undefined : d;
   });
 
-const dateOptional = dateTimeOptional;
+/** 必須の日付 / 日時。空文字・不正値は明示的に弾く（既定値を作らない）。 */
+const dateTimeRequired = (label: string) =>
+  z
+    .union([z.string(), z.date()])
+    .refine((v) => v !== "" && !Number.isNaN(toDate(v).getTime()), {
+      message: `${label}を入力してください`,
+    })
+    .transform((v) => toDate(v));
 
-const baseFields = {
+// ---------------------------------------------------------------------------
+// 初訪アポ（①初訪アポフォーム）
+// ---------------------------------------------------------------------------
+
+const firstVisitFields = {
+  // ── 依頼元・催事の紐付け ──
+  // 依頼元代理店（取引先が 1 社なら省略可）。
+  ...partnerOriginFields,
+  /**
+   * 登録元の催事（Event.id）。トップの「この催事からアポ登録」から来たときに入る。
+   * 店舗名の文字列一致ではなく id で結ぶ。催事外からの登録では省略。
+   */
+  eventId: optionalText(64),
+  /** 催事の開催日（EventDay.id）。複数日催事でどの日の来場かを残す。 */
+  eventDayId: optionalText(64),
+
   // ── 体制 ──
-  /** トス獲得者。自社に登録済みの販売員から選ぶ（Customer.tossUpSalespersonId）。 */
+  /** トス獲得者（任意）。自社に登録済みの販売員から選ぶ。 */
   tossUpSalespersonId: optionalText(),
-  /** 営業担当者。同上（Customer.closingSalespersonId）。 */
-  closingSalespersonId: optionalText(),
-  /** トス部署（自由記述・Customer.tossDept）。 */
-  tossDept: optionalText(100),
-  salesChannel: z.enum(PARTNER_SALES_CHANNEL_VALUES).optional(),
+  /** クローズ会社（必須）。参照が許された Relationship から選ぶ。 */
+  closingRelationshipId: requiredText("クローズ会社"),
+  /** 営業担当者（必須）。自社に登録済みの販売員から選ぶ。 */
+  closingSalespersonId: requiredText("営業担当者"),
+  /** 販売チャネル（必須）。 */
+  salesChannel: requiredEnum(PARTNER_SALES_CHANNEL_VALUES, "販売チャネルを選択してください"),
 
   // ── 催事 ──
-  /**
-   * 催事（任意）。自社が担当に割り当てられたイベントを選ぶと、催事実施日・
-   * 催事種別・ブース場所がそのイベントから引かれる。選ばない場合は催事場所のみ
-   * 自由記述で残す（Appointment.location）。
-   */
-  sourceEventId: optionalText(),
-  /** 催事場所（自由記述）。イベント未選択でも記録できる。 */
-  venuePlace: optionalText(),
-  /** 催事種別。イベント未選択時に使う。 */
-  venueChain: z.enum(PARTNER_VENUE_CHAIN_VALUES).optional(),
-  /** 催事ブース場所。イベント未選択時に使う。 */
-  boothArea: z.enum(PARTNER_BOOTH_AREA_VALUES).optional(),
+  /** 催事実施日（訪販は訪問日・必須）。日付のみ。 */
+  eventDate: dateTimeRequired("催事実施日"),
+  /** 催事場所（必須）。 */
+  venuePlace: requiredText("催事場所"),
+  /** 催事種別（販売チャネルが「催事」のときだけ入力対象）。 */
+  venueChain: z.enum(PARTNER_FIRST_VISIT_VENUE_CHAIN_VALUES).optional(),
+  /** 催事ブース場所（必須）。未選択（""）も同じメッセージで弾く。 */
+  boothArea: requiredEnum(PARTNER_BOOTH_AREA_VALUES, "ブース場所を選択してください"),
   /** ブース場所が「その他」のときだけ使う自由記述。 */
   boothAreaNote: optionalText(),
-  /** 対面者区分。 */
+  /** 対面者（販売チャネルが「訪問販売」のときだけ入力対象）。 */
   faceToFace: z.enum(FACE_TO_FACE_VALUES).optional(),
 
   // ── お客様情報 ──
-  /** お客様名（正本のラベルは「お客様名」）。 */
   name: requiredText("お客様名"),
-  kana: optionalText(),
-  /** 固定電話番号。携帯とどちらか一方が必須。 */
-  landlinePhone: phone,
-  /** 携帯番号。固定電話とどちらか一方が必須。 */
-  mobilePhone: phone,
-  postalCode: optionalText(16),
-  prefecture: optionalText(32),
+  kana: requiredText("フリガナ"),
+  /** 固定電話番号（任意）。 */
+  landlinePhone: optionalPhone,
+  /** 携帯番号（必須）。 */
+  mobilePhone: requiredPhone("携帯番号"),
+  postalCode: requiredText("郵便番号", 16),
+  prefecture: requiredText("都道府県", 32),
   /** 市区町村・番地（正本は 1 項目）。 */
-  cityAddress: optionalText(),
-  note: z
-    .string()
-    .trim()
-    .max(2000)
-    .optional()
-    .transform((v) => (v && v.length > 0 ? v : undefined)),
+  cityAddress: requiredText("市区町村・番地"),
+  note: optionalText(2000),
 
   // ── アポ・マエカク ──
+  /** マエカク電話希望日時（任意）。 */
   maekakuPreferredAt: dateTimeOptional,
-  /** マエカク実施者（自由記述。User / Salesperson へは紐付けない）。 */
-  maekakuOperator: optionalText(120),
-  /** 初回訪問アポ日時。 */
-  firstVisitAt: dateTimeOptional,
-  /**
-   * 催事実施日（イベント未選択時の記録用）。
-   * 日付のみ。UTC 0 時で保存し、時刻由来の日付ずれを起こさない。
-   */
-  eventDate: dateOptional,
+  /** マエカク実施者（必須・自由記述）。 */
+  maekakuOperator: requiredText("マエカク実施者", 120),
+  /** 初回訪問アポ日時（必須）。 */
+  firstVisitAt: dateTimeRequired("初回訪問アポ日時"),
 };
 
-interface PhoneShape {
-  landlinePhone?: string;
-  mobilePhone?: string;
+interface FirstVisitShape {
+  salesChannel?: string;
+  venueChain?: string;
+  faceToFace?: string;
   boothArea?: string;
   boothAreaNote?: string;
 }
 
 /**
- * 電話番号は固定・携帯のどちらか一方を必須にする。
+ * 条件付き項目の相互検証。
  *
- * Customer.phone が NOT NULL なので、保存側では入力された方を代表値に入れる。
- * 「両方空」で保存されると連絡手段の無い顧客行ができてしまうため、ここで止める。
+ * フォームの注記どおり、催事種別は販売チャネルが「催事」のとき、対面者は
+ * 「訪問販売」のときだけ入力対象。対象外チャネルで値が付いていると、
+ * どちらが正か判らない行になるので保存前に弾く（画面側でも切替時に消す）。
  */
-function applyPhoneRule<T extends z.ZodTypeAny>(schema: T): T {
+function applyFirstVisitRules<T extends z.ZodTypeAny>(schema: T): T {
   return schema.superRefine((data: unknown, ctx) => {
-    const v = data as PhoneShape;
-    if (!v.landlinePhone && !v.mobilePhone) {
-      for (const path of ["mobilePhone", "landlinePhone"]) {
+    const v = data as FirstVisitShape;
+
+    if (v.salesChannel === VENUE_CHAIN_REQUIRED_CHANNEL) {
+      if (!v.venueChain) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          path: [path],
-          message: "固定電話番号または携帯番号のいずれかを入力してください",
+          path: ["venueChain"],
+          message: "催事種別を選択してください",
         });
       }
+    } else if (v.venueChain) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["venueChain"],
+        message: "催事種別は販売チャネルが「催事」のときだけ入力してください",
+      });
+    }
+
+    if (v.salesChannel === FACE_TO_FACE_REQUIRED_CHANNEL) {
+      if (!v.faceToFace) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["faceToFace"],
+          message: "対面者を選択してください",
+        });
+      }
+    } else if (v.faceToFace) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["faceToFace"],
+        message: "対面者は販売チャネルが「訪問販売」のときだけ入力してください",
+      });
     }
 
     // ブース場所の自由記述は「その他」を選んだときだけ意味を持つ。
-    // 他の選択肢と併記されると、どちらが正か分からない行ができるため弾く。
     if (v.boothAreaNote && v.boothArea !== "OTHER") {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -170,13 +242,53 @@ function applyPhoneRule<T extends z.ZodTypeAny>(schema: T): T {
   }) as unknown as T;
 }
 
-export const PartnerAppointmentCreateSchema = applyPhoneRule(z.object(baseFields));
-export type PartnerAppointmentCreateInput = z.input<typeof PartnerAppointmentCreateSchema>;
+export const PartnerFirstVisitCreateSchema = applyFirstVisitRules(z.object(firstVisitFields));
+export type PartnerFirstVisitCreateInput = z.input<typeof PartnerFirstVisitCreateSchema>;
 
-export const PartnerAppointmentUpdateSchema = applyPhoneRule(
-  z.object({ id: z.string().min(1), ...baseFields }),
+export const PartnerFirstVisitUpdateSchema = applyFirstVisitRules(
+  z.object({ id: z.string().min(1), ...firstVisitFields }),
 );
-export type PartnerAppointmentUpdateInput = z.input<typeof PartnerAppointmentUpdateSchema>;
+export type PartnerFirstVisitUpdateInput = z.input<typeof PartnerFirstVisitUpdateSchema>;
+
+// ---------------------------------------------------------------------------
+// 訪問アポ（②訪問アポフォーム）
+// ---------------------------------------------------------------------------
+
+const visitFields = {
+  // 依頼元代理店（取引先が 1 社なら省略可）。
+  ...partnerOriginFields,
+  /**
+   * 対象の顧客（任意）。
+   *
+   * このフォームは顧客名を聞かないので、提出者が自社の顧客から選んだときだけ入る。
+   * 選ばれていれば代理店の顧客詳細からこの提出を辿れる。空なら紐付けない
+   * （名前や日付が近いというだけで後から機械的に結び付けない）。
+   */
+  customerId: z.string().trim().min(1).optional(),
+  /** トス部署（必須）。 */
+  tossDept: requiredText("トス部署", 100),
+  /** マエカク実施者（必須・自由記述）。 */
+  maekakuOperator: requiredText("マエカク実施者", 120),
+  /** クローズ部署（必須）。既存の「所属部署」とは別概念。 */
+  closeDept: requiredText("クローズ部署", 100),
+  /** 営業担当者（必須）。自社に登録済みの販売員から選ぶ。 */
+  salespersonId: requiredText("営業担当者"),
+  /** 販売チャネル（必須）。 */
+  salesChannel: z.enum(PARTNER_SALES_CHANNEL_VALUES, {
+    required_error: "販売チャネルを選択してください",
+    invalid_type_error: "販売チャネルを選択してください",
+  }),
+};
+
+export const PartnerVisitCreateSchema = z.object(visitFields);
+export type PartnerVisitCreateInput = z.input<typeof PartnerVisitCreateSchema>;
+
+export const PartnerVisitUpdateSchema = z.object({ id: z.string().min(1), ...visitFields });
+export type PartnerVisitUpdateInput = z.input<typeof PartnerVisitUpdateSchema>;
+
+// ---------------------------------------------------------------------------
+// 変換ヘルパ
+// ---------------------------------------------------------------------------
 
 /** Customer.faceToFace（3 状態）への変換。未選択は null（未設定）。 */
 export function toFaceToFaceBoolean(v: FaceToFaceValue | undefined): boolean | null {

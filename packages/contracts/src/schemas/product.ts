@@ -18,6 +18,8 @@
 
 import { z } from "zod";
 
+// Prisma の ProductCategory と 1:1。製品カタログ（6 カテゴリ）向けに
+// ECO_CUTE / IH / GIFT を追加した（既存値は変更していない）。
 export const ProductCategorySchema = z.enum([
   "PANEL",
   "BATTERY",
@@ -25,6 +27,9 @@ export const ProductCategorySchema = z.enum([
   "MOUNT",
   "OTHER_PART",
   "SET",
+  "ECO_CUTE",
+  "IH",
+  "GIFT",
 ]);
 export type ProductCategory = z.infer<typeof ProductCategorySchema>;
 

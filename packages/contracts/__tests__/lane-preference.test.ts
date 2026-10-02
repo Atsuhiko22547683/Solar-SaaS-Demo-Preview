@@ -23,6 +23,7 @@ describe("DesiredDatesSchema", () => {
 describe("LanePreferenceItemDtoSchema", () => {
   it("requires venueLabel and a positive priority", () => {
     const ok = LanePreferenceItemDtoSchema.safeParse({
+      laneNo: 1,
       priority: 1,
       venueLabel: "カインズ 大宮店",
       venueProviderId: null,
@@ -33,10 +34,13 @@ describe("LanePreferenceItemDtoSchema", () => {
       lineName: null,
       desiredDates: ["2026-07-07"],
       memo: null,
+      conditionNote: null,
+      adoptions: [],
     });
     expect(ok.success).toBe(true);
 
     const badPriority = LanePreferenceItemDtoSchema.safeParse({
+      laneNo: 1,
       priority: 0,
       venueLabel: "x",
       venueProviderId: null,
@@ -47,8 +51,30 @@ describe("LanePreferenceItemDtoSchema", () => {
       lineName: null,
       desiredDates: [],
       memo: null,
+      conditionNote: null,
+      adoptions: [],
     });
     expect(badPriority.success).toBe(false);
+  });
+
+  // レーン番号は必須。以前は明細に laneNo が無く、代理店側が順位だけで並べていたため
+  // 「どのレーンの第一希望か」が画面から失われていた。欠けていたら弾く。
+  it("rejects an item without laneNo", () => {
+    const missing = LanePreferenceItemDtoSchema.safeParse({
+      priority: 1,
+      venueLabel: "カインズ 大宮店",
+      venueProviderId: null,
+      venueProviderName: null,
+      storeId: null,
+      storeName: null,
+      lineEventId: null,
+      lineName: null,
+      desiredDates: [],
+      memo: null,
+      conditionNote: null,
+      adoptions: [],
+    });
+    expect(missing.success).toBe(false);
   });
 });
 

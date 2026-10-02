@@ -205,7 +205,8 @@ export interface ProjectFinancialsDto {
 // 二次店ロールでは物理除外（destructure-and-rest、Object.keys に出さない／#5・§17.5）。
 export interface ExistingEquipmentDto {
   id: string;
-  category: "GAS_WATER_HEATER" | "ECO_CUTE" | "PV";
+  // 値域は Prisma の ExistingEquipmentCategory と揃える（IH / エアコン / 蓄電池 を追加）。
+  category: "GAS_WATER_HEATER" | "ECO_CUTE" | "PV" | "IH" | "AIR_CONDITIONER" | "BATTERY";
   installed: "YES" | "NO" | "UNKNOWN";
   // ↓ wholesaler/saas のみ存在（二次店では Object.keys に出ない）。
   installDate?: string | null;
@@ -429,8 +430,7 @@ export type ProjectFinancialsForDealerDto = Omit<
   "purchaseTotal" | "dealerTotal" | "constructionFee" | "constructionFeeBreakdown" | "otherCost"
 >;
 
-export interface ProjectContractForDealerDto
-  extends Omit<ProjectContractDto, "equipment"> {
+export interface ProjectContractForDealerDto extends Omit<ProjectContractDto, "equipment"> {
   equipment: Record<EquipmentCategoryKey, EquipmentItemForDealerDto[]>;
 }
 
@@ -438,11 +438,10 @@ export type ProjectHearingForDealerDto = Omit<ProjectHearingDto, "existingEquipm
   existingEquipments: ExistingEquipmentForDealerDto[];
 };
 
-export interface ProjectInfoForDealerDto
-  extends Omit<
-    ProjectInfoDto,
-    "contracts" | "constructions" | "financials" | "hearing" | "profitAndLoss"
-  > {
+export interface ProjectInfoForDealerDto extends Omit<
+  ProjectInfoDto,
+  "contracts" | "constructions" | "financials" | "hearing" | "profitAndLoss"
+> {
   contracts: ProjectContractForDealerDto[];
   constructions: ProjectConstructionForDealerDto[];
   financials: ProjectFinancialsForDealerDto;

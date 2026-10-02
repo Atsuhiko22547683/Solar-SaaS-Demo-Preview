@@ -94,6 +94,11 @@ const baseShape = {
   venueNegotiationId: optionalNonEmpty,
   targetMonth,
   scheduledDate: dateLike,
+  // 開催場所は店舗マスタから選ぶ。storeId が来たときは店舗名・住所・開催エリア・
+  // 場所提供元をサーバーがマスタから確定するので、画面から送られた値は採用しない
+  // （「カインズ 大宮店なのに場所提供元はスーパービバホーム」を作らせない）。
+  storeId: optionalNonEmpty,
+  // マスタ未登録の場所を登録する逃げ道として storeName は残す（storeId が無いときに使う）。
   storeName: z.string().trim().min(1, "店舗名を入力してください").max(255),
   address: optionalNonEmpty,
   area: optionalNonEmpty,
@@ -119,7 +124,13 @@ const baseShape = {
   status: EventCandidateStatusSchema.optional(),
 };
 
-export const EventCandidateInputSchema = z.object(baseShape);
+// storeId を送るときは storeName を省略できる（サーバーがマスタから埋める）。
+export const EventCandidateInputSchema = z
+  .object({ ...baseShape, storeName: baseShape.storeName.optional() })
+  .refine((v) => (v.storeId ?? "").length > 0 || (v.storeName ?? "").length > 0, {
+    message: "開催場所を選択してください",
+    path: ["storeId"],
+  });
 export type EventCandidateInput = z.infer<typeof EventCandidateInputSchema>;
 
 // All fields optional on update — callers patch only the keys they changed.
@@ -131,6 +142,7 @@ export const EventCandidateUpdateSchema = z.object({
   venueNegotiationId: baseShape.venueNegotiationId,
   targetMonth: targetMonth.optional(),
   scheduledDate: dateLike.optional(),
+  storeId: baseShape.storeId,
   storeName: baseShape.storeName.optional(),
   address: baseShape.address,
   area: baseShape.area,

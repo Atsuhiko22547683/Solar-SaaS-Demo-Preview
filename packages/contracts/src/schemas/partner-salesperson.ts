@@ -47,7 +47,14 @@ const baseShape = {
   employmentType: z.enum(EMPLOYMENT_TYPE_VALUES).optional(),
   /** 営業経験歴（自由記述: 「3年」「未経験」など）。 */
   salesExperience: optionalText(255),
-  note: optionalText(2000),
+  /**
+   * ゲストスタッフか。管理者が受け入れた外部スタッフ。
+   * 閲覧範囲は通常スタッフと同じ（当面）。独自の自動失効は設けない。
+   * 登録・招待・催事への追加は管理者だけが行う。
+   */
+  isGuest: z.boolean().optional(),
+  // 備考（Salesperson.note）は Google フォームに無いため二次店ポータルでは扱わない。
+  // 列と既存データは残し、代理店側の「スタッフ一覧」からは従来どおり編集できる。
 };
 
 export const PartnerSalespersonCreateSchema = z.object(baseShape);

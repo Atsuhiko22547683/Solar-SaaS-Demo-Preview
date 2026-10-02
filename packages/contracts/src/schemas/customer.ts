@@ -467,7 +467,16 @@ export type LoanReviewLogDefectResolveInput = z.infer<typeof LoanReviewLogDefect
 export const GuideAttendeeEnum = z.enum(["HUSBAND", "WIFE", "BOTH", "OTHER"]);
 export type GuideAttendee = z.infer<typeof GuideAttendeeEnum>;
 
-export const ExistingEquipmentCategoryEnum = z.enum(["GAS_WATER_HEATER", "ECO_CUTE", "PV"]);
+// 既設の家庭設備。IH / エアコン / 蓄電池 は業務要望で追加した値。
+// 既存 3 値（給湯器 / エコキュート / 太陽光）の意味は変えていない。
+export const ExistingEquipmentCategoryEnum = z.enum([
+  "GAS_WATER_HEATER",
+  "ECO_CUTE",
+  "PV",
+  "IH",
+  "AIR_CONDITIONER",
+  "BATTERY",
+]);
 export type ExistingEquipmentCategory = z.infer<typeof ExistingEquipmentCategoryEnum>;
 
 export const ExistingEquipmentPresenceEnum = z.enum(["YES", "NO", "UNKNOWN"]);
