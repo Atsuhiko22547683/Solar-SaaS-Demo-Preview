@@ -1,38 +1,49 @@
-// 二次店ポータル：アポイントの編集。自社が登録した顧客でなければ 404。
+// 二次店ポータル：初訪アポの編集。自社が登録した顧客でなければ 404。
+//
+// アポ区分は変更できない（別フォームの項目が食い違うため）。この画面は
+// 初訪アポの項目だけを扱う。訪問アポの編集は /p-appointments/visit/[id]/edit。
 
 import { notFound } from "next/navigation";
 
 import { PartnerPageHeader } from "@/components/partner/partner-ui";
 import { labels } from "@/lib/i18n/labels";
-import { requirePartnerContext } from "@/lib/partner/context";
+import { requirePartnerContext, franchiseNoLabel } from "@/lib/partner/context";
+import { listPartnerOrigins } from "@/lib/partner/origins";
 
-import { listPartnerSalespersonOptions } from "../../../p-salespeople/data";
-import { PartnerAppointmentForm } from "../../appointment-form";
-import { getPartnerAppointment, listPartnerEventOptions } from "../../data";
+import { PartnerFirstVisitForm } from "../../appointment-form";
+import {
+  getPartnerFirstVisit,
+  listPartnerCloseCompanyOptions,
+  listPartnerSalespersonOptions,
+} from "../../data";
 
 export const dynamic = "force-dynamic";
 
-export default async function EditPartnerAppointmentPage({
+export default async function EditPartnerFirstVisitPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
   const partner = await requirePartnerContext("partner_appointment.write");
-  const row = await getPartnerAppointment(id);
+  // 依頼先代理店の候補（複数の代理店から依頼を受ける会社では選択が要る）。
+  const origins = await listPartnerOrigins("partner_appointment.write");
+  const row = await getPartnerFirstVisit(id);
   if (!row) notFound();
   const salespeople = await listPartnerSalespersonOptions();
-  const events = await listPartnerEventOptions();
+  const closeCompanies = await listPartnerCloseCompanyOptions();
 
   return (
     <div>
       <PartnerPageHeader title={labels.partner.appointment.editTitle} />
-      <PartnerAppointmentForm
+      <p className="text-mute-light mb-4 text-xs">{labels.partner.appointmentKind.lockedHint}</p>
+      <PartnerFirstVisitForm
         mode="edit"
         initial={row}
-        franchiseNo={partner.franchiseNo}
+        franchiseNo={franchiseNoLabel(partner)}
+        origins={origins.options}
         salespeople={salespeople}
-        events={events}
+        closeCompanies={closeCompanies}
       />
     </div>
   );

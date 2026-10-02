@@ -1,8 +1,12 @@
-// 二次店ポータル：アポイントの詳細。自社が登録した顧客でなければ 404。
+// 二次店ポータル：初訪アポの詳細。自社が登録した顧客でなければ 404。
+//
+// 表示するのは初訪アポフォームの項目だけ。訪問アポは項目が違うので
+// /p-appointments/visit/[id] が担当する。
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { BackToListLink } from "@/components/partner/back-to-list-link";
 import {
   PartnerCard,
   PartnerField,
@@ -13,31 +17,31 @@ import { formatDate, formatDateTime } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 import { boothAreaText } from "@/lib/partner/venue-info";
 
-import { getPartnerAppointment } from "../data";
+import { getPartnerFirstVisit } from "../data";
 
 export const dynamic = "force-dynamic";
 
 const t = labels.partner.appointment;
 const c = labels.partner.common;
-const r = labels.partner.report;
+const kind = labels.partner.appointmentKind;
 
-export default async function PartnerAppointmentDetailPage({
+export default async function PartnerFirstVisitDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const row = await getPartnerAppointment(id);
+  const row = await getPartnerFirstVisit(id);
   if (!row) notFound();
 
   return (
     <div>
       <PartnerPageHeader
-        title={t.detailTitle}
+        title={`${t.detailTitle}（${kind.labels.FIRST_VISIT}）`}
         action={
           <Link
             href={`/p-appointments/${row.id}/edit`}
-            className="border-hairline-light text-ink hover:bg-surface-soft inline-flex h-9 items-center rounded-md border px-3 text-sm font-medium"
+            className="border-hairline-light text-ink hover:bg-surface-soft inline-flex h-11 w-full items-center justify-center rounded-md border px-4 text-sm font-medium sm:h-9 sm:w-auto sm:px-3"
           >
             {c.edit}
           </Link>
@@ -48,18 +52,16 @@ export default async function PartnerAppointmentDetailPage({
         <PartnerCard>
           <h2 className="text-mute-light mb-3 text-xs font-semibold">{t.sections.org}</h2>
           <PartnerFieldGrid>
-            <PartnerField label={t.fields.tossDept} value={row.tossDept} />
+            <PartnerField label={t.fields.tossGetter} value={row.tossUpSalespersonName} />
+            <PartnerField label={t.fields.closeCompany} value={row.closingRelationshipName} />
             <PartnerField
               label={t.fields.channel}
               value={
                 row.salesChannel
-                  ? (labels.customer.detail.salesChannelLabels[
-                      row.salesChannel as keyof typeof labels.customer.detail.salesChannelLabels
-                    ] ?? row.salesChannel)
+                  ? (t.salesChannelLabels[row.salesChannel] ?? row.salesChannel)
                   : null
               }
             />
-            <PartnerField label={t.fields.tossGetter} value={row.tossUpSalespersonName} />
             <PartnerField label={t.fields.salesRep} value={row.closingSalespersonName} />
           </PartnerFieldGrid>
         </PartnerCard>
@@ -81,12 +83,7 @@ export default async function PartnerAppointmentDetailPage({
             <PartnerField label={t.fields.venuePlace} value={row.venuePlace} />
             <PartnerField
               label={t.fields.eventType}
-              value={
-                row.venueChain
-                  ? (r.venueChainLabels[row.venueChain as keyof typeof r.venueChainLabels] ??
-                    row.venueChain)
-                  : null
-              }
+              value={row.venueChain ? (t.venueChainLabels[row.venueChain] ?? row.venueChain) : null}
             />
             {/* ブース場所は「その他」のときだけ自由記述を出す（解決は共通関数）。 */}
             <PartnerField
@@ -95,13 +92,7 @@ export default async function PartnerAppointmentDetailPage({
             />
             <PartnerField
               label={t.fields.faceToFace}
-              value={
-                row.faceToFace === "SOVEREIGN"
-                  ? labels.customer.detail.faceToFaceLabels.sovereign
-                  : row.faceToFace === "NON_SOVEREIGN"
-                    ? labels.customer.detail.faceToFaceLabels.nonSovereign
-                    : null
-              }
+              value={row.faceToFace ? (t.faceToFaceLabels[row.faceToFace] ?? null) : null}
             />
           </PartnerFieldGrid>
         </PartnerCard>
@@ -144,12 +135,7 @@ export default async function PartnerAppointmentDetailPage({
       </div>
 
       <div className="mt-4">
-        <Link
-          href="/p-appointments"
-          className="text-primary text-sm underline-offset-4 hover:underline"
-        >
-          {c.backToList}
-        </Link>
+        <BackToListLink href="/p-appointments" label={c.backToList} />
       </div>
     </div>
   );

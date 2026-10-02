@@ -6,6 +6,8 @@
 // 認証情報から決める。フォームからは受け取らない（受け取る口自体を作らない）。
 // 編集は必ず「自社の行か」を where で確認してから更新する。
 
+// 備考（Salesperson.note）は Google フォームに無いので二次店ポータルでは書き換えない。
+// 既存データと代理店側の編集はそのまま残す。
 import {
   PartnerSalespersonCreateSchema,
   PartnerSalespersonUpdateSchema,
@@ -16,7 +18,8 @@ import { revalidatePath } from "next/cache";
 
 import { NotFoundError } from "@/lib/errors";
 import { labels } from "@/lib/i18n/labels";
-import { requirePartnerContext } from "@/lib/partner/context";
+import { companyRelationship, requirePartnerContext } from "@/lib/partner/context";
+import { salespersonScope } from "@/lib/partner/scope";
 import { withTenant } from "@/lib/tenancy/with-tenant";
 
 const LIST_PATH = "/p-salespeople";
@@ -34,14 +37,16 @@ export async function createPartnerSalespersonAction(
   const partner = await requirePartnerContext("partner_salesperson.write");
   const parsed = PartnerSalespersonCreateSchema.parse(input);
 
+  const company = companyRelationship(partner);
   const created = await withTenant(partner.ctx, (tx) =>
     tx.salesperson.create({
       data: {
-        // 所属はすべてサーバー側で決める。
-        wholesalerId: partner.wholesalerId,
-        relationshipId: partner.relationshipId,
+        // 所属はすべてサーバー側で決める。スタッフは「人」が単位なので、複数の代理店と
+        // 取引していても行は複製せず、代表の取引関係に紐づける。
+        wholesalerId: company.wholesalerId,
+        relationshipId: company.id,
         // 加盟店番号は Relationship 由来。入力させない（§6）。
-        franchiseNo: partner.franchiseNo,
+        franchiseNo: company.franchiseNo,
         name: parsed.name,
         kana: parsed.kana ?? null,
         email: parsed.email ?? null,
@@ -52,7 +57,8 @@ export async function createPartnerSalespersonAction(
         residentAddress: parsed.residentAddress ?? null,
         employmentType: parsed.employmentType ?? null,
         salesExperience: parsed.salesExperience ?? null,
-        note: parsed.note ?? null,
+        // ゲスト区分。登録・招待・催事への追加は管理者だけ（この Action 自体が管理者限定）。
+        isGuest: parsed.isGuest ?? false,
       },
       select: { id: true },
     }),
@@ -72,7 +78,7 @@ export async function updatePartnerSalespersonAction(
     // 自社の行であることを先に確認する。クライアントから来た id を
     // そのまま update に渡さない。
     const existing = await tx.salesperson.findFirst({
-      where: { id: parsed.id, relationshipId: partner.relationshipId },
+      where: { id: parsed.id, ...salespersonScope(partner) },
       select: { id: true },
     });
     if (!existing) throw new NotFoundError(labels.partner.errors.notFound);
@@ -90,7 +96,8 @@ export async function updatePartnerSalespersonAction(
         residentAddress: parsed.residentAddress ?? null,
         employmentType: parsed.employmentType ?? null,
         salesExperience: parsed.salesExperience ?? null,
-        note: parsed.note ?? null,
+        // ゲスト区分。登録・招待・催事への追加は管理者だけ（この Action 自体が管理者限定）。
+        isGuest: parsed.isGuest ?? false,
         ...(parsed.isActive !== undefined ? { isActive: parsed.isActive } : {}),
       },
     });

@@ -35,7 +35,14 @@ export interface ReportDetailViewData {
 const TH = "px-3 py-2 text-left text-xs font-semibold text-mute-light";
 const TD = "px-3 py-2 text-sm text-body-light text-right tabular-nums";
 
-export function ReportDetailView({ data }: { data: ReportDetailViewData }) {
+export function ReportDetailView({
+  data,
+  franchiseNo,
+}: {
+  data: ReportDetailViewData;
+  /** 加盟店番号（認証情報 / 提出元から解決した値）。省略時は出さない。 */
+  franchiseNo?: string | null;
+}) {
   const rows = [
     {
       label: t.metrics.lottery,
@@ -62,6 +69,9 @@ export function ReportDetailView({ data }: { data: ReportDetailViewData }) {
       <PartnerCard>
         <h2 className="text-mute-light mb-3 text-xs font-semibold">{t.sections.basic}</h2>
         <PartnerFieldGrid>
+          {franchiseNo === undefined ? null : (
+            <PartnerField label={t.fields.franchiseNo} value={franchiseNo} />
+          )}
           <PartnerField label={t.fields.eventDate} value={formatDate(data.eventDate)} />
           <PartnerField label={t.fields.venuePlace} value={data.venuePlace} />
           <PartnerField

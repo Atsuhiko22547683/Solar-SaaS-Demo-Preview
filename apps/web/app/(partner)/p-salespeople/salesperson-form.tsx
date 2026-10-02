@@ -14,7 +14,6 @@ import {
   FIELD_CLASS,
   PartnerFormActions,
   PartnerFormField,
-  TEXTAREA_CLASS,
   type FieldErrors,
 } from "@/components/partner/partner-form";
 import { PartnerCard } from "@/components/partner/partner-ui";
@@ -40,8 +39,8 @@ interface FormState {
   residentAddress: string;
   employmentType: string;
   salesExperience: string;
-  note: string;
   isActive: boolean;
+  isGuest: boolean;
 }
 
 const EMPTY: FormState = {
@@ -55,8 +54,8 @@ const EMPTY: FormState = {
   residentAddress: "",
   employmentType: "",
   salesExperience: "",
-  note: "",
   isActive: true,
+  isGuest: false,
 };
 
 function fromDetail(d: PartnerSalespersonDetail): FormState {
@@ -71,8 +70,8 @@ function fromDetail(d: PartnerSalespersonDetail): FormState {
     residentAddress: d.residentAddress ?? "",
     employmentType: d.employmentType ?? "",
     salesExperience: d.salesExperience ?? "",
-    note: d.note ?? "",
     isActive: d.isActive,
+    isGuest: d.isGuest ?? false,
   };
 }
 
@@ -114,7 +113,7 @@ export function PartnerSalespersonForm({
         residentAddress: form.residentAddress,
         employmentType: form.employmentType ? (form.employmentType as "EMPLOYEE") : undefined,
         salesExperience: form.salesExperience,
-        note: form.note,
+        isGuest: form.isGuest,
       };
       try {
         if (mode === "edit" && initial) {
@@ -290,16 +289,6 @@ export function PartnerSalespersonForm({
           />
         </PartnerFormField>
 
-        <PartnerFormField label={t.fields.note} htmlFor="sp-note" error={fieldErrors.note}>
-          <textarea
-            id="sp-note"
-            className={TEXTAREA_CLASS}
-            value={form.note}
-            disabled={pending}
-            onChange={(e) => set("note", e.target.value)}
-          />
-        </PartnerFormField>
-
         {mode === "edit" ? (
           <label className="text-body-light flex items-center gap-2 text-sm">
             <input
@@ -312,6 +301,19 @@ export function PartnerSalespersonForm({
             {t.activeLabels.active}
           </label>
         ) : null}
+
+        {/* ゲストスタッフ。受け入れは管理者の操作（この画面は管理者サイト限定）。 */}
+        <label className="text-ink mt-3 flex min-h-11 items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={form.isGuest}
+            disabled={pending}
+            className="border-ash-light text-primary focus:ring-primary/40 size-4 rounded border focus:ring-2"
+            onChange={(e) => set("isGuest", e.target.checked)}
+          />
+          {t.fields.isGuest}
+        </label>
+        <p className="text-mute-light mt-1 text-xs">{t.fields.isGuestHint}</p>
       </PartnerCard>
 
       <PartnerFormActions

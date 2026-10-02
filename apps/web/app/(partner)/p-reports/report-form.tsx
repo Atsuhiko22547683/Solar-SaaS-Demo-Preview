@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import { PartnerOriginNotice, type PartnerOriginOption } from "@/components/partner/origin-select";
 import {
   extractFieldErrors,
   FIELD_CLASS,
@@ -21,7 +22,11 @@ import {
 import { PartnerCard } from "@/components/partner/partner-ui";
 import { labels } from "@/lib/i18n/labels";
 
-import { createPartnerReportAction, updatePartnerReportAction } from "./actions";
+import {
+  correctPartnerReportAction,
+  createPartnerReportAction,
+  updatePartnerReportAction,
+} from "./actions";
 
 import type { PartnerReportDetail } from "./data";
 
@@ -46,9 +51,18 @@ interface FormState {
   apptSingle: string;
   cainzPayCount: string;
   impression: string;
+  /** 対象の催事。日報は催事の記録なので必須。 */
+  eventId: string;
+  /** 対象の開催日。複数日開催でどの日か分かるように必須。 */
+  eventDayId: string;
+  /** 数値の集計単位。未選択は UNKNOWN（合計に混ぜない）。 */
+  reportScope: string;
 }
 
 const EMPTY: FormState = {
+  eventId: "",
+  eventDayId: "",
+  reportScope: "",
   eventDate: "",
   venuePlace: "",
   category: "HOUSING_EQUIPMENT",
@@ -68,6 +82,11 @@ const EMPTY: FormState = {
 
 function fromDetail(d: PartnerReportDetail): FormState {
   return {
+    // 催事・開催日・集計単位は元の日報のものを引き継ぐ。
+    // 編集画面ではこの 3 つを出さないので、送信時も元の値のまま変わらない。
+    eventId: d.eventId ?? "",
+    eventDayId: d.eventDayId ?? "",
+    reportScope: d.reportScope === "UNKNOWN" ? "" : d.reportScope,
     eventDate: d.eventDate.slice(0, 10),
     venuePlace: d.venuePlace,
     category: d.category,
@@ -167,15 +186,49 @@ function MetricRow({
 export function PartnerReportForm({
   mode,
   initial,
+  franchiseNo,
+  origins,
+  events = [],
+  initialEventId = "",
+  initialEventDayId = "",
 }: {
-  mode: "create" | "edit";
+  mode: "create" | "edit" | "correct";
   initial?: PartnerReportDetail;
+  /** 加盟店番号。認証情報から決まるので入力欄にはしない（表示のみ）。 */
+  franchiseNo: string | null;
+  /** 依頼先代理店の候補。複数の代理店から依頼を受ける会社では選択が要る。 */
+  origins: PartnerOriginOption[];
+  /**
+   * 自社が担当している催事と、その開催日。
+   * 日報は「どの催事のどの開催日か」が決まってはじめて意味を持つので、両方選ばせる。
+   */
+  events?: Array<{
+    eventId: string;
+    label: string;
+    venuePlace: string;
+    days: Array<{ eventDayId: string; date: string; label: string }>;
+  }>;
+  /** 催事シフト・催事一覧から引き継いだ対象。指定があれば初期選択する。 */
+  initialEventId?: string;
+  initialEventDayId?: string;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [form, setForm] = useState<FormState>(initial ? fromDetail(initial) : EMPTY);
+  const [form, setForm] = useState<FormState>(
+    initial
+      ? fromDetail(initial)
+      : { ...EMPTY, eventId: initialEventId, eventDayId: initialEventDayId },
+  );
+
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [error, setError] = useState<string | null>(null);
+
+  // 実施日・場所は催事の記録が一次ソース。新規・訂正では選んだ開催日から決める
+  // （サーバー側でも催事側の値で保存するので、手入力させると食い違って見える）。
+  const selectedEvent = events.find((ev) => ev.eventId === form.eventId) ?? null;
+  const selectedDay = selectedEvent?.days.find((d) => d.eventDayId === form.eventDayId) ?? null;
+  const linkedDate = mode === "edit" ? form.eventDate : (selectedDay?.date ?? "");
+  const linkedPlace = mode === "edit" ? form.venuePlace : (selectedEvent?.venuePlace ?? "");
 
   function set(key: keyof FormState, value: string) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -188,8 +241,8 @@ export function PartnerReportForm({
 
     startTransition(async () => {
       const payload = {
-        eventDate: form.eventDate,
-        venuePlace: form.venuePlace,
+        eventDate: linkedDate,
+        venuePlace: linkedPlace,
         category: form.category as "HOUSING_EQUIPMENT",
         venueChain: form.venueChain as "CAINZ_V",
         areaInFacility: form.areaInFacility,
@@ -202,6 +255,10 @@ export function PartnerReportForm({
         apptBoth: form.apptBoth,
         apptSingle: form.apptSingle,
         ...(form.cainzPayCount ? { cainzPayCount: form.cainzPayCount } : {}),
+        // 催事・開催日はサーバーでも必須。実施日と場所は催事側の記録から埋まる。
+        ...(form.eventId ? { eventId: form.eventId } : {}),
+        ...(form.eventDayId ? { eventDayId: form.eventDayId } : {}),
+        ...(form.reportScope ? { reportScope: form.reportScope as "PERSON" } : {}),
         impression: form.impression,
       };
       try {
@@ -209,6 +266,14 @@ export function PartnerReportForm({
           await updatePartnerReportAction({ ...payload, id: initial.id });
           toast.success(c.updated);
           router.push(`${LIST_PATH}/${initial.id}`);
+        } else if (mode === "correct" && initial) {
+          // 元の行は残したまま、訂正後の行を作って繋ぐ（集計は訂正後だけを数える）。
+          const corrected = await correctPartnerReportAction({
+            ...payload,
+            supersedesReportId: initial.id,
+          });
+          toast.success(c.created);
+          router.push(`${LIST_PATH}/${corrected.id}`);
         } else {
           const created = await createPartnerReportAction(payload);
           toast.success(c.created);
@@ -228,37 +293,143 @@ export function PartnerReportForm({
     <form onSubmit={submit} className="space-y-5">
       <PartnerCard className="space-y-4">
         <h2 className="text-mute-light text-xs font-semibold">{t.sections.basic}</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <PartnerFormField
-            label={t.fields.eventDate}
-            htmlFor="r-date"
-            required
-            error={fieldErrors.eventDate}
-          >
-            <input
-              id="r-date"
-              type="date"
-              className={FIELD_CLASS}
-              value={form.eventDate}
-              disabled={pending}
-              onChange={(e) => set("eventDate", e.target.value)}
-            />
-          </PartnerFormField>
+        <p className="text-mute-light text-[13px]">
+          {t.fields.franchiseNo}:{" "}
+          <span className="text-ink tabular-nums">{franchiseNo ?? c.notSet}</span>
+        </p>
+        {/* どの代理店への提出になるかを示すだけ（入力欄ではない）。
+            実際の依頼先はサーバー側が認証情報と取引関係から確定する。 */}
+        {mode === "edit" ? null : <PartnerOriginNotice options={origins} />}
 
-          <PartnerFormField
-            label={t.fields.venuePlace}
-            htmlFor="r-place"
-            required
-            error={fieldErrors.venuePlace}
+        {/* 対象の催事と開催日。どちらも必須で、実施日・場所はこの選択から決まる。
+            自社が担当していない催事や、別催事の開催日はサーバーでも弾く。 */}
+        {/* 担当している催事が 1 件も無いと日報は出せない。行き止まりにせず理由を出す。 */}
+        {mode !== "edit" && events.length === 0 ? (
+          <p className="text-warning text-[13px]">{t.eventLink.noEvents}</p>
+        ) : null}
+
+        {mode === "edit" ? null : (
+          <>
+            <PartnerFormField
+              label={t.eventLink.label}
+              htmlFor="r-event"
+              required
+              hint={t.eventLink.hint}
+              error={fieldErrors.eventId}
+            >
+              <select
+                id="r-event"
+                className={FIELD_CLASS}
+                value={form.eventId}
+                disabled={pending}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, eventId: e.target.value, eventDayId: "" }))
+                }
+              >
+                <option value="">{t.eventLink.none}</option>
+                {events.map((ev) => (
+                  <option key={ev.eventId} value={ev.eventId}>
+                    {ev.label}
+                  </option>
+                ))}
+              </select>
+            </PartnerFormField>
+
+            <PartnerFormField
+              label={t.eventLink.dayLabel}
+              htmlFor="r-event-day"
+              required
+              error={fieldErrors.eventDayId}
+            >
+              <select
+                id="r-event-day"
+                className={FIELD_CLASS}
+                value={form.eventDayId}
+                disabled={pending || form.eventId.length === 0}
+                onChange={(e) => set("eventDayId", e.target.value)}
+              >
+                <option value="">{t.eventLink.dayNone}</option>
+                {(events.find((ev) => ev.eventId === form.eventId)?.days ?? []).map((d) => (
+                  <option key={d.eventDayId} value={d.eventDayId}>
+                    {d.label}
+                  </option>
+                ))}
+              </select>
+            </PartnerFormField>
+          </>
+        )}
+
+        <PartnerFormField label={t.scope.label} htmlFor="r-scope" hint={t.scope.hint}>
+          <select
+            id="r-scope"
+            className={FIELD_CLASS}
+            value={form.reportScope}
+            disabled={pending}
+            onChange={(e) => set("reportScope", e.target.value)}
           >
-            <input
-              id="r-place"
-              className={FIELD_CLASS}
-              value={form.venuePlace}
-              disabled={pending}
-              onChange={(e) => set("venuePlace", e.target.value)}
-            />
-          </PartnerFormField>
+            <option value="">{t.scope.UNKNOWN}</option>
+            <option value="PERSON">{t.scope.PERSON}</option>
+            <option value="COMPANY">{t.scope.COMPANY}</option>
+            <option value="BOOTH">{t.scope.BOOTH}</option>
+          </select>
+        </PartnerFormField>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {mode === "edit" ? (
+            <>
+              <PartnerFormField
+                label={t.fields.eventDate}
+                htmlFor="r-date"
+                required
+                error={fieldErrors.eventDate}
+              >
+                <input
+                  id="r-date"
+                  type="date"
+                  className={FIELD_CLASS}
+                  value={form.eventDate}
+                  disabled={pending}
+                  onChange={(e) => set("eventDate", e.target.value)}
+                />
+              </PartnerFormField>
+
+              <PartnerFormField
+                label={t.fields.venuePlace}
+                htmlFor="r-place"
+                required
+                error={fieldErrors.venuePlace}
+              >
+                <input
+                  id="r-place"
+                  className={FIELD_CLASS}
+                  value={form.venuePlace}
+                  disabled={pending}
+                  onChange={(e) => set("venuePlace", e.target.value)}
+                />
+              </PartnerFormField>
+            </>
+          ) : (
+            <>
+              {/* 選んだ催事・開催日から決まる。入力欄にすると催事側の記録と食い違う。 */}
+              <PartnerFormField
+                label={t.fields.eventDate}
+                htmlFor="r-date-derived"
+                error={fieldErrors.eventDate}
+              >
+                <p id="r-date-derived" className="text-ink py-2 text-sm tabular-nums">
+                  {linkedDate || c.notSet}
+                </p>
+              </PartnerFormField>
+              <PartnerFormField
+                label={t.fields.venuePlace}
+                htmlFor="r-place-derived"
+                error={fieldErrors.venuePlace}
+              >
+                <p id="r-place-derived" className="text-ink py-2 text-sm">
+                  {linkedPlace || c.notSet}
+                </p>
+              </PartnerFormField>
+            </>
+          )}
 
           <PartnerFormField label={t.fields.category} htmlFor="r-category" required>
             <select
@@ -410,7 +581,7 @@ export function PartnerReportForm({
       </PartnerCard>
 
       <PartnerFormActions
-        submitLabel={mode === "edit" ? c.save : c.register}
+        submitLabel={mode === "edit" ? c.save : mode === "correct" ? t.correctAction : c.register}
         pendingLabel={mode === "edit" ? c.saving : c.registering}
         pending={pending}
         cancelHref={initial ? `${LIST_PATH}/${initial.id}` : LIST_PATH}

@@ -61,7 +61,7 @@ export function PartnerField({ label, value }: { label: string; value: ReactNode
   const empty = value === null || value === undefined || value === "";
   return (
     <div className="min-w-0">
-      <dt className="text-mute-light text-[11px] leading-tight">{label}</dt>
+      <dt className="text-mute-light text-xs leading-tight">{label}</dt>
       <dd className="text-ink mt-0.5 break-words text-sm">
         {empty ? <span className="text-mute-light">{t.dash}</span> : value}
       </dd>
@@ -84,7 +84,38 @@ export function PartnerEmpty({ title, body }: { title: string; body: string }) {
 }
 
 export const P_TH = "whitespace-nowrap px-3 py-2.5 text-left text-xs font-semibold text-mute-light";
-export const P_TD = "px-3 py-2.5 text-body-light text-sm";
+export const P_TD = "px-3 py-3 text-body-light text-sm sm:py-2.5";
+
+/**
+ * 狭い画面で主要セルの下に畳む補助情報。
+ *
+ * 一覧は幅の狭い画面で補助列を隠すが、隠したままだと確認する手段が無くなる。
+ * 隠した項目はこの行に「ラベル: 値」で並べ、広い画面では列に戻す。
+ */
+export const P_SUB = "text-mute-light mt-0.5 block text-xs sm:hidden";
+
+/**
+ * 表の横スクロール枠。
+ *
+ * ページ全体を横スクロールさせず、表の領域内だけで動かす。狭い画面では
+ * スクロールできることが分かるよう案内を出し、キーボードでも動かせるよう
+ * tabIndex を付ける（スクロール領域はフォーカスできないと操作できない）。
+ */
+export function PartnerTableScroll({ children }: { children: ReactNode }) {
+  return (
+    <div>
+      <p className="text-mute-light px-3 pt-2 text-[11px] sm:hidden">
+        {labels.partner.list.tableScrollHint}
+      </p>
+      <div
+        tabIndex={0}
+        className="focus-visible:ring-primary/40 overflow-x-auto focus:outline-none focus-visible:ring-2"
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
 
 /** 一覧の行リンク。狭い画面でも押しやすいよう行全体をリンクにする。 */
 export function PartnerRowLink({ href, children }: { href: string; children: ReactNode }) {

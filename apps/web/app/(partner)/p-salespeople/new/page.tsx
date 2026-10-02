@@ -2,7 +2,7 @@
 
 import { PartnerPageHeader } from "@/components/partner/partner-ui";
 import { labels } from "@/lib/i18n/labels";
-import { requirePartnerContext } from "@/lib/partner/context";
+import { requirePartnerContext, franchiseNoLabel } from "@/lib/partner/context";
 
 import { PartnerSalespersonForm } from "../salesperson-form";
 
@@ -15,7 +15,7 @@ export default async function NewPartnerSalespersonPage() {
   return (
     <div>
       <PartnerPageHeader title={labels.partner.salesperson.newTitle} />
-      <PartnerSalespersonForm mode="create" franchiseNo={partner.franchiseNo} />
+      <PartnerSalespersonForm mode="create" franchiseNo={franchiseNoLabel(partner)} />
     </div>
   );
 }

@@ -35,7 +35,7 @@ export default async function PartnerSalespersonDetailPage({
         action={
           <Link
             href={`/p-salespeople/${row.id}/edit`}
-            className="border-hairline-light text-ink hover:bg-surface-soft inline-flex h-9 items-center rounded-md border px-3 text-sm font-medium"
+            className="border-hairline-light text-ink hover:bg-surface-soft inline-flex h-11 w-full items-center justify-center rounded-md border px-4 text-sm font-medium sm:h-9 sm:w-auto sm:px-3"
           >
             {c.edit}
           </Link>
@@ -78,7 +78,15 @@ export default async function PartnerSalespersonDetailPage({
             label={t.fields.isActive}
             value={row.isActive ? t.activeLabels.active : t.activeLabels.inactive}
           />
-          <PartnerField label={t.fields.note} value={row.note} />
+          {/* ログインアカウントとの紐付け状況。設定は利用者アカウント管理側で行う。 */}
+          <PartnerField
+            label={t.columns.account}
+            value={
+              row.accountName
+                ? `${row.accountName}（${row.accountEmail ?? c.dash}）`
+                : t.linkLabels["UNLINKED"]
+            }
+          />
         </PartnerFieldGrid>
       </PartnerCard>
 

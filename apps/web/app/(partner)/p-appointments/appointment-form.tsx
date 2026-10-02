@@ -1,18 +1,27 @@
 "use client";
 
-// アポイントの登録 / 編集フォーム
-// （Google フォーム「住設事業部/加盟店-①初訪アポフォーム」準拠）。
+// 初訪アポの登録 / 編集フォーム
+// （Google フォーム「住設事業部/加盟店-①初訪アポフォーム」準拠・21 項目）。
 //
-// 加盟店番号・クローズ会社は認証情報から決まるので入力欄を出さない（表示のみ）。
+// 加盟店番号は認証情報から決まるので入力欄を出さない（表示のみ）。
 // トス獲得者 / 営業担当者は自社に登録済みの販売員から選ぶ。
-// 電話番号は固定・携帯のどちらか一方が必須（サーバー側でも同じ検証をする）。
+// クローズ会社は、ログイン中の二次店が参照を許された会社だけを選択肢にする。
+//
+// 必須・条件付きの規則は @solar/contracts の Zod と 1:1。画面の必須マークだけで
+// 済ませず、Server Action 側でも同じスキーマで検証する。
+//
+// フォームに無い項目は置かない。「トス部署」は①フォームに存在しないため、
+// この画面には出さず訪問アポ側だけで扱う。
 
+import { PartnerFirstVisitCreateSchema, PartnerFirstVisitUpdateSchema } from "@solar/contracts";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import { PartnerOriginNotice, type PartnerOriginOption } from "@/components/partner/origin-select";
 import {
   extractFieldErrors,
+  issuesToFieldErrors,
   FIELD_CLASS,
   PartnerFormActions,
   PartnerFormField,
@@ -22,9 +31,9 @@ import {
 import { PartnerCard } from "@/components/partner/partner-ui";
 import { labels } from "@/lib/i18n/labels";
 
-import { createPartnerAppointmentAction, updatePartnerAppointmentAction } from "./actions";
+import { createPartnerFirstVisitAction, updatePartnerFirstVisitAction } from "./actions";
 
-import type { PartnerAppointmentDetail } from "./data";
+import type { AppointmentEventContext, PartnerFirstVisitDetail } from "./data";
 
 const t = labels.partner.appointment;
 const c = labels.partner.common;
@@ -32,13 +41,21 @@ const c = labels.partner.common;
 const LIST_PATH = "/p-appointments";
 
 const SALES_CHANNELS = ["VISIT_SALES", "INBOUND", "EVENT", "REFERRAL", "OTHER"] as const;
+/** 初訪アポの催事種別はカインズ / 島忠 / コメリ の 3 択（日報の W / V とは粒度が違う）。 */
+const VENUE_CHAINS = ["CAINZ", "SHIMACHU", "KOMERI"] as const;
+const BOOTH_AREAS = ["ENTRANCE", "REFORM_CORNER", "OTHER"] as const;
+const FACE_TO_FACE = ["SOVEREIGN", "NON_SOVEREIGN"] as const;
+
+/** 催事種別を入力するチャネル。 */
+const VENUE_CHAIN_CHANNEL = "EVENT";
+/** 対面者を入力するチャネル。 */
+const FACE_TO_FACE_CHANNEL = "VISIT_SALES";
 
 interface FormState {
-  tossDept: string;
   tossUpSalespersonId: string;
+  closingRelationshipId: string;
   closingSalespersonId: string;
   salesChannel: string;
-  sourceEventId: string;
   eventDate: string;
   venuePlace: string;
   venueChain: string;
@@ -59,11 +76,10 @@ interface FormState {
 }
 
 const EMPTY: FormState = {
-  tossDept: "",
   tossUpSalespersonId: "",
+  closingRelationshipId: "",
   closingSalespersonId: "",
   salesChannel: "",
-  sourceEventId: "",
   eventDate: "",
   venuePlace: "",
   venueChain: "",
@@ -92,13 +108,12 @@ function toLocalInput(iso: string | null): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
-function fromDetail(d: PartnerAppointmentDetail): FormState {
+function fromDetail(d: PartnerFirstVisitDetail): FormState {
   return {
-    tossDept: d.tossDept ?? "",
     tossUpSalespersonId: d.tossUpSalespersonId ?? "",
+    closingRelationshipId: d.closingRelationshipId ?? "",
     closingSalespersonId: d.closingSalespersonId ?? "",
     salesChannel: d.salesChannel ?? "",
-    sourceEventId: d.sourceEventId ?? "",
     // 催事実施日は日付のみ。UTC 基準で切り出して往復させ、日付ずれを起こさない。
     eventDate: d.eventDate ? d.eventDate.slice(0, 10) : "",
     venuePlace: d.venuePlace ?? "",
@@ -120,22 +135,55 @@ function fromDetail(d: PartnerAppointmentDetail): FormState {
   };
 }
 
-export function PartnerAppointmentForm({
+/** 催事から登録するときの初期入力。催事から確定できる情報だけを埋める。 */
+function fromEvent(ev: AppointmentEventContext): FormState {
+  return {
+    ...EMPTY,
+    // 催事から来たので販売チャネルは「催事」。
+    salesChannel: "EVENT",
+    eventDate: ev.eventDate,
+    venuePlace: ev.venuePlace,
+    venueChain: ev.venueChain ?? "",
+    boothArea: ev.boothArea ?? "",
+    boothAreaNote: ev.boothAreaNote ?? "",
+    // 担当者・アポ獲得者はログイン利用者を初期値にする。代理入力のときだけ変える。
+    tossUpSalespersonId: ev.mySalespersonId ?? "",
+    closingSalespersonId: ev.mySalespersonId ?? "",
+  };
+}
+
+export function PartnerFirstVisitForm({
   mode,
   initial,
   franchiseNo,
   salespeople,
-  events,
+  closeCompanies,
+  eventContext,
+  origins,
 }: {
   mode: "create" | "edit";
-  initial?: PartnerAppointmentDetail;
+  initial?: PartnerFirstVisitDetail;
   franchiseNo: string | null;
   salespeople: { id: string; name: string }[];
-  events: { id: string; label: string }[];
+  closeCompanies: { id: string; name: string }[];
+  /**
+   * 催事から登録するときの文脈。上部の業務情報を初期入力し、担当者・アポ獲得者の
+   * 候補をその催事・当日の参加スタッフに限る。催事外からの登録では undefined。
+   */
+  eventContext?: AppointmentEventContext | null;
+  /** 依頼先代理店の候補。催事から来たときは催事側の依頼元が使われる。 */
+  origins: PartnerOriginOption[];
 }) {
+  // 担当者・アポ獲得者の候補。催事から来たときはその催事の参加スタッフだけにする
+  // （別の催事の無関係なスタッフを混ぜない）。
+  const staffOptions =
+    eventContext && eventContext.attendees.length > 0 ? eventContext.attendees : salespeople;
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [form, setForm] = useState<FormState>(initial ? fromDetail(initial) : EMPTY);
+
+  const [form, setForm] = useState<FormState>(() =>
+    initial ? fromDetail(initial) : eventContext ? fromEvent(eventContext) : EMPTY,
+  );
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [error, setError] = useState<string | null>(null);
 
@@ -143,9 +191,24 @@ export function PartnerAppointmentForm({
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
-  // 登録済み催事を選んでいる間は催事情報がイベント側で決まるので、
-  // 直接入力欄は触れないようにする（同じ値を二重に持たせない）。
-  const usingEvent = form.sourceEventId.length > 0;
+  const needsVenueChain = form.salesChannel === VENUE_CHAIN_CHANNEL;
+  const needsFaceToFace = form.salesChannel === FACE_TO_FACE_CHANNEL;
+
+  /**
+   * 販売チャネルの切替。
+   *
+   * 対象外になった条件付き項目（催事種別 / 対面者）はその場で消す。残すと
+   * 「チャネルは訪問販売なのに催事種別が付いている」行ができ、どちらが正か
+   * 判らなくなるため。サーバー側の Zod も同じ組み合わせを拒否する。
+   */
+  function setSalesChannel(next: string) {
+    setForm((prev) => ({
+      ...prev,
+      salesChannel: next,
+      venueChain: next === VENUE_CHAIN_CHANNEL ? prev.venueChain : "",
+      faceToFace: next === FACE_TO_FACE_CHANNEL ? prev.faceToFace : "",
+    }));
+  }
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -154,17 +217,20 @@ export function PartnerAppointmentForm({
 
     startTransition(async () => {
       const payload = {
-        tossDept: form.tossDept,
         tossUpSalespersonId: form.tossUpSalespersonId,
+        closingRelationshipId: form.closingRelationshipId,
         closingSalespersonId: form.closingSalespersonId,
-        salesChannel: form.salesChannel ? (form.salesChannel as "EVENT") : undefined,
-        sourceEventId: form.sourceEventId,
+        salesChannel: form.salesChannel as (typeof SALES_CHANNELS)[number],
         eventDate: form.eventDate,
         venuePlace: form.venuePlace,
-        venueChain: form.venueChain ? (form.venueChain as "CAINZ_V") : undefined,
-        boothArea: form.boothArea ? (form.boothArea as "ENTRANCE") : undefined,
+        venueChain: form.venueChain
+          ? (form.venueChain as (typeof VENUE_CHAINS)[number])
+          : undefined,
+        boothArea: form.boothArea as (typeof BOOTH_AREAS)[number],
         boothAreaNote: form.boothAreaNote,
-        faceToFace: form.faceToFace ? (form.faceToFace as "SOVEREIGN") : undefined,
+        faceToFace: form.faceToFace
+          ? (form.faceToFace as (typeof FACE_TO_FACE)[number])
+          : undefined,
         name: form.name,
         kana: form.kana,
         landlinePhone: form.landlinePhone,
@@ -176,14 +242,29 @@ export function PartnerAppointmentForm({
         maekakuOperator: form.maekakuOperator,
         firstVisitAt: form.firstVisitAt,
         note: form.note,
+        // 催事との紐付けは id で持たせる。担当者を変えても書き換わらない。
+        eventId: eventContext?.eventId,
+        eventDayId: eventContext?.eventDayId ?? undefined,
       };
+      // 送る前に共通スキーマで確かめ、項目ごとのメッセージを欄の近くに出す。
+      // サーバー側の検証（Server Action の parse）はそのまま残す（二重防御）。
+      const check =
+        mode === "edit" && initial
+          ? PartnerFirstVisitUpdateSchema.safeParse({ ...payload, id: initial.id })
+          : PartnerFirstVisitCreateSchema.safeParse(payload);
+      if (!check.success) {
+        setFieldErrors(issuesToFieldErrors(check.error.issues));
+        setError(c.validationFailed);
+        return;
+      }
+
       try {
         if (mode === "edit" && initial) {
-          await updatePartnerAppointmentAction({ ...payload, id: initial.id });
+          await updatePartnerFirstVisitAction({ ...payload, id: initial.id });
           toast.success(c.updated);
           router.push(`${LIST_PATH}/${initial.id}`);
         } else {
-          const created = await createPartnerAppointmentAction(payload);
+          const created = await createPartnerFirstVisitAction(payload);
           toast.success(c.created);
           router.push(`${LIST_PATH}/${created.id}`);
         }
@@ -202,41 +283,21 @@ export function PartnerAppointmentForm({
       {/* ── 体制 ── */}
       <PartnerCard className="space-y-4">
         <h2 className="text-mute-light text-xs font-semibold">{t.sections.org}</h2>
-        {/* 加盟店番号・クローズ会社は自動設定。入力欄にしない（§6）。 */}
+        {/* 加盟店番号は自動設定。入力欄にしない。 */}
         <p className="text-mute-light text-[13px]">
           {t.fields.franchiseNo}:{" "}
           <span className="text-ink tabular-nums">{franchiseNo ?? c.notSet}</span>
         </p>
+        {/* どの代理店への提出になるかを示すだけ（入力欄ではない）。
+            催事から登録した場合はその催事の担当会社が依頼先になる。 */}
+        {mode === "create" && !eventContext ? <PartnerOriginNotice options={origins} /> : null}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <PartnerFormField label={t.fields.tossDept} htmlFor="a-tossdept">
-            <input
-              id="a-tossdept"
-              className={FIELD_CLASS}
-              value={form.tossDept}
-              disabled={pending}
-              onChange={(e) => set("tossDept", e.target.value)}
-            />
-          </PartnerFormField>
-
-          <PartnerFormField label={t.fields.channel} htmlFor="a-channel">
-            <select
-              id="a-channel"
-              className={FIELD_CLASS}
-              value={form.salesChannel}
-              disabled={pending}
-              onChange={(e) => set("salesChannel", e.target.value)}
-            >
-              <option value="">{c.notSet}</option>
-              {SALES_CHANNELS.map((v) => (
-                <option key={v} value={v}>
-                  {labels.customer.detail.salesChannelLabels[v] ?? v}
-                </option>
-              ))}
-            </select>
-          </PartnerFormField>
-
-          <PartnerFormField label={t.fields.tossGetter} htmlFor="a-toss">
+          <PartnerFormField
+            label={t.fields.tossGetter}
+            htmlFor="a-toss"
+            error={fieldErrors.tossUpSalespersonId}
+          >
             <select
               id="a-toss"
               className={FIELD_CLASS}
@@ -245,7 +306,7 @@ export function PartnerAppointmentForm({
               onChange={(e) => set("tossUpSalespersonId", e.target.value)}
             >
               <option value="">{c.notSet}</option>
-              {salespeople.map((s) => (
+              {staffOptions.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
                 </option>
@@ -253,7 +314,35 @@ export function PartnerAppointmentForm({
             </select>
           </PartnerFormField>
 
-          <PartnerFormField label={t.fields.salesRep} htmlFor="a-rep">
+          <PartnerFormField
+            label={t.fields.closeCompany}
+            htmlFor="a-closecompany"
+            required
+            hint={t.closeCompanyHint}
+            error={fieldErrors.closingRelationshipId}
+          >
+            <select
+              id="a-closecompany"
+              className={FIELD_CLASS}
+              value={form.closingRelationshipId}
+              disabled={pending}
+              onChange={(e) => set("closingRelationshipId", e.target.value)}
+            >
+              <option value="">{c.notSet}</option>
+              {closeCompanies.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
+            </select>
+          </PartnerFormField>
+
+          <PartnerFormField
+            label={t.fields.salesRep}
+            htmlFor="a-rep"
+            required
+            error={fieldErrors.closingSalespersonId}
+          >
             <select
               id="a-rep"
               className={FIELD_CLASS}
@@ -262,9 +351,31 @@ export function PartnerAppointmentForm({
               onChange={(e) => set("closingSalespersonId", e.target.value)}
             >
               <option value="">{c.notSet}</option>
-              {salespeople.map((s) => (
+              {staffOptions.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
+                </option>
+              ))}
+            </select>
+          </PartnerFormField>
+
+          <PartnerFormField
+            label={t.fields.channel}
+            htmlFor="a-channel"
+            required
+            error={fieldErrors.salesChannel}
+          >
+            <select
+              id="a-channel"
+              className={FIELD_CLASS}
+              value={form.salesChannel}
+              disabled={pending}
+              onChange={(e) => setSalesChannel(e.target.value)}
+            >
+              <option value="">{c.notSet}</option>
+              {SALES_CHANNELS.map((v) => (
+                <option key={v} value={v}>
+                  {t.salesChannelLabels[v]}
                 </option>
               ))}
             </select>
@@ -275,77 +386,80 @@ export function PartnerAppointmentForm({
       {/* ── 催事 ── */}
       <PartnerCard className="space-y-4">
         <h2 className="text-mute-light text-xs font-semibold">{t.sections.event}</h2>
+
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <PartnerFormField
-            label={t.fields.sourceEvent}
-            htmlFor="a-event"
-            hint={t.eventOverrideHint}
+            label={t.fields.eventDate}
+            htmlFor="a-eventdate"
+            required
+            hint={t.eventDateHint}
+            error={fieldErrors.eventDate}
           >
-            <select
-              id="a-event"
-              className={FIELD_CLASS}
-              value={form.sourceEventId}
-              disabled={pending}
-              onChange={(e) => set("sourceEventId", e.target.value)}
-            >
-              <option value="">{t.noSourceEvent}</option>
-              {events.map((ev) => (
-                <option key={ev.id} value={ev.id}>
-                  {ev.label}
-                </option>
-              ))}
-            </select>
-          </PartnerFormField>
-
-          <PartnerFormField label={t.fields.eventDate} htmlFor="a-eventdate">
             <input
               id="a-eventdate"
               type="date"
               className={FIELD_CLASS}
               value={form.eventDate}
-              disabled={pending || usingEvent}
+              disabled={pending}
               onChange={(e) => set("eventDate", e.target.value)}
             />
           </PartnerFormField>
 
-          <PartnerFormField label={t.fields.venuePlace} htmlFor="a-place">
+          <PartnerFormField
+            label={t.fields.venuePlace}
+            htmlFor="a-place"
+            required
+            error={fieldErrors.venuePlace}
+          >
             <input
               id="a-place"
               className={FIELD_CLASS}
               value={form.venuePlace}
-              disabled={pending || usingEvent}
+              disabled={pending}
               onChange={(e) => set("venuePlace", e.target.value)}
             />
           </PartnerFormField>
 
-          <PartnerFormField label={t.fields.eventType} htmlFor="a-chain">
-            <select
-              id="a-chain"
-              className={FIELD_CLASS}
-              value={form.venueChain}
-              disabled={pending || usingEvent}
-              onChange={(e) => set("venueChain", e.target.value)}
+          {/* 催事種別は販売チャネルが「催事」のときだけ入力対象。 */}
+          {needsVenueChain ? (
+            <PartnerFormField
+              label={t.fields.eventType}
+              htmlFor="a-chain"
+              required
+              hint={t.venueChainHint}
+              error={fieldErrors.venueChain}
             >
-              <option value="">{c.notSet}</option>
-              {Object.entries(labels.partner.report.venueChainLabels).map(([v, label]) => (
-                <option key={v} value={v}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </PartnerFormField>
+              <select
+                id="a-chain"
+                className={FIELD_CLASS}
+                value={form.venueChain}
+                disabled={pending}
+                onChange={(e) => set("venueChain", e.target.value)}
+              >
+                <option value="">{c.notSet}</option>
+                {VENUE_CHAINS.map((v) => (
+                  <option key={v} value={v}>
+                    {t.venueChainLabels[v]}
+                  </option>
+                ))}
+              </select>
+            </PartnerFormField>
+          ) : null}
 
-          <PartnerFormField label={t.fields.boothArea} htmlFor="a-booth">
+          <PartnerFormField
+            label={t.fields.boothArea}
+            htmlFor="a-booth"
+            required
+            error={fieldErrors.boothArea}
+          >
             <select
               id="a-booth"
               className={FIELD_CLASS}
               value={form.boothArea}
-              disabled={pending || usingEvent}
+              disabled={pending}
               onChange={(e) => {
                 const next = e.target.value;
-                // 「その他」から離れたら自由記述は捨てる。残したまま送ると
-                // サーバー側の検証（その他のときだけ入力可）で弾かれるうえ、
-                // 画面から消えた値が保存される状態にもなるため。
+                // 「その他」以外へ移したら自由記述は残さない（サーバー側も拒否する）。
                 setForm((prev) => ({
                   ...prev,
                   boothArea: next,
@@ -354,16 +468,15 @@ export function PartnerAppointmentForm({
               }}
             >
               <option value="">{c.notSet}</option>
-              {Object.entries(t.boothAreaLabels).map(([v, label]) => (
+              {BOOTH_AREAS.map((v) => (
                 <option key={v} value={v}>
-                  {label}
+                  {t.boothAreaLabels[v]}
                 </option>
               ))}
             </select>
           </PartnerFormField>
 
-          {/* 自由記述は「その他」を選んだときだけ出す（サーバー側も同じ規則で検証）。 */}
-          {form.boothArea === "OTHER" && !usingEvent ? (
+          {form.boothArea === "OTHER" ? (
             <PartnerFormField
               label={t.boothAreaNote}
               htmlFor="a-boothnote"
@@ -380,21 +493,31 @@ export function PartnerAppointmentForm({
             </PartnerFormField>
           ) : null}
 
-          <PartnerFormField label={t.fields.faceToFace} htmlFor="a-face">
-            <select
-              id="a-face"
-              className={FIELD_CLASS}
-              value={form.faceToFace}
-              disabled={pending}
-              onChange={(e) => set("faceToFace", e.target.value)}
+          {/* 対面者は販売チャネルが「訪問販売」のときだけ入力対象。 */}
+          {needsFaceToFace ? (
+            <PartnerFormField
+              label={t.fields.faceToFace}
+              htmlFor="a-face"
+              required
+              hint={t.faceToFaceHint}
+              error={fieldErrors.faceToFace}
             >
-              <option value="">{c.notSet}</option>
-              <option value="SOVEREIGN">{labels.customer.detail.faceToFaceLabels.sovereign}</option>
-              <option value="NON_SOVEREIGN">
-                {labels.customer.detail.faceToFaceLabels.nonSovereign}
-              </option>
-            </select>
-          </PartnerFormField>
+              <select
+                id="a-face"
+                className={FIELD_CLASS}
+                value={form.faceToFace}
+                disabled={pending}
+                onChange={(e) => set("faceToFace", e.target.value)}
+              >
+                <option value="">{c.notSet}</option>
+                {FACE_TO_FACE.map((v) => (
+                  <option key={v} value={v}>
+                    {t.faceToFaceLabels[v]}
+                  </option>
+                ))}
+              </select>
+            </PartnerFormField>
+          ) : null}
         </div>
       </PartnerCard>
 
@@ -417,7 +540,12 @@ export function PartnerAppointmentForm({
             />
           </PartnerFormField>
 
-          <PartnerFormField label={t.fields.kana} htmlFor="a-kana" error={fieldErrors.kana}>
+          <PartnerFormField
+            label={t.fields.kana}
+            htmlFor="a-kana"
+            required
+            error={fieldErrors.kana}
+          >
             <input
               id="a-kana"
               className={FIELD_CLASS}
@@ -430,12 +558,10 @@ export function PartnerAppointmentForm({
           <PartnerFormField
             label={t.fields.landline}
             htmlFor="a-landline"
-            hint={t.phoneHint}
             error={fieldErrors.landlinePhone}
           >
             <input
               id="a-landline"
-              type="tel"
               inputMode="tel"
               className={FIELD_CLASS}
               value={form.landlinePhone}
@@ -447,11 +573,11 @@ export function PartnerAppointmentForm({
           <PartnerFormField
             label={t.fields.mobile}
             htmlFor="a-mobile"
+            required
             error={fieldErrors.mobilePhone}
           >
             <input
               id="a-mobile"
-              type="tel"
               inputMode="tel"
               className={FIELD_CLASS}
               value={form.mobilePhone}
@@ -460,10 +586,14 @@ export function PartnerAppointmentForm({
             />
           </PartnerFormField>
 
-          <PartnerFormField label={t.fields.postalCode} htmlFor="a-postal">
+          <PartnerFormField
+            label={t.fields.postalCode}
+            htmlFor="a-postal"
+            required
+            error={fieldErrors.postalCode}
+          >
             <input
               id="a-postal"
-              inputMode="numeric"
               className={FIELD_CLASS}
               value={form.postalCode}
               disabled={pending}
@@ -471,7 +601,12 @@ export function PartnerAppointmentForm({
             />
           </PartnerFormField>
 
-          <PartnerFormField label={t.fields.prefecture} htmlFor="a-pref">
+          <PartnerFormField
+            label={t.fields.prefecture}
+            htmlFor="a-pref"
+            required
+            error={fieldErrors.prefecture}
+          >
             <input
               id="a-pref"
               className={FIELD_CLASS}
@@ -482,7 +617,12 @@ export function PartnerAppointmentForm({
           </PartnerFormField>
         </div>
 
-        <PartnerFormField label={t.fields.cityAddress} htmlFor="a-city">
+        <PartnerFormField
+          label={t.fields.cityAddress}
+          htmlFor="a-city"
+          required
+          error={fieldErrors.cityAddress}
+        >
           <input
             id="a-city"
             className={FIELD_CLASS}
@@ -497,7 +637,11 @@ export function PartnerAppointmentForm({
       <PartnerCard className="space-y-4">
         <h2 className="text-mute-light text-xs font-semibold">{t.sections.appointment}</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <PartnerFormField label={t.fields.maekakuPreferredAt} htmlFor="a-maekaku-at">
+          <PartnerFormField
+            label={t.fields.maekakuPreferredAt}
+            htmlFor="a-maekaku-at"
+            error={fieldErrors.maekakuPreferredAt}
+          >
             <input
               id="a-maekaku-at"
               type="datetime-local"
@@ -508,8 +652,12 @@ export function PartnerAppointmentForm({
             />
           </PartnerFormField>
 
-          {/* マエカク実施者は自由記述（フォーム正本どおり。販売員選択にしない）。 */}
-          <PartnerFormField label={t.fields.maekakuOperator} htmlFor="a-maekaku-op">
+          <PartnerFormField
+            label={t.fields.maekakuOperator}
+            htmlFor="a-maekaku-op"
+            required
+            error={fieldErrors.maekakuOperator}
+          >
             <input
               id="a-maekaku-op"
               className={FIELD_CLASS}
@@ -519,7 +667,12 @@ export function PartnerAppointmentForm({
             />
           </PartnerFormField>
 
-          <PartnerFormField label={t.fields.firstVisitAt} htmlFor="a-visit">
+          <PartnerFormField
+            label={t.fields.firstVisitAt}
+            htmlFor="a-visit"
+            required
+            error={fieldErrors.firstVisitAt}
+          >
             <input
               id="a-visit"
               type="datetime-local"
@@ -532,8 +685,10 @@ export function PartnerAppointmentForm({
         </div>
       </PartnerCard>
 
-      <PartnerCard>
-        <PartnerFormField label={t.fields.note} htmlFor="a-note">
+      {/* ── 備考 ── */}
+      <PartnerCard className="space-y-4">
+        <h2 className="text-mute-light text-xs font-semibold">{t.sections.note}</h2>
+        <PartnerFormField label={t.fields.note} htmlFor="a-note" error={fieldErrors.note}>
           <textarea
             id="a-note"
             className={TEXTAREA_CLASS}
@@ -546,9 +701,9 @@ export function PartnerAppointmentForm({
 
       <PartnerFormActions
         submitLabel={mode === "edit" ? c.save : c.register}
-        pendingLabel={mode === "edit" ? c.saving : c.registering}
         pending={pending}
-        cancelHref={initial ? `${LIST_PATH}/${initial.id}` : LIST_PATH}
+        pendingLabel={mode === "edit" ? c.saving : c.registering}
+        cancelHref={mode === "edit" && initial ? `${LIST_PATH}/${initial.id}` : LIST_PATH}
         cancelLabel={c.cancel}
         error={error}
       />

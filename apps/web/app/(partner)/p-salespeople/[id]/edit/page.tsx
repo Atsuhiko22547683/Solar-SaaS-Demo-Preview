@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 
 import { PartnerPageHeader } from "@/components/partner/partner-ui";
 import { labels } from "@/lib/i18n/labels";
-import { requirePartnerContext } from "@/lib/partner/context";
+import { requirePartnerContext, franchiseNoLabel } from "@/lib/partner/context";
 
 import { getPartnerSalesperson } from "../../data";
 import { PartnerSalespersonForm } from "../../salesperson-form";
@@ -24,7 +24,7 @@ export default async function EditPartnerSalespersonPage({
   return (
     <div>
       <PartnerPageHeader title={labels.partner.salesperson.editTitle} />
-      <PartnerSalespersonForm mode="edit" initial={row} franchiseNo={partner.franchiseNo} />
+      <PartnerSalespersonForm mode="edit" initial={row} franchiseNo={franchiseNoLabel(partner)} />
     </div>
   );
 }

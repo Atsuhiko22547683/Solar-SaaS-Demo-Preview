@@ -25,10 +25,19 @@ function Row({ label, value }: { label: string; value: string | null }) {
   );
 }
 
-export function CustomerVenueInfo({ venue }: { venue: ResolvedVenueInfo | null }) {
+export function CustomerVenueInfo({
+  venue,
+  closeCompanyName,
+}: {
+  venue: ResolvedVenueInfo | null;
+  /** クローズ会社（二次店が初訪アポフォームで選んだ会社）。 */
+  closeCompanyName?: string | null;
+}) {
   // 催事情報が 1 つも無い顧客（代理店が直接登録した顧客など）には何も出さない。
-  const hasAny =
-    venue && (venue.eventDate || venue.venuePlace || venue.venueChain || venue.boothArea);
+  const hasAny = Boolean(
+    (venue && (venue.eventDate || venue.venuePlace || venue.venueChain || venue.boothArea)) ||
+    closeCompanyName,
+  );
 
   return (
     <section>
@@ -36,7 +45,7 @@ export function CustomerVenueInfo({ venue }: { venue: ResolvedVenueInfo | null }
         {t.section}
         {hasAny ? (
           <span className="border-hairline-light text-mute-light rounded-sm border px-1 text-[10px] font-normal">
-            {venue.fromEvent ? t.fromEvent : t.directInput}
+            {venue?.fromEvent ? t.fromEvent : t.directInput}
           </span>
         ) : null}
       </h2>
@@ -45,23 +54,26 @@ export function CustomerVenueInfo({ venue }: { venue: ResolvedVenueInfo | null }
         <dl className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
           <Row
             label={t.fields.eventDate}
-            value={venue.eventDate ? formatDate(venue.eventDate) : null}
+            value={venue?.eventDate ? formatDate(venue.eventDate) : null}
           />
-          <Row label={t.fields.venuePlace} value={venue.venuePlace} />
+          <Row label={t.fields.venuePlace} value={venue?.venuePlace ?? null} />
           <Row
             label={t.fields.venueChain}
             value={
-              venue.venueChain
-                ? (labels.partner.report.venueChainLabels[
+              venue?.venueChain
+                ? (labels.partner.appointment.venueChainLabels[venue.venueChain] ??
+                  labels.partner.report.venueChainLabels[
                     venue.venueChain as keyof typeof labels.partner.report.venueChainLabels
-                  ] ?? venue.venueChain)
+                  ] ??
+                  venue.venueChain)
                 : null
             }
           />
           <Row
             label={t.fields.boothArea}
-            value={boothAreaText(venue, labels.partner.appointment.boothAreaLabels)}
+            value={venue ? boothAreaText(venue, labels.partner.appointment.boothAreaLabels) : null}
           />
+          <Row label={t.fields.closeCompany} value={closeCompanyName ?? null} />
         </dl>
       ) : (
         <p className="text-mute-light text-[13px]">{t.empty}</p>
