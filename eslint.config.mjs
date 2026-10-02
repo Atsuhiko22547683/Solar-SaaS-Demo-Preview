@@ -33,6 +33,10 @@ export default [
     ignores: [
       "**/node_modules/**",
       "**/.next/**",
+      // サイトごとのビルド成果物（apps/web/scripts/run-site.mjs が distDir を分けている）。
+      // 除外しないと Lint がビルド出力まで走査してしまう。
+      "**/.next-partner/**",
+      "**/.next-partner-admin/**",
       "**/dist/**",
       "**/build/**",
       "**/coverage/**",

@@ -2,6 +2,10 @@
 const nextConfig = {
   reactStrictMode: true,
   typedRoutes: true,
+  // サイトごとにビルド成果物とキャッシュを分ける（scripts/run-site.mjs が設定する）。
+  // 同じ .next を複数プロセスが共有すると、片方の再起動やホットリロードが
+  // もう片方を壊す。未設定なら従来どおり .next。
+  distDir: process.env.NEXT_DIST_DIR ?? ".next",
   // ESLint runs separately via `pnpm lint`. Skipping here keeps next build
   // focused on type/build correctness; style/import-order issues don't gate
   // releases.

@@ -5,7 +5,22 @@
     "outDir": ".next",
     "noEmit": true,
     "allowJs": true,
-    "plugins": [{ "name": "next" }],
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "target": "ES2022",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "skipLibCheck": true,
+    "strict": true,
     "paths": {
       "@/*": ["./*"],
       "@solar/db": ["../../packages/db/src/index.ts"],
@@ -22,6 +37,14 @@
       "@solar/ui/*": ["../../packages/ui/src/*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules", ".next"]
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".next-partner-admin/types/**/*.ts",
+    ".next-partner/types/**/*.ts",
+    ".next/types/**/*.ts",
+    "next-env.d.ts",
+    ".next-system-admin/types/**/*.ts"
+  ],
+  "exclude": ["node_modules", ".next", ".next-partner", ".next-partner-admin", ".next-system-admin"]
 }

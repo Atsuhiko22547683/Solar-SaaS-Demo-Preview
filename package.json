@@ -11,6 +11,10 @@
   "scripts": {
     "build": "pnpm --filter @solar/db run build && pnpm -r --parallel --filter '!@solar/db' run build",
     "dev": "pnpm -F @solar/web dev",
+    "dev:agency": "pnpm -F @solar/web dev:agency",
+    "dev:partner": "pnpm -F @solar/web dev:partner",
+    "dev:partner-admin": "pnpm -F @solar/web dev:partner-admin",
+    "build:sites": "pnpm -F @solar/web build:agency && pnpm -F @solar/web build:partner && pnpm -F @solar/web build:partner-admin",
     "dev:worker": "pnpm -F @solar/worker dev",
     "typecheck": "pnpm -r --parallel run typecheck",
     "lint": "pnpm -r --parallel run lint",

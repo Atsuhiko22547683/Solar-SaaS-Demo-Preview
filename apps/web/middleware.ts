@@ -17,17 +17,43 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 
-import { homePathForVariant, isPathAllowedForVariant, resolveAppVariant } from "@/lib/app-variant";
+import {
+  homePathForVariant,
+  isPathAllowedForVariant,
+  resolveAppVariant,
+  sessionCookieNames,
+} from "@/lib/app-variant";
 
 const REQUEST_ID_HEADER = "x-request-id";
+// Server Component（レイアウト）から今どのパスを描いているかを知るためのヘッダ。
+// layout は pathname を受け取れないので、Edge で分かるここから渡す。
+// 決済状態による利用制限のガードが (wholesaler)/layout.tsx でこれを読む。
+const PATHNAME_HEADER = "x-pathname";
 const REQUEST_ID_PATTERN = /^[a-zA-Z0-9-_]{8,128}$/;
 
-// 実行バリアント（代理店 / 二次店）。Railway では APP_VARIANT で切り替える。
-// Edge で判定できる純関数なので、ここで先に弾いて不要なレンダリングを避ける。
+// 実行バリアント（一次代理店 / 二次店スタッフ / 二次店管理者）。
+// Railway では APP_VARIANT で切り替える。Edge で判定できる純関数なので、
+// ここで先に弾いて不要なレンダリングを避ける。
 // 認可そのものはこの先のサーバー側（レイアウト / Server Action）でも行う。
+//
+// 値域外の APP_VARIANT はここで例外になり、プロセスが起動しない。
+// 打ち間違いが「別のサイトとして公開される」事故にならないようにしている。
 const VARIANT = resolveAppVariant();
 
-const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password", "/reset-password", "/reset", "/invite", "/api/auth", "/api/health"];
+// セッション Cookie 名はサイトごとに違う（lib/auth-cookies.ts と対になる）。
+// ここで別サイトの Cookie を見てしまうと、ログインしていない利用者を通してしまう。
+const SESSION_COOKIES = sessionCookieNames(VARIANT);
+
+const PUBLIC_PATHS = [
+  "/login",
+  "/signup",
+  "/forgot-password",
+  "/reset-password",
+  "/reset",
+  "/invite",
+  "/api/auth",
+  "/api/health",
+];
 
 function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
@@ -40,12 +66,11 @@ export function middleware(req: NextRequest) {
   const requestId = inbound && REQUEST_ID_PATTERN.test(inbound) ? inbound : crypto.randomUUID();
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set(REQUEST_ID_HEADER, requestId);
+  requestHeaders.set(PATHNAME_HEADER, pathname);
 
   // Auth guard: check for session cookie (Edge-safe, no native modules)
   if (!isPublicPath(pathname)) {
-    const hasSession =
-      req.cookies.has("authjs.session-token") ||
-      req.cookies.has("__Secure-authjs.session-token");
+    const hasSession = SESSION_COOKIES.some((name) => req.cookies.has(name));
     if (!hasSession) {
       const loginUrl = new URL("/login", req.url);
       loginUrl.searchParams.set("callbackUrl", pathname);
@@ -72,5 +97,7 @@ export function middleware(req: NextRequest) {
 // Skip static assets / internal Next paths. `api/auth/*` is Auth.js — we
 // still want a request id there for login-failure debugging.
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon\\.ico|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|webmanifest)$).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon\\.ico|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|webmanifest)$).*)",
+  ],
 };

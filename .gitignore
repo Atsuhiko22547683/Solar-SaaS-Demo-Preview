@@ -36,6 +36,9 @@ Thumbs.db
 
 # Next.js
 .next/
+.next-partner/
+.next-partner-admin/
+.next-system-admin/
 next-env.d.ts
 
 # misc
@@ -55,3 +58,4 @@ docs/Railway_Token
 docs/Railway_Token.*
 docs/railway_token
 docs/railway_token.*
+
