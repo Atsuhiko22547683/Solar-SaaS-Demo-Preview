@@ -1,214 +1,156 @@
-# Solar SaaS — 太陽光卸・二次店営業管理 SaaS
+# BizOrch — Claude Code 作業ルール
 
-太陽光パネルの卸業者と、その営業活動を担う二次店事業者が共同で利用する **マルチテナント SaaS**。催事営業を主軸に、場所提供元との交渉 → イベント候補管理 → 二次店希望提出 → 開催体制決定 → 自社要員シフト → 顧客・アポ → マエカク → 商談・クロージング → 契約・契約明細スナップショット → 粗利・インセンティブ確定 → 月次クローズまでを一気通貫で扱う。
+太陽光パネルの卸業者（代理店）と二次店（パートナー）が共同で利用する **マルチテナント SaaS**。催事営業を主軸に、場所交渉 → イベント候補 → 二次店希望提出 → 開催体制決定 → 要員シフト → 顧客・アポ → マエカク → 商談 → 契約・契約明細スナップショット → 粗利・インセンティブ確定 → 月次クローズまでを扱う。
 
-開発自体も Claude Code subagent のハーネスで自動化している。
-
-詳細な業務要件は `docs/01-business-requirements.md`、機能要件は `docs/02-functional-requirements.md`、技術選定は `docs/03-tech-selection.md` を参照。
+**このファイルは「変更するときに守る恒久ルール」だけを置く。** システム概要・技術スタック・起動方法は [`README.md`](README.md)、ある時点の作業状態・実装途上の箇所・既知の問題は [`HANDOFF.md`](HANDOFF.md) にある。作業前に両方を読むこと。
 
 ## Mental model
 
-このリポジトリには **Claude Code subagent（開発時のハーネス）のみ** が存在する。本プロジェクトは AI ランタイムエージェントを内蔵しない通常の業務管理 Web アプリで、`packages/agents/` のようなランタイムエージェント層は持たない。
+このリポジトリに存在する「エージェント」は **Claude Code subagent（開発時のハーネス）だけ**。本体は AI ランタイムを内蔵しない通常の業務管理 Web アプリで、`packages/agents/` のようなランタイムエージェント層は持たない。「プログラマーエージェントを呼んで」は `Agent(subagent_type=programmer, ...)` を指す。
 
-「プログラマーエージェントを呼んで」と言われたら `Agent(subagent_type=programmer, ...)` の Claude Code subagent を意味する。
+## システム構造（4 サイト / `APP_VARIANT`）
 
-## Harness agents — roles
+同じコードベース・同じ DB から 4 サイトを別プロセスで起動する。違うのは `APP_VARIANT` / `NEXT_DIST_DIR` / ポートの 3 つだけ（`apps/web/scripts/run-site.mjs`）。対応表は README を参照。
 
-10 個のハーネスエージェントは「設計フェーズ」と「実装フェーズ」に二分される。
+守ること:
 
-### 設計フェーズ (Phase 0)
+1. **公開範囲の判定は `apps/web/lib/app-variant.ts` の純関数 1 か所**。`middleware.ts`（Edge）と各 layout（Node）が同じ関数を見る。判定ロジックを別の場所へ複製しない。
+2. prefix 配列（`PARTNER_STAFF_PREFIXES` / `PARTNER_ADMIN_PREFIXES` / `SYSTEM_ADMIN_PREFIXES`）は `/p-*` `/s-*` 専用。
+   - 新しい `/p-*` 画面 … `PARTNER_STAFF_PREFIXES` / `PARTNER_ADMIN_PREFIXES` への登録要否を確認する（登録しないとそのサイトから到達できない）。
+   - 新しい `/s-*` 画面 … `SYSTEM_ADMIN_PREFIXES` への登録要否を確認する。
+   - **`/p-*` `/s-*` 以外（代理店サイト用のパス）をこれらの配列へ追加してはならない。** 代理店サイトは `isAllowedInAgency()` の判定対象で登録は不要。追加すると二次店／運営サイトから代理店画面へ到達でき、`assertCan` では止まらない（例: `customer.read` は `ALL_DEALER_ROLES` を含む）。
+3. **ナビから隠すことを遮断と見なさない。** サイドバーの非表示とは別に、`isPathAllowedForVariant` とページ側ガード（`assertCan`）の両方が必要。
+4. 認証 Cookie 接頭辞はサイトごとに別名（`authjs` / `partner-authjs` / `partner-admin-authjs` / `system-admin-authjs`）。`domain` 指定で親ドメインへ広げない。
+5. `APP_VARIANT` が値域外ならプロセスは起動しない。この挙動を「黙って `agency` に倒す」形へ変えない（打ち間違いが別サイトとして公開される事故を防ぐため）。
+6. サイト区分はサーバーの起動設定だけで決まる。URL クエリやリクエストヘッダから切り替える経路を作らない。
 
-| # | エージェント | 役割 | 入力 | 出力 |
-|---|---|---|---|---|
-| 1 | `biz-requirements` | 業務要件定義 — 誰が何のために何を得るか | `product-proposal.md`, `CLAUDE.md` | `docs/01-business-requirements.md` |
-| 2 | `functional-requirements` | 機能要件定義 — 各機能の入出力・受入基準・非機能要件 | `docs/01` | `docs/02-functional-requirements.md` |
-| 3 | `tech-selection` | 技術選定 — CLAUDE.md の確定スタックを肉付け＋未決領域を選定 | `docs/01`, `docs/02` | `docs/03-tech-selection.md` |
-| 4 | `ui-design` | 画面設計 — 画面一覧・遷移・各画面のセクション/コンポーネント | `docs/01`, `docs/02` | `docs/04-ui-design.md` |
-| 5 | `designer` | ワイヤーフレーム作成 (ASCII/mermaid) | `docs/04` | `docs/wireframes/{S-xxx}-*.md` |
-| 6 | `program-design` | プログラム設計 — DB/API/ジョブ/エージェント仕様/シーケンス | `docs/01..04` | `docs/05-program-design.md` |
-| 7 | `pm` | 開発計画とスプリント分解 (タスク粒度まで) | `docs/01..05` | `docs/dev-plan.md`, `docs/sprints/SP-NN-*.md` |
-| 7r | `design-reviewer` | 設計ドキュメントレビュー (read-only) — 上流要件との整合性・文書構造・網羅性・セキュリティ要件を機械的に検証 | レビュー対象ドキュメント + 上流ドキュメント + `product-proposal.md` | `## APPROVED`/`## REQUEST_CHANGES`/`## ESCALATE` |
+## テナント分離と RLS
 
-### 実装フェーズ (Phase 1+)
+**全 DB アクセスは 3 段を通す。** 例外を作らない。
 
-| # | エージェント | 役割 | 入力 | 出力 |
-|---|---|---|---|---|
-| 8 | `programmer` | コード実装 (1 タスク = 1 起動) | タスク ID または指示 + `docs/05` | コード変更 + `## DONE`/`## BLOCKED` |
-| 9 | `code-reviewer` | コードレビュー (要件・設計・型・テスト・セキュリティ) | programmer の変更 + `docs/05` | `## APPROVED`/`## REQUEST_CHANGES`/`## ESCALATE` |
-| 10 | `e2e-tester` | Playwright で E2E テスト作成・実行 | タスクが触る機能 + `docs/02`/`docs/05` | `## DONE` (= PASS) / `## BLOCKED` (= FAIL) |
-
-## Harness execution flow
-
-```mermaid
-flowchart TD
-    subgraph DesignPhase[設計フェーズ — Phase 0]
-        A1[biz-requirements] --> R1{design-reviewer}
-        R1 -- REQUEST_CHANGES --> A1
-        R1 -- APPROVED --> A2[functional-requirements]
-        A2 --> R2{design-reviewer}
-        R2 -- REQUEST_CHANGES --> A2
-        R2 -- APPROVED --> A3[tech-selection]
-        R2 -- APPROVED --> A4[ui-design]
-        A3 --> R3{design-reviewer}
-        A4 --> R4{design-reviewer}
-        R3 -- REQUEST_CHANGES --> A3
-        R3 -- APPROVED --> A6
-        R4 -- REQUEST_CHANGES --> A4
-        R4 -- APPROVED --> A5[designer]
-        R4 -- APPROVED --> A6[program-design]
-        A6 --> R6{design-reviewer}
-        R6 -- REQUEST_CHANGES --> A6
-        R6 -- APPROVED --> A7[pm]
-        A7 --> R7{design-reviewer}
-        R7 -- REQUEST_CHANGES --> A7
-        R7 -- APPROVED --> A8{{pm: 設計フェーズ完了確認}}
-        R1 -- ESCALATE --> Esc0([人間判断])
-        R2 -- ESCALATE --> Esc0
-        R3 -- ESCALATE --> Esc0
-        R4 -- ESCALATE --> Esc0
-        R6 -- ESCALATE --> Esc0
-        R7 -- ESCALATE --> Esc0
-    end
-
-    A8 -- PHASE_COMPLETE --> ImplPhase
-    A8 -- PHASE_INCOMPLETE --> A1
-
-    subgraph ImplPhase[実装フェーズ — /iterate ループ]
-        direction TB
-        B1[programmer] --> B2{code-reviewer}
-        B2 -- REQUEST_CHANGES --> B1
-        B2 -- APPROVED --> B3{e2e-tester}
-        B3 -- FAIL --> B1
-        B3 -- PASS --> B4([タスク完了])
-        B2 -- ESCALATE --> Esc([人間判断])
-        B1 -- BLOCKED --> Esc
-    end
-
-    B4 --> SprintCheck{{pm: スプリント/フェーズ完了確認}}
-    SprintCheck -- PHASE_COMPLETE --> NextSprint([次スプリントへ])
-    SprintCheck -- PHASE_INCOMPLETE --> B1
+```ts
+const ctx = await getTenantContext();              // セッション → テナント文脈
+assertCan({ user: ctx, action: "customer.read" }); // 権限判定（落ちれば ForbiddenError）
+const rows = await withTenant(ctx, async (tx) => { // RLS GUC を張った $transaction
+  return tx.customer.findMany();
+});
 ```
 
-設計フェーズは **上流から順に各ドキュメントを 1 つずつ生成し、生成のたびに `/design-iterate` で design-reviewer による反復レビュー → 元エージェントによる修正を APPROVED まで回してから次段へ進む**。後段エージェントは必ず前段ドキュメント（APPROVED 済み版）を読む契約。
-実装フェーズは **タスクごとに `/iterate` を起動** し、内部で programmer → code-reviewer → e2e-tester の三段ループを APPROVED+PASS まで回す。
+- `withTenant` は `$transaction` 内で RLS 用の `SET LOCAL app.*` を発行する（発行内容は `packages/db/src/with-tenant.ts` を参照）。`SET LOCAL` はトランザクション内でしか効かないので、トップレベルの client で呼ばない。正本はこのファイルで、`apps/web/lib/tenancy/with-tenant.ts` は再 export。
+- 業務データの分離キーは `relationship_id`（卸業者 × 二次店）、マスタの分離キーは `wholesaler_id`。
+- **RLS は全テーブルで有効**（現状 74 モデル / 74 テーブルで有効。migration の `ENABLE ROW LEVEL SECURITY` を一意化した数と `schema.prisma` の `model` 数が一致）。この現状を前提に、新テーブルを足す migration には `ENABLE ROW LEVEL SECURITY` と `CREATE POLICY` を含める。既存のポリシーを一括で無効化・削除しない。
+- `isSaasAdmin` は `assertCan` を短絡し、`withTenant` の RLS も素通りする。会社横断の取得・更新は、**運営権限を検証した専用処理**（`apps/web/lib/system-admin/context.ts` の `requireSystemAdmin`）に限定する。業務画面のために `isSaasAdmin` を借りない。
 
-### フェーズ/スプリント完了確認
+## 権限構造
 
-各フェーズ（設計フェーズ全体、各実装スプリント、Phase 1〜4 の各マイルストーン）の完了時、**`pm` エージェントを「完了確認モード」で起動**し、以下を機械的に検証する：
+- ロール（`AppRole`）: `SAAS_ADMIN` ＋ 正式 3 種 `OWNER` / `SYSTEM_ADMIN` / `GENERAL_USER` ＋ 旧ロール 7 種（`WHOLESALER_*` 5 種・`DEALER_ADMIN` / `DEALER_STAFF`）。**旧ロールは既存 `UserRole` 行が参照しているため残すが、新規付与はしない**（管理画面の選択肢にも出さない）。
+- `OWNER` / `SYSTEM_ADMIN` / `GENERAL_USER` は単純な上下関係ではない。設定・決済の可否は `Capability`（`"settings" | "payment"`）を `hasCapability()` で個別判定する。包含判定を書かない。
+- アクション表は **`apps/web/lib/permissions/can.ts` の 1 か所**。新機能はここにアクションを追加してから、ページと Server Action の両方で `assertCan` する。
+- 運営管理サイトのアクション（`system_admin.*`）は `SAAS_ADMIN` のみ。**代理店管理者・パートナー管理者であるだけでは通らない**。この境界はテストで固定してある。
+- 監査は `AuditLog` + `recordAudit(tx, input)`。`AuditAction` enum の値域内で記録する。履歴の編集・削除機能は作らない。パスワード・トークン・不要な個人情報は記録しない。
+- 監査の `redactPii` は `name` / `phone` / `address` を落とす。会社名などマスクされたくない値は別のキー名（例 `companyName`）で記録する。
 
-- 当該フェーズに紐づく全タスク (`docs/sprints/SP-NN-*.md` の `T-NN-MM`) が完了状態か
-- 各タスクの受け入れ基準を満たす成果物（コード/ドキュメント/テスト）が存在するか
-- 申し送り事項（前フェーズドキュメント末尾の「後続エージェントへの申し送り」）が後段で全て参照・対応されているか
-- 次フェーズの前提条件（依存ドキュメント、DB マイグレーション、env 変数等）が揃っているか
+## 重要概念（混同しやすいもの）
 
-PM は最後に `## PHASE_COMPLETE` または `## PHASE_INCOMPLETE: <未消化リスト>` を出力する。INCOMPLETE の場合、不足項目を担当エージェント（programmer / 該当設計エージェント）へ差し戻し、解消後に再確認する。
-
-### `/design-iterate` の合否判定プロトコル（設計フェーズ）
-
-設計フェーズの各ドキュメント（`docs/01..05`, `docs/dev-plan.md`, `docs/sprints/SP-*.md`）が生成された直後に `/design-iterate "<ドキュメントパス or 対象エージェント名>"` で起動。`design-reviewer` の 1 回呼び出しを 1 iteration とカウント、**最大 5 iterations**。
-
-1. `design-reviewer` 実行（read-only）
-   - 入力: 対象ドキュメント + 上流ドキュメント + `product-proposal.md` + `CLAUDE.md` + 対象エージェント定義 (`.claude/agents/<target>.md`)
-   - チェック観点: 文書構造・網羅性 / 上流要件との整合性（特に `docs/01` 9 章のビジネスルール）/ 現実性・妥当性 / セキュリティ・コンプライアンス
-   - 出力: `## APPROVED` / `## REQUEST_CHANGES`（Required Changes 列挙）/ `## ESCALATE: <理由>`
-2. `## REQUEST_CHANGES` の場合
-   - 元エージェント（`biz-requirements` / `functional-requirements` / `tech-selection` / `ui-design` / `program-design` / `pm`）を再起動し、Required Changes を **verbatim** で渡して改訂版を上書き保存させる
-   - 元エージェントは「全指摘への対応サマリ（チェックリスト形式）」を返す
-   - step 1 に戻る
-3. `## APPROVED` → そのドキュメントは確定。次段の設計エージェントへ進む
-4. `## ESCALATE: <理由>` → 上流ドキュメントの矛盾や CLAUDE.md 自体の問題なので、ループを停止し人間判断に委ねる
-
-5 iteration 経過しても `## APPROVED` に到達しなければ、`## /design-iterate ESCALATED` を出力して人間判断に委ねる。
-
-**運用ルール**:
-
-- `design-reviewer` は read-only。ドキュメントの編集は元エージェントの責任
-- レビュー時、product-proposal.md は **常に一次資料として必読**
-- フィードバックは要約せず verbatim で次イテレーションに渡す
-- 各 iteration の冒頭にステータスを出力: `Design Iteration N/5: design-reviewer (verdict: ...) → <target_agent> (revision: ...)`
-
-### `/iterate` の合否判定プロトコル
-
-`/iterate "<タスク ID または指示>"` で起動。programmer の 1 回呼び出しを 1 iteration とカウント、**最大 5 iterations**。
-
-1. `programmer` 実行 → `## DONE` を待つ（`## BLOCKED` なら停止し人間に escalation）
-2. `code-reviewer` 実行
-   - `## APPROVED` → 次のステップへ
-   - `## REQUEST_CHANGES` → フィードバックを次回 programmer に渡して step 1 へ戻る
-   - `## ESCALATE` → 停止し人間に escalation
-3. `e2e-tester` 実行
-   - `## DONE` (= 全 PASS) → タスク完了
-   - `## BLOCKED` (= FAIL or 環境問題) → 失敗詳細を次回 programmer に渡して step 1 へ戻る
-
-5 iteration 経過しても完了しなければ、`## /iterate ESCALATED` を出力して人間判断に委ねる。
+| 概念 | 意味 |
+|---|---|
+| `Tenant` | 会社（卸業者 or 二次店）。`status` が `ACTIVE` でないとサインインできない |
+| `Relationship` | 卸業者 × 二次店の取引関係。**1 つの二次店が複数の卸業者と取引できる（多対多）**。業務データの分離キー |
+| `User` | このアプリにログインできる利用者。UI 上は「システムユーザー」 |
+| `Salesperson` | 営業スタッフのマスタ。UI 上は「スタッフ」。`User` とは**別概念**（ログインしないスタッフも存在する） |
+| `EventCandidate` / `Event` / `EventDay` | 催事の候補 → 確定イベント → 開催日。日報・アポは開催日に紐づく |
+| `EventShift` / `EventSalesperson` | シフト（出退勤の実績 `startActual` / `endActual` / `status` を持つ）と、催事への要員割当。**別物。片方を他方の前提にしない** |
+| `LanePreference` → `LanePreferenceAdoption` | 二次店の出店希望 → 採用。確定イベントはここから生まれる |
 
 ## Project layout
 
 ```
-.claude/
-  agents/              ← harness subagents (.md 定義)
-  commands/            ← slash commands (/iterate, /design-iterate)
-docs/                  ← 設計成果物 (01..05, wireframes/, dev-plan.md, sprints/)
-apps/
-  web/                 ← Next.js 15 (App Router) — UI + Server Actions + API routes
-  worker/              ← graphile-worker 常駐プロセス — 月次集計・通知送信・再試行
-packages/
-  db/                  ← Prisma schema + Client + RLS extension + withTenant
-  auth/                ← Auth.js v5 + argon2 + TOTP + パスワードリセット + 招待
-  contracts/           ← Zod schemas / DTO / 純関数サービス（packages 横断共有）
-  storage/             ← Cloudflare R2 (S3 互換) pre-signed URL クライアント
-  email/               ← Resend クライアント + メールテンプレート (stub fallback)
-  ui/                  ← shadcn/ui プリミティブ拡張（必要時のみ）
-tests/
-  e2e/                 ← Playwright specs（workers:1 + globalSetup 単一 seed 方針）
+.claude/{agents,commands}/   開発ハーネス定義
+docs/                        設計成果物（01..05, 21, 22, dev-plan, sprints/, wireframes/）
+apps/web/                    Next.js（app / components / lib / scripts / public / __tests__）
+  app/                       (auth)(onboarding)(wholesaler)(dealer)(partner)
+                             (saas-admin)(system-admin)(common)(field)
+apps/worker/                 graphile-worker 常駐（src/tasks/ + crontab.ts + task-list.ts）
+packages/db/                 Prisma schema + migrations + RLS extension + withTenant + seed 群
+packages/auth/               Auth.js v5 + argon2 + TOTP + 招待 + パスワードリセット
+packages/contracts/          Zod schemas / DTO / 純関数サービス / jobs / logger
+packages/storage/            Cloudflare R2 クライアント
+packages/email/              Resend + メールテンプレート（stub fallback）
+packages/ui/                 UI プリミティブの実体は apps/web/components/ui/
+tests/e2e/                   Playwright specs（workers:1 + globalSetup 単一 seed）
 ```
 
-`pnpm` ワークスペース。各パッケージは `@solar/<name>` 命名。
+**このレイアウト外に新しいトップレベル概念を作らない。** 必要なら先に `docs/05-program-design.md` への追記を提案する。
 
-## Tech stack (decided)
+## DB 変更の原則
 
-確定スタック詳細は `docs/03-tech-selection.md`。要約：
+1. `schema.prisma` と migration は**必ずセット**で変更する。`prisma db push` は使わない（migration 運用に揃えるための方針。リポジトリの現状から導いたもので、明文の決定事項ではない）。
+2. migration ディレクトリ名は既存と同じ `YYYYMMDDHHMMSS_snake_case` 形式に合わせる。
+3. RLS ポリシー・インデックス・enum 追加は手書き SQL を migration に含める（上記「テナント分離と RLS」参照）。
+4. 開発 DB は `solar_saas_dev`（`localhost:5434`）、テスト DB は `solar_saas_test`。**テストが開発 DB を触る形にしない。**
+5. 既存マイグレーションを書き換えない。訂正は新しい migration で行う（Prisma の標準運用に合わせた方針。リポジトリの現状から導いたもので、明文の決定事項ではない）。
+6. `ContractItem` の契約明細スナップショット列（`purchasePrice` / `dealerPrice` / `listPrice`）の意味を壊さない（下記 Hard rules 4）。
+7. シードは `packages/db/prisma/seed.ts`（フル）と `seed-demo-minimal.ts`（A/B 最小構成）が入口。確認用データを増やすときは、既存のデモ構成を壊さず、後片付けできる形にする。
 
-- **Framework:** Next.js 15 + App Router + Server Actions + TypeScript 5.6 strict
-- **Hosting:** Railway (Web service + Worker service + Postgres)
-- **DB:** PostgreSQL 16 via Prisma 6（`@solar/db`）
-- **テナント分離:** Prisma Client extension（アプリ層）+ PostgreSQL RLS（DB 層）の **二重防御**。`relationship_id`（卸業者×二次店）を業務データの主要分離キー、`wholesaler_id` をマスタの分離キー
-- **Job queue:** `graphile-worker`（PG-backed、Redis 不要）— 月次集計 / 通知再試行 / LINE 配信（Phase 2）
-- **Auth:** **Auth.js v5** + Credentials Provider + argon2id + TOTP 2FA + バックアップコード + パスワードリセット + 招待トークン（卸業者は招待制、二次店はセルフサインアップ）。シングルユーザーではなく **マルチテナント SaaS**
-- **Email:** Resend + React Email（テスト・dev は stub fallback）
-- **Object storage:** Cloudflare R2 (S3 互換) — 契約書 PDF、施工写真、添付。15 分 pre-signed URL
-- **UI:** Tailwind + shadcn/ui + react-hook-form + Zod + lucide-react + sonner
-- **Observability:** Sentry + pino（AsyncLocalStorage で request_id 横断、PII redact）+ UptimeRobot（業務時間帯 8:00-22:00 JST 重点監視）
-- **Testing:** Vitest（ユニット・統合）, Playwright（E2E、workers:1）
+## Git 作業のルール
 
-**本プロジェクトでは AI を使わない**（Anthropic SDK / OpenAI / Vercel AI SDK / docx / @react-pdf/renderer は導入しない）。
+- **作業ツリーには未コミットの変更が大量に残っていることがある**（量と内訳は `HANDOFF.md` の Snapshot を見る）。未追跡ファイルは git 履歴に存在せず、消したら復元できない。
+- **`git reset --hard` / `git restore` / `git checkout -- <path>` / `git clean` / `git stash` を実行しない。** 「不要そうに見える」ファイル（未追跡の migration、`docs/` の新規ファイル、スクラッチ用スクリプト）を独断で削除しない。
+- `git add` / `git commit` / `git push` は、ユーザーが明示的に求めたときだけ行う。勝手にコミット単位を決めない。
+- `main` へ直接コミットしない。作業は `feature/*` ブランチで行う（既存のブランチ運用から導いた方針。リモートのブランチ保護設定は未確認）。
+- **secrets をコミットしない。** `.env.local` / `.env.production` は gitignored。コミットできるのは `.env.example` だけ。実キー・実パスワード・トークンをコード・テスト・ドキュメントに書かない。
+- Windows 環境では改行コードが CRLF 混在（`core.autocrlf=true`、`.gitattributes` なし）。**ファイルを書き換えるスクリプトは元ファイルの改行コードを保つこと。** LF で書き戻すと差分が全行になる。
 
-## Phased roadmap
+## Hard rules
 
-詳細は `docs/dev-plan.md`。
+1. **マルチテナント SaaS。** 複数の卸業者テナント + 二次店テナントが共存する。全 DB アクセスで `getTenantContext` → `assertCan` → `withTenant` を通し、RLS と Prisma extension の二重防御を破らない。
+2. **日本語が一次言語。** UI 文言・メール本文・通知テキストはすべて日本語で、`apps/web/lib/i18n/labels.ts` に集約する（コンポーネント内ハードコード禁止）。コード・コメントは英語可。
+3. **レイアウト外のファイルを作らない。** 新しいトップレベル概念が必要なら、先に `docs/05-program-design.md` への追記を提案する。
+4. **契約明細スナップショット。** 契約成立時の `purchasePrice` / `dealerPrice` / `listPrice` を `ContractItem` の snapshot 列へコピー保持し、商品マスタ改定後も過去契約の粗利が変わらないようにする。
+5. **仕入値は二次店に絶対表示しない。** API レスポンスから物理除外する（DTO 層で destructure-and-rest。`Object.keys` に出さない）。実装例は `packages/contracts/src/dto/product.ts` の `ProductForDealerDto = Omit<..., "purchasePrice">` と `dto/lane-preference.ts`。`null` で埋めるのではなくキー自体を消す。
+6. **個人情報マスキング。** 電話は下 4 桁・住所は市区町村まで・氏名は姓のみが MVP 既定。pino redact と Sentry `beforeSend` で監査ログ・エラー報告にも適用する。`REVEAL_PII` は監査ログへ記録する。
+7. **インセンティブ確定は契約成立時。** キャンセル期限は既定 8 日（卸業者が上書き可、特商法準拠）。期限内は取消し、期限後は負調整。共同開催は案件ごと手動調整。
+8. **secrets をコミットしない。** 本番値は Railway の環境変数に置く（上記「Git 作業のルール」参照）。
+9. **AI ランタイムを使わない。** Claude / OpenAI / 画像生成 API は導入しない。`token_usage` 相当のテーブルも作らない。LLM 呼び出しを伴うコードは原則受け入れない。
+10. **UI を新規作成・修正するときは必ず `ui-ux-pro-max` スキルを使う。** 画面・コンポーネント・モーダル・レイアウト・配色・タイポグラフィ・余白・インタラクションなど「見た目／操作感」に関わる変更では、着手前にスキルを参照し、情報階層・データ密度・アクセシビリティ（コントラスト 4.5:1 / フォーカス / キーボード）・モーション指針に沿って実装する。ルール 2 の文言集約と併せて遵守する。
+    なお **このスキルの定義はこのリポジトリ内には無い**（`.claude/` には `agents/` と `commands/` のみ）。利用環境に存在すれば使う。存在しない場合は `docs/04-ui-design.md` と `docs/design-tokens.md` の設計指針を優先する。
 
-- **Phase 0 (完了):** 設計フェーズ — `docs/01..05` + `docs/wireframes/` + `docs/dev-plan.md` + `docs/sprints/SP-01..07-*.md` 全 APPROVED
-- **Phase 1 (MVP, 1〜2 か月):** F-001〜F-053 + F-055 + F-056 の **55 機能**（P0 52 + P1 3）を 7 スプリントで実装
-  - SP-01 bootstrap（モノレポ / Auth + 2FA / RLS / Worker / 観測性 / シード）
-  - SP-02 masters（マスタ管理 + SaaS 運営者）
-  - SP-03 event-flow（場所提供元 → イベント候補 → 希望提出 → 開催体制 → シフト）
-  - SP-04 execution（実施・報告・顧客・アポ・マエカク）
-  - SP-05 deals-contracts（商談 → 契約 → 契約明細スナップショット → 粗利）
-  - SP-06 incentives-monthly（インセンティブ確定 + キャンセル取消・負調整 + 月次クローズ）
-  - SP-07 notifications-audit-e2e（通知・監査ログ・UC E2E）
-- **Phase 2 (〜6 か月):** F-054 LINE 連携、F-057 CSV インポート、F-058 高度 BI、PWA 検討
-- **Phase 3 (〜12 か月):** パイロット運用フィードバック反映、5〜10 卸業者展開
-- **Phase 4 (12 か月以降):** 規模別プラン課金、施工業者向け画面、メーカー発注など
+## 作業完了時の確認
 
-## Hard rules for any agent in this repo
+- **変更したパッケージ単位で**型チェック: `pnpm -F <pkg> typecheck`。
+- **変更したパッケージ単位で**テスト: `pnpm -F @solar/web test` など。`@solar/contracts` のテストは web ワークスペースの vitest から走る（contracts 単体に vitest は無い）。
+- lint は変更ファイルに限定する（`npx eslint <path>`）。
+- **変更完了の判定は、まず変更スコープの typecheck / test / lint で行う。** ワークスペース全体のコマンド（`pnpm typecheck` / `pnpm lint` / `pnpm format:check` / `pnpm test`）が失敗する場合は `HANDOFF.md` の Tests を確認し、リポジトリ全体の既知の問題なのか今回の変更による問題なのかを切り分ける。全体が通ることを完了条件にしない。
+- DB を変えたら: migration があるか / RLS ポリシーがあるか / `pnpm db:validate` が通るか。
+- UI を変えたら: `ui-ux-pro-max` の指針に沿っているか / 文言が `labels.ts` にあるか / スマホ幅で崩れないか。
+- 権限を変えたら: `can.ts` のアクション追加 / ページ側ガード / `app-variant.ts` の公開パス。
+- **「未取得の情報」「未実装の機能」を完了扱いにしない。** 根拠なく「正常」「0 件」と表示・報告しない。取得できないものは「未取得」「未連携」と出す。
+- 全テスト・全ビルドを反復しない。変更スコープと直接関係する範囲に絞る。
 
-1. **マルチテナント SaaS。** 複数の卸業者テナント + 二次店テナントが共存する。1 つの二次店が複数の卸業者と取引できる（多対多、`relationship_id` を分離キー）。**全 API クエリで `withTenant(ctx, ...)` を通し、RLS と Prisma extension の二重防御を破らない**。
-2. **Japanese is the primary content language.** UI 文言・メール本文・通知テキストはすべて日本語、`apps/web/lib/i18n/labels.ts` に集約（コンポーネント内ハードコード禁止）。コード・コメントは英語可。
-3. **Don't invent files outside the documented layout.** 新しいトップレベル概念が必要なら、まず `docs/05-program-design.md` への追記を提案してから実装する。
-4. **契約明細スナップショット。** 契約成立時の `purchasePrice` / `dealerPrice` / `listPrice` を `ContractItem` の snapshot 列にコピー保持し、商品マスタ改定後も過去契約の粗利が変わらないようにする。
-5. **仕入値は二次店に絶対表示しない。** API レスポンスから物理除外（DTO 層で destructure-and-rest、`Object.keys` に出さない）。
-6. **個人情報マスキング。** 電話下 4 桁・住所市区町村まで・氏名は姓のみが MVP デフォルト。pino redact + Sentry beforeSend で監査ログ・エラー報告にも適用。`REVEAL_PII` は監査ログ記録。
-7. **インセンティブ確定は契約成立時。** キャンセル期限（デフォルト 8 日、卸業者上書き可、特商法準拠）。期限内取消し / 期限後負調整。共同開催は案件ごと手動調整。
-8. **Never commit secrets.** `.env.local` / `.env.production` は gitignored。`.env.example` のみコミット可。本番は Railway env vars。
-9. **AI ランタイムは使わない。** Claude / OpenAI / 画像生成 API は導入しない。`token_usage` テーブルも不要。LLM 呼び出しを伴うコードは原則受け入れない。
-10. **UI を新規作成・修正するときは必ず `ui-ux-pro-max` スキルを使う。** 画面・コンポーネント・モーダル・レイアウト・配色・タイポグラフィ・余白・インタラクションなど「見た目／操作感」に関わる変更では、着手前に `ui-ux-pro-max`（必要に応じて `scripts/search.py --design-system` / `--domain ux` 等）を参照し、情報階層・データ密度・アクセシビリティ（コントラスト 4.5:1 / フォーカス / キーボード）・モーション指針に沿って実装する。`apps/web/lib/i18n/labels.ts` への文言集約（ルール 2）と併せて遵守する。
+## やらないこと
+
+- 既存のデータアクセス制御・RLS の一括解除、`isSaasAdmin` の便宜的な流用
+- ダミー顧客・架空日時・架空契約・架空の打刻を自動生成して画面を埋めること
+- 推測値・直線距離を「経路検索結果」として表示すること（`apps/web/lib/transit/` の方針）
+- 生の検証エラー JSON を画面に出すこと（項目別の日本語メッセージにする）
+- 不明な enum 値を既定値へ黙って変換すること、エラーを消すために必須条件を外すこと
+- 一般利用者向けの「未紐付けデータ修復」メニューを作ること
+- AI / LLM 呼び出し、画像生成 API の導入
+
+## 開発ハーネス
+
+`.claude/agents/` に設計・実装・レビュー用の subagent 定義（`biz-requirements` / `functional-requirements` / `tech-selection` / `ui-design` / `designer` / `program-design` / `pm` / `design-reviewer` / `programmer` / `code-reviewer` / `e2e-tester`）、`.claude/commands/` に `/iterate`（programmer → code-reviewer → e2e-tester のループ）と `/design-iterate`（設計エージェント → design-reviewer のループ）がある。
+
+**各ループの合否判定プロトコル・最大反復回数・差し戻し手順は、それぞれの定義ファイル（`.claude/agents/<name>.md` / `.claude/commands/<name>.md`）を参照すること。** ここには再掲しない。
+
+## 参照ドキュメント
+
+| 用途 | ファイル |
+|---|---|
+| 概要・構成・起動方法 | [`README.md`](README.md) |
+| 現在の作業状態・実装途上の箇所・既知の問題 | [`HANDOFF.md`](HANDOFF.md) |
+| 業務要件 / 機能要件 / 技術選定 / 画面設計 / プログラム設計 | `docs/01` 〜 `docs/05` |
+| パートナー業務の一気通貫化 | `docs/21-partner-operations.md` |
+| 代理店側の業務データ統合・最小デモ構成 | `docs/22-agency-data-integration.md` |
+| 開発計画・スプリント | `docs/dev-plan.md` / `docs/sprints/` |
+| 一次資料 | `product-proposal.md` |
