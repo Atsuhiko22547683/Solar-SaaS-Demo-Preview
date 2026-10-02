@@ -15,7 +15,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "BizOrch",
-  description: "太陽光卸・二次店営業管理 SaaS",
+  description: "太陽光卸・パートナー営業管理 SaaS",
   manifest: "/site.webmanifest",
   icons: {
     icon: [

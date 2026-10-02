@@ -30,7 +30,7 @@ const DealerScopeSchema = z.enum(["APPOINTMENT_ONLY", "FIRST_VISIT", "FULL_CLOSI
 // 「"use server"」ファイルは async function 以外 export 不可（Next.js 制約）。
 const ScopeOverrideInputSchema = z.object({
   eventId: z.string().min(1, "イベント ID が必要です"),
-  relationshipId: z.string().min(1, "担当二次店 (関係 ID) が必要です"),
+  relationshipId: z.string().min(1, "担当パートナー会社 (関係 ID) が必要です"),
   scopeOverride: DealerScopeSchema.nullable(),
   reason: z.string().trim().min(1, "変更理由を入力してください").max(2000),
 });
@@ -102,7 +102,11 @@ export const updateScopeOverrideAction = withServerActionContext<
     await tx.eventChange.create({
       data: {
         eventId: parsed.eventId,
-        before: { type: "SCOPE_OVERRIDE", scopeOverride: before, relationshipId: parsed.relationshipId },
+        before: {
+          type: "SCOPE_OVERRIDE",
+          scopeOverride: before,
+          relationshipId: parsed.relationshipId,
+        },
         after: {
           type: "SCOPE_OVERRIDE",
           scopeOverride: after,

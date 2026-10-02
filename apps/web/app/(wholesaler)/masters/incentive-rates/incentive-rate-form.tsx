@@ -58,7 +58,7 @@ type Mode =
 
 const CreateFormSchema = z
   .object({
-    relationshipId: z.string().trim().min(1, "関係（二次店）を選択してください"),
+    relationshipId: z.string().trim().min(1, "関係（パートナー会社）を選択してください"),
     targetType: z.enum(["PROJECT_PROFIT", "WHOLESALE_PROFIT", "MANUAL"]),
     rate: z
       .string()

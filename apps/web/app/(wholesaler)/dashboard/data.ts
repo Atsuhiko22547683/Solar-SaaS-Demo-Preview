@@ -96,7 +96,11 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
   // Weekend boundaries: this coming Saturday 00:00 → Sunday+1 00:00
   const daysToSaturday = dayOfWeek === 0 ? 6 : 6 - dayOfWeek;
   const saturday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + daysToSaturday);
-  const mondayAfterWeekend = new Date(saturday.getFullYear(), saturday.getMonth(), saturday.getDate() + 2);
+  const mondayAfterWeekend = new Date(
+    saturday.getFullYear(),
+    saturday.getMonth(),
+    saturday.getDate() + 2,
+  );
 
   return withTenant(ctx, async (tx) => {
     const [
@@ -117,26 +121,51 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
       weekendEventsRaw,
     ] = await Promise.all([
       tx.contract.count({
-        where: { contractDate: { gte: new Date(`${thisMonth}-01`), lt: new Date(now.getFullYear(), now.getMonth() + 1, 1) } },
+        where: {
+          contractDate: {
+            gte: new Date(`${thisMonth}-01`),
+            lt: new Date(now.getFullYear(), now.getMonth() + 1, 1),
+          },
+        },
       }),
       tx.contract.count({
-        where: { contractDate: { gte: new Date(`${prevMonth}-01`), lt: new Date(`${thisMonth}-01`) } },
+        where: {
+          contractDate: { gte: new Date(`${prevMonth}-01`), lt: new Date(`${thisMonth}-01`) },
+        },
       }),
       tx.contract.aggregate({
         _sum: { contractAmount: true },
-        where: { contractDate: { gte: new Date(`${thisMonth}-01`), lt: new Date(now.getFullYear(), now.getMonth() + 1, 1) } },
+        where: {
+          contractDate: {
+            gte: new Date(`${thisMonth}-01`),
+            lt: new Date(now.getFullYear(), now.getMonth() + 1, 1),
+          },
+        },
       }),
       tx.contract.aggregate({
         _sum: { contractAmount: true },
-        where: { contractDate: { gte: new Date(`${prevMonth}-01`), lt: new Date(`${thisMonth}-01`) } },
+        where: {
+          contractDate: { gte: new Date(`${prevMonth}-01`), lt: new Date(`${thisMonth}-01`) },
+        },
       }),
       tx.grossProfit.aggregate({
         _sum: { projectProfit: true },
-        where: { contract: { contractDate: { gte: new Date(`${thisMonth}-01`), lt: new Date(now.getFullYear(), now.getMonth() + 1, 1) } } },
+        where: {
+          contract: {
+            contractDate: {
+              gte: new Date(`${thisMonth}-01`),
+              lt: new Date(now.getFullYear(), now.getMonth() + 1, 1),
+            },
+          },
+        },
       }),
       tx.grossProfit.aggregate({
         _sum: { projectProfit: true },
-        where: { contract: { contractDate: { gte: new Date(`${prevMonth}-01`), lt: new Date(`${thisMonth}-01`) } } },
+        where: {
+          contract: {
+            contractDate: { gte: new Date(`${prevMonth}-01`), lt: new Date(`${thisMonth}-01`) },
+          },
+        },
       }),
       tx.notification.count({
         where: { recipientUserId: ctx.actorUserId, readAt: null },
@@ -186,18 +215,35 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
       }),
     ]);
 
-    const revenueYen = revenueAgg._sum.contractAmount ? Number(revenueAgg._sum.contractAmount) : null;
-    const prevRevenueYen = prevRevenueAgg._sum.contractAmount ? Number(prevRevenueAgg._sum.contractAmount) : null;
-    const grossProfitYen = grossProfitAgg._sum.projectProfit ? Number(grossProfitAgg._sum.projectProfit) : null;
-    const prevGrossProfitYen = prevGrossProfitAgg._sum.projectProfit ? Number(prevGrossProfitAgg._sum.projectProfit) : null;
+    const revenueYen = revenueAgg._sum.contractAmount
+      ? Number(revenueAgg._sum.contractAmount)
+      : null;
+    const prevRevenueYen = prevRevenueAgg._sum.contractAmount
+      ? Number(prevRevenueAgg._sum.contractAmount)
+      : null;
+    const grossProfitYen = grossProfitAgg._sum.projectProfit
+      ? Number(grossProfitAgg._sum.projectProfit)
+      : null;
+    const prevGrossProfitYen = prevGrossProfitAgg._sum.projectProfit
+      ? Number(prevGrossProfitAgg._sum.projectProfit)
+      : null;
 
-    const modeLabel: Record<string, string> = { SELF: "自社", DEALER: "二次店", JOINT: "共同", CANCELLED: "中止" };
-    const statusLabel: Record<string, string> = { PLANNED: "開催予定", ONGOING: "開催中", CLOSED: "終了", CANCELLED: "中止" };
+    const modeLabel: Record<string, string> = {
+      SELF: "自社",
+      DEALER: "パートナー会社",
+      JOINT: "共同",
+      CANCELLED: "中止",
+    };
+    const statusLabel: Record<string, string> = {
+      PLANNED: "開催予定",
+      ONGOING: "開催中",
+      CLOSED: "終了",
+      CANCELLED: "中止",
+    };
 
     const trendMonths: SalesTrendPoint[] = [];
     for (let i = 11; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const m = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       const mEnd = new Date(d.getFullYear(), d.getMonth() + 1, 1);
       const agg = await tx.contract.aggregate({
         _sum: { contractAmount: true },
@@ -239,7 +285,10 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
         prevIncentiveYen: null,
       },
       weeklyEvents: { count: weeklyEventCount },
-      weeklyAppointments: { completedCount: weeklyApptCompleted, scheduledCount: weeklyApptScheduled },
+      weeklyAppointments: {
+        completedCount: weeklyApptCompleted,
+        scheduledCount: weeklyApptScheduled,
+      },
       recentEvents: recentEvents.map((ev) => ({
         id: ev.id,
         date: ev.eventCandidate?.scheduledDate
