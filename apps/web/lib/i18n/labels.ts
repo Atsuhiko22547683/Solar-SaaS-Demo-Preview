@@ -10,18 +10,48 @@ export const labels = {
   brand: "BizOrch",
   brandTagline: "太陽光卸・取引先営業管理 SaaS",
 
+  // 製品カタログ（PV / 蓄電池）。MVP ではプレースホルダ。
   // 二次店ポータル（Partner 環境）。Google フォームの置き換えに絞った 4 画面。
   //
   // 項目ラベルは既存のフォーム準拠定義（labels.customerReport /
   // labels.resultReport）と揃える。フォームに無い項目は足さない。
+  // アプリ全体が落ちたときの最後の受け皿（app/global-error.tsx）。
+  // 内部情報は出さず、再試行の導線だけを示す。
+  globalError: {
+    title: "エラーが発生しました",
+    body: "一時的な問題の可能性があります。お手数ですが、再度お試しください。",
+    retry: "再読み込み",
+  },
+
   partner: {
-    title: "二次店ポータル",
+    /** スタッフサイトのサイト名（ヘッダ表示）。 */
+    title: "パートナーポータル",
+    /** 管理者サイトのサイト名。別 URL・別プロセスで動くので名前も分ける。 */
+    adminTitle: "パートナー管理ポータル",
+    /** もう一方のサイトへの導線（両方の利用資格を持つ本人だけに出す）。 */
+    switchToStaff: "スタッフサイトへ",
+    switchToAdmin: "管理者サイトへ",
     nav: {
-      ariaLabel: "二次店メニュー",
+      ariaLabel: "パートナーメニュー",
+      /** 狭い画面の開閉メニュー。 */
+      menuOpen: "メニューを開く",
+      menuClose: "メニューを閉じる",
+      menu: "メニュー",
       home: "トップ",
       appointments: "アポイント",
+      contracts: "成約報告",
       reports: "催事日報",
       salespeople: "販売員",
+      catalog: "カタログ",
+      customers: "顧客情報",
+      shifts: "催事シフト",
+      /** 本人の販売員情報。タブの端に置く。 */
+      profile: "個人設定",
+      /** 二次店管理者のみ。 */
+      accounts: "アカウント",
+      commissions: "手数料",
+      lanePreferences: "出店希望",
+      consultations: "場所相談",
     },
     common: {
       register: "登録する",
@@ -35,22 +65,97 @@ export const labels = {
       optional: "（任意）",
       notSet: "未設定",
       dash: "—",
+      /** 検証で弾かれたが、項目を特定できなかったときの案内。生の JSON は出さない。 */
+      validationFailed: "入力内容を確認してください。",
       created: "登録しました",
       updated: "保存しました",
       resultCount: "{total}件",
+      /** 自社（ログイン中のパートナー会社）を指す表示。 */
+      selfCompany: "自社",
+      sent: "送信しました",
+    },
+    /** 一覧共通の検索・絞り込み・並べ替え・ページ分割。 */
+    list: {
+      filterTitle: "検索・絞り込み",
+      apply: "検索",
+      clear: "条件をクリア",
+      advanced: "詳細条件",
+      /** 詳細条件に値が入っているときの印。 */
+      advancedActive: "条件あり",
+      /** 横スクロールできる表であることの案内（狭い画面のみ）。 */
+      tableScrollHint: "横にスクロールできます",
+      all: "すべて",
+      from: "開始",
+      to: "終了",
+      min: "下限",
+      max: "上限",
+      keywordPlaceholder: "部分一致",
+      sortLabel: "並べ替え",
+      asc: "昇順",
+      desc: "降順",
+      sortedAsc: "昇順で並べ替え中",
+      sortedDesc: "降順で並べ替え中",
+      resultCount: "該当 {total}件",
+      pageOf: "{page} / {pageCount} ページ",
+      prev: "前へ",
+      next: "次へ",
+      noMatch: "条件に一致するデータがありません",
+      noMatchHint: "条件を変更するか、「条件をクリア」で全件に戻せます。",
+      /** 選択中の区分では使えない条件の注記。 */
+      notApplicable: "この区分では使えない条件です",
+      /** 区分「すべて」で初訪アポ専用の条件を指定したときの注記。 */
+      firstVisitOnlyApplied:
+        "顧客名・催事場所・初回訪問アポ日時の条件は初訪アポにのみ適用され、訪問アポは表示されません",
+      /** カテゴリ変更で選択中のメーカーが対象外になった旨。 */
+      makerReset: "選択していたメーカーはこのカテゴリにないため「すべて」に戻しました",
+      /** マスキング中は氏名検索・並べ替えを使えない旨。 */
+      maskedNameSearchDisabled: "お客様名は非表示設定のため検索・並べ替えに使えません",
+      /** 管理者だけに出る「提出したスタッフ」の条件・列。 */
+      submittedBy: "提出スタッフ",
+      submittedByColumn: "提出者",
+      /** 管理者向け一覧の対象範囲。 */
+      adminScopeNote: "自社が取り扱う内容をすべて表示しています（本人提出分に限りません）",
     },
     home: {
-      title: "二次店ポータル",
-      subtitle: "アポイント・催事日報・販売員の登録を行えます。",
+      title: "パートナーポータル",
+      subtitle: "自社のスタッフ・提出情報・顧客を管理できます。",
+      /** スタッフ向けトップの説明。各業務への入口を中心に置く。 */
+      staffSubtitle:
+        "アポイント・成約報告・催事日報の登録と、カタログ・自社顧客・催事シフトの確認を行えます。",
       /** 所属表示（加盟店番号は認証情報から自動表示。入力はさせない）。 */
       belongLabel: "ご所属",
       franchiseNoLabel: "加盟店番号",
+      /** 今週の本人の催事シフト（スタッフトップ）。 */
+      week: {
+        title: "週間カレンダー",
+        /** 当日の割当。複数あればすべて出す。 */
+        todayTitle: "今日の催事シフト",
+        /** 当日が無いときは直近の今後の予定を出す。 */
+        nextTitle: "次の催事シフト",
+        noTodayHint: "今日の配置はありません。次の予定を表示しています。",
+        emptyUpcoming: "今後の配置はありません。配置されるとここに表示されます。",
+        prev: "先週",
+        current: "今週",
+        next: "来週",
+        empty: "この週に自分の配置はありません",
+        registerAppointment: "この催事からアポ登録",
+        /** 日報も同じ催事・開催日から入力する。 */
+        registerReport: "この催事から日報を入力",
+        openShiftDetail: "シフトの詳細を見る",
+        openShifts: "催事シフトをすべて見る",
+      },
       cards: {
         appointments: {
           title: "アポイント",
-          body: "催事で獲得したアポイントを登録・確認します。",
+          body: "初訪アポ・訪問アポを登録・確認します。",
           action: "アポイントを登録",
           list: "登録済みのアポイント",
+        },
+        contracts: {
+          title: "成約",
+          body: "成約した案件を登録・確認します。",
+          action: "成約を登録",
+          list: "登録済みの成約",
         },
         reports: {
           title: "催事日報",
@@ -64,15 +169,141 @@ export const labels = {
           action: "販売員を登録",
           list: "登録済みの販売員",
         },
+        catalog: {
+          title: "カタログ",
+          body: "代理店が公開している商品カタログを確認します。",
+          action: "カタログを見る",
+        },
+        customers: {
+          title: "顧客情報",
+          body: "自社が取り扱う顧客と商談を確認・更新します。",
+          action: "顧客を見る",
+        },
+        shifts: {
+          title: "シフト",
+          body: "自分に割り当てられた催事の予定を確認します。",
+          action: "シフトを見る",
+        },
       },
-      unavailable: {
-        title: "この環境は二次店専用です",
-        body: "代理店アカウントではご利用いただけません。代理店向けの画面は従来の URL からご利用ください。",
-        signOut: "サインアウト",
+      /**
+       * 二次店管理者のトップ。9 業務を 3 つのまとまりで並べる。
+       * スタッフ向けカード（cards）とは説明文が違うので別に持つ
+       * （同じ画面でも、見るデータの範囲が「本人」か「自社」かで意味が変わるため）。
+       */
+      adminSections: {
+        submissions: {
+          title: "提出情報の管理",
+          body: "自社スタッフが提出した内容を確認・管理します。",
+        },
+        organization: {
+          title: "組織の管理",
+          body: "自社の販売員とログイン利用者を管理します。",
+        },
+        business: {
+          title: "取引・顧客",
+          body: "顧客・営業フィー・出店希望・シフトを管理します。",
+        },
       },
+      adminCards: {
+        appointments: {
+          title: "アポイント管理",
+          body: "自社スタッフが登録した初訪アポ・訪問アポを区別して確認します。",
+          list: "アポイントを管理",
+        },
+        contracts: {
+          title: "成約報告管理",
+          body: "自社スタッフから提出された成約報告を確認します。",
+          list: "成約報告を管理",
+        },
+        reports: {
+          title: "催事日報管理",
+          body: "稼働時間・活動実績・所感を含む催事日報を確認します。",
+          list: "催事日報を管理",
+        },
+        salespeople: {
+          title: "スタッフ情報管理",
+          body: "自社に所属する販売員の登録情報を登録・確認・更新します。",
+          action: "販売員を登録",
+          list: "販売員を管理",
+        },
+        accounts: {
+          title: "利用者アカウント管理",
+          body: "ログインの利用開始・停止、利用区分、販売員との紐付けを管理します。",
+          list: "アカウントを管理",
+        },
+        commissions: {
+          title: "手数料管理",
+          body: "自社に適用されている営業フィーの率と確定額を確認します。",
+          list: "営業フィーを見る",
+        },
+        customers: {
+          title: "自社顧客管理",
+          body: "自社顧客の情報を閲覧・編集・削除します。",
+          list: "自社顧客を管理",
+        },
+        lanePreferences: {
+          title: "出店希望の提出",
+          body: "対象月ごとに、レーン単位で希望店舗・希望日程を提出します。",
+          action: "希望を提出",
+          list: "提出した出店希望",
+        },
+        consultations: {
+          title: "場所確保の相談",
+          body: "地域の特性を伝えて、ブースの確保を代理店へ相談します。",
+          action: "相談を送る",
+          list: "相談の一覧",
+        },
+        shifts: {
+          title: "催事シフト",
+          body: "開催日・時間の順に配置を確認し、スタッフを配置します。",
+          action: "スタッフを配置",
+          list: "催事シフトを見る",
+        },
+      },
+    },
+    /**
+     * サイトの取り違え案内。
+     * スタッフサイトと管理者サイトは別 URL で動くので、開くサイトを間違えたときに
+     * 正しいサイトへの入口を出す（黙って 404 や空の画面にしない）。
+     */
+    siteMismatch: {
+      staffSiteName: "パートナースタッフサイト",
+      adminSiteName: "パートナー管理者サイト",
+      /** スタッフサイトを管理者ロールだけの利用者が開いたとき。 */
+      staffTitle: "このサイトはパートナースタッフ向けです",
+      staffBody:
+        "お使いのアカウントはパートナー管理者です。管理業務はパートナー管理者サイトからご利用ください。",
+      /** 管理者サイトをスタッフロールだけの利用者が開いたとき。 */
+      adminTitle: "このサイトはパートナー管理者向けです",
+      adminBody:
+        "お使いのアカウントはパートナースタッフです。日々の登録・確認はパートナースタッフサイトからご利用ください。",
+      /** 二次店アカウントですらない場合。 */
+      notDealerTitle: "このサイトはパートナー会社専用です",
+      notDealerBody:
+        "代理店アカウント・運営者アカウントではご利用いただけません。所属に合ったサイトからご利用ください。",
+      openOther: "{site}を開く",
+      signOut: "サインアウト",
     },
     // アポイント（Google フォーム「住設事業部/加盟店-①初訪アポフォーム」準拠）。
     appointment: {
+      /** 催事からの登録（トップの「この催事からアポ登録」）。 */
+      eventPicker: {
+        title: "どの催事からの登録ですか",
+        hint: "直近で自分が配置されている催事です。対象を選ぶと、催事の情報を初期入力します。",
+        none: "催事を指定せずに登録",
+        empty: "直近に配置されている催事がありません。催事を指定せずに登録できます。",
+      },
+      eventContext: {
+        title: "この催事からの登録",
+        venue: "催事場所",
+        date: "催事日程",
+        origin: "依頼元代理店",
+        company: "所属会社",
+        registeredBy: "登録者",
+        registeredByHint:
+          "実際に操作した利用者として記録されます。接客した担当者とは別に残ります。",
+        change: "催事を選び直す",
+      },
       listTitle: "アポイント一覧",
       newTitle: "アポイントを登録",
       editTitle: "アポイントを編集",
@@ -88,12 +319,10 @@ export const labels = {
       },
       fields: {
         franchiseNo: "加盟店番号",
-        tossDept: "トス部署",
         tossGetter: "トス獲得者",
         closeCompany: "クローズ会社",
         salesRep: "営業担当者",
         channel: "販売チャネル",
-        sourceEvent: "催事（登録済みイベント）",
         eventDate: "催事実施日",
         venuePlace: "催事場所",
         eventType: "催事種別",
@@ -112,25 +341,598 @@ export const labels = {
         note: "備考",
         createdAt: "登録日時",
       },
-      /** 催事（イベント）未選択のときの選択肢ラベル。 */
-      noSourceEvent: "選択しない（催事情報を直接入力）",
-      /** 登録済みイベントを選ぶと催事情報はイベント側が正になる旨。 */
-      eventOverrideHint: "登録済みの催事を選ぶと、催事情報はその催事の内容が使われます",
+      /** 催事実施日の補足（訪販は訪問日を入れる旨。フォームの注記に合わせる）。 */
+      eventDateHint: "訪問販売の場合は訪問日を入力してください",
       boothAreaNoteHint: "「その他」を選んだときだけ入力してください",
       fromEventBadge: "登録済み催事から",
+      /** 条件付き項目の注記。 */
+      venueChainHint: "販売チャネルが「催事」のときに入力します",
+      faceToFaceHint: "販売チャネルが「訪問販売」のときに入力します",
+      /** クローズ会社の選択肢が自社しか無いときの注記。 */
+      closeCompanyHint: "取引のある会社から選択します",
       boothAreaLabels: {
-        ENTRANCE: "入口",
-        REFORM_CORNER: "リフォームコーナー",
+        ENTRANCE: "店頭入口付近",
+        REFORM_CORNER: "リフォームコーナー付近",
         OTHER: "その他",
+      } as Record<string, string>,
+      /** 初訪アポフォームの催事種別（カインズ / 島忠 / コメリ）。 */
+      venueChainLabels: {
+        CAINZ: "カインズ",
+        SHIMACHU: "島忠",
+        KOMERI: "コメリ",
+      } as Record<string, string>,
+      salesChannelLabels: {
+        VISIT_SALES: "訪問販売",
+        INBOUND: "反響",
+        EVENT: "催事",
+        REFERRAL: "紹介",
+        OTHER: "その他",
+      } as Record<string, string>,
+      faceToFaceLabels: {
+        SOVEREIGN: "主権者",
+        NON_SOVEREIGN: "非主権者",
       } as Record<string, string>,
       boothAreaNote: "ブース場所（その他の内容）",
       venueChain: "催事種別",
-      phoneHint: "固定電話番号または携帯番号のいずれかを入力してください",
       columns: {
+        kind: "アポ区分",
         customerName: "お客様名",
+        closeDept: "クローズ部署",
         firstVisitAt: "初回訪問アポ日時",
         venuePlace: "催事場所",
         createdAt: "登録日時",
+      },
+      filters: {
+        kind: "アポ区分",
+        customerName: "お客様名",
+        venuePlace: "催事場所",
+        firstVisitAt: "初回訪問アポ日時",
+        createdAt: "登録日",
+        tossDept: "トス部署",
+        closeDept: "クローズ部署",
+        salesperson: "営業担当者",
+        channel: "販売チャネル",
+      },
+    },
+    /** アポイント区分（Google フォーム 2 種の別）。 */
+    appointmentKind: {
+      tabsAriaLabel: "アポイント区分",
+      labels: {
+        FIRST_VISIT: "初訪アポ",
+        VISIT: "訪問アポ",
+      } as Record<string, string>,
+      /** 登録後は区分を変えられない旨（別フォームの項目が食い違うため）。 */
+      lockedHint: "登録後にアポ区分は変更できません",
+    },
+    /** 訪問アポ（Google フォーム「住設事業部/加盟店-②訪問アポフォーム」準拠・5 項目）。 */
+    visitAppointment: {
+      newTitle: "訪問アポを登録",
+      editTitle: "訪問アポを編集",
+      detailTitle: "訪問アポ詳細",
+      fields: {
+        franchiseNo: "加盟店番号",
+        customer: "対象の顧客",
+        customerHint:
+          "登録済みの顧客から選ぶと、代理店の顧客詳細からこの報告を確認できます。分からないときは未選択のままで構いません。",
+        customerNone: "顧客を指定しない",
+        tossDept: "トス部署",
+        maekakuOperator: "マエカク実施者",
+        closeDept: "クローズ部署",
+        salesRep: "営業担当者",
+        channel: "販売チャネル",
+        createdAt: "登録日時",
+      },
+    },
+    /** カタログ（代理店の商品マスタをスタッフ向けに閲覧専用で出す）。仕入値は出さない。 */
+    catalog: {
+      listTitle: "カタログ",
+      listSubtitle: "代理店が公開している商品です（閲覧のみ）",
+      detailTitle: "商品詳細",
+      empty: "公開されている商品がありません",
+      emptyCta: "代理店が商品を登録すると、ここに表示されます。",
+      allCategories: "すべて",
+      filterAriaLabel: "カテゴリ",
+      fields: {
+        category: "カテゴリ",
+        maker: "メーカー",
+        name: "商品名",
+        modelNo: "型番",
+        series: "シリーズ",
+        capacity: "容量",
+        dealerPrice: "卸値",
+        listPrice: "希望販売価格",
+        effectiveFrom: "適用開始日",
+        effectiveTo: "適用終了日",
+        warrantyYears: "保証年数",
+        batteryFunctionType: "機能区分",
+        note: "備考",
+      },
+      /** 資料・ファイル添付は既存の商品マスタに無い旨（ダウンロード導線を出さない理由）。 */
+      noDocumentsNote: "商品資料の添付機能はありません。",
+      categoryLabels: {
+        PANEL: "PV",
+        BATTERY: "蓄電池",
+        POWER_CONDITIONER: "パワコン",
+        MOUNT: "架台",
+        SET: "セット",
+        OTHER_PART: "その他",
+        ECO_CUTE: "エコキュート",
+        IH: "IH",
+        GIFT: "プレゼント品",
+      } as Record<string, string>,
+      batteryFunctionTypeLabels: {
+        SINGLE: "単機能",
+        SPECIFIC_LOAD: "特定負荷",
+        FULL_LOAD: "全負荷",
+      } as Record<string, string>,
+      columns: {
+        category: "カテゴリ",
+        maker: "メーカー",
+        name: "商品名",
+        modelNo: "型番",
+        capacity: "容量",
+        dealerPrice: "卸値",
+      },
+      filters: {
+        category: "カテゴリ",
+        maker: "メーカー",
+        keyword: "商品名・型番",
+        dealerPrice: "卸値",
+        series: "シリーズ",
+        capacity: "容量",
+        batteryFunctionType: "機能区分",
+      },
+    },
+    /** 顧客情報（本人が担当する顧客・商談）。編集できるのは商談情報だけ。 */
+    customer: {
+      listTitle: "顧客情報",
+      listSubtitle: "自分が担当者として割り当てられている顧客です",
+      detailTitle: "顧客・商談",
+      empty: "担当している顧客がありません",
+      emptyCta: "担当者として割り当てられると、ここに表示されます。",
+      sections: {
+        customer: "お客様情報（閲覧のみ）",
+        deals: "商談",
+      },
+      /** 顧客の基本情報は変えられない旨。 */
+      readOnlyNote: "氏名・住所・連絡先などの基本情報はこの画面では変更できません。",
+      assignment: {
+        tossUp: "トス獲得者",
+        closing: "営業担当者",
+        deal: "商談担当",
+      },
+      fields: {
+        name: "お客様名",
+        kana: "フリガナ",
+        phone: "電話番号",
+        address: "住所",
+        status: "顧客ステータス",
+        registeredAt: "登録日",
+      },
+      deal: {
+        editTitle: "商談情報を編集",
+        empty: "商談がまだありません",
+        fields: {
+          status: "ステータス",
+          proposedProduct: "提案商品",
+          proposedAmount: "提案金額",
+          expectedContractDate: "契約予定日",
+          lostReason: "失注理由",
+          nextAction: "次回アクション",
+          note: "備考",
+          updatedAt: "更新日時",
+        },
+        statusLabels: {
+          VISIT_PLANNED: "訪問予定",
+          VISITED: "訪問済み",
+          PROPOSING: "提案中",
+          QUOTED: "見積提示",
+          CONSIDERING: "検討中",
+          LIKELY_CONTRACT: "契約見込み",
+          CONTRACTED: "契約",
+          LOST: "失注",
+        } as Record<string, string>,
+        /** ステータスは既存の遷移規則に従う旨。 */
+        statusHint: "ステータスは定められた順序でのみ進められます",
+        edit: "商談を編集",
+      },
+      columns: {
+        name: "お客様名",
+        assignment: "担当区分",
+        dealStatus: "商談ステータス",
+        registeredAt: "登録日",
+        updatedAt: "更新日時",
+      },
+      filters: {
+        name: "お客様名",
+        kana: "フリガナ",
+        phone: "電話番号",
+        address: "住所",
+        /** 登録元の催事と、商談履歴に紐づく催事の両方を探す。 */
+        venue: "過去の催事場所",
+        dealStatus: "商談ステータス（自社）",
+        salesChannel: "販売チャネル",
+        registeredAt: "登録日",
+        /** 管理者のみ。 */
+        salesperson: "担当販売員",
+        status: "顧客ステータス",
+        /** 管理者は自社の商談が対象（スタッフは本人担当の商談）。 */
+        dealStatusAdmin: "商談ステータス（自社）",
+      },
+      /** 二次店管理者向け（自社顧客の管理）。スタッフ向けとは対象範囲が違う。 */
+      admin: {
+        listTitle: "自社顧客",
+        listSubtitle: "自社が登録・担当している顧客です",
+        empty: "自社顧客がありません",
+        emptyCta: "アポイントを登録すると、ここに表示されます。",
+        detailTitle: "自社顧客",
+        edit: "顧客情報を編集",
+        editTitle: "顧客情報を編集",
+        editHint: "変更できるのは連絡先・住所・担当者・ステータス・備考です。",
+        delete: "この顧客を削除",
+        deleteTitle: "顧客の削除",
+        deleteConfirm:
+          "この顧客と、紐づく商談・アポイント・活動履歴をすべて削除します。元に戻せません。",
+        deleteConfirmField: "削除するにはお客様名を入力してください",
+        /** 一緒に消える関連データの内訳（削除前に必ず出す）。 */
+        impactTitle: "一緒に削除されるデータ",
+        impactNone: "紐づく商談・アポイント・履歴はありません",
+        impact: {
+          deals: "商談",
+          appointments: "アポイント",
+          activities: "活動履歴",
+          tasks: "タスク",
+          callLogs: "通話ログ",
+          messages: "メッセージ",
+          loanReviews: "ローン審査",
+          existingEquipments: "既存設備",
+          contracts: "契約",
+          files: "添付ファイル",
+        } as Record<string, string>,
+        impactUnit: "{n}件",
+        deleted: "削除しました",
+        /** 削除できない場合の理由。 */
+        blockedByContract: "契約が紐づいているため削除できません。代理店にご連絡ください。",
+        blockedByFile: "添付ファイルが登録されているため削除できません。代理店にご連絡ください。",
+        nameMismatch: "入力されたお客様名が一致しません",
+        /** マスキング設定で個人情報が伏せられているときは編集させない。 */
+        maskedEditDisabled:
+          "個人情報が非表示の設定のため、この画面からは編集できません。代理店にご確認ください。",
+        columns: {
+          salesperson: "担当販売員",
+          status: "ステータス",
+        },
+        fields: {
+          tossUpSalesperson: "トス獲得者",
+          closingSalesperson: "営業担当者",
+          landlinePhone: "固定電話",
+          mobilePhone: "携帯電話",
+          postalCode: "郵便番号",
+          prefecture: "都道府県",
+          city: "市区町村",
+          addressLine: "番地以降",
+          note: "備考",
+        },
+        statusLabels: {
+          NEW: "新規",
+          PRE_CALL_WAIT: "マエカク待ち",
+          PRE_CALL_DONE: "マエカク済み",
+          VISIT_PLANNED: "訪問予定",
+          IN_NEGOTIATION: "商談中",
+          CONTRACTED: "契約",
+          LOST: "失注",
+          IN_CONSTRUCTION: "工事中",
+          COMPLETED: "完了",
+        } as Record<string, string>,
+      },
+    },
+    /** 商談履歴（接点の積み重ね）と業務情報の更新。 */
+    negotiation: {
+      title: "商談履歴",
+      hint: "いつ・どこで・誰が・何を行い、どうなったかを 1 件ずつ残します。接点が増えるほど回数が積み上がります。",
+      empty: "商談履歴はまだありません",
+      seq: "{n}回目",
+      add: "接点を記録",
+      addTitle: "接点を記録する",
+      editTitle: "記録を修正する",
+      editHint: "誤記の修正では商談回数は増えません。",
+      fields: {
+        occurredAt: "日時",
+        category: "種別",
+        detail: "内容・結果",
+        event: "催事（どこで）",
+        eventNone: "催事を指定しない",
+        assignee: "接客した担当者",
+        assigneeHint: "実際に操作した利用者は別に記録されます。",
+        amount: "提示金額（円）",
+      },
+      categories: {
+        tossup: "トスアップ",
+        event: "催事",
+        appointment: "アポイント",
+        visit: "訪問",
+        quote: "見積提示",
+        phone: "電話",
+        email: "メール",
+        other: "その他",
+      },
+      createdBy: "登録者",
+      updatedBy: "最終更新",
+      save: "記録する",
+      saved: "記録しました",
+      cancelEdit: "やめる",
+      status: {
+        title: "現在の商談状況",
+        dealStatus: "商談ステータス",
+        maekakuStatus: "マエカクステータス",
+        nextAppointmentAt: "次回アポ日程",
+        nextAction: "次回アクション",
+        assignee: "担当者",
+        assigneeHint: "引継ぎ・共同対応のときに変更します。過去の履歴は残ります。",
+        save: "更新する",
+        saved: "更新しました",
+      },
+      dealStatuses: {
+        negotiating: "商談中",
+        contracted: "契約済",
+        cancelled: "解約",
+        lost: "失注",
+      },
+      maekakuStatuses: {
+        pending: "未実施",
+        done: "実施済",
+        unnecessary: "不要",
+      },
+      contractReport: {
+        title: "成約報告",
+        note: "「契約済」への変更と、成約報告の提出は別の操作です。ステータスを変えても成約報告は提出されません。",
+        open: "成約報告を登録する",
+        countLabel: "自社の提出済み成約報告: {n}件",
+        noContractNote: "金額・粗利・インセンティブに関わる正式な契約はここでは作成されません。",
+      },
+      errors: { failed: "保存できませんでした" },
+    },
+    /** シフト（本人に割り当てられた催事）。登録・変更はしない。 */
+    /** 個人設定（本人の販売員情報）。正本は販売員マスタで、別表は作らない。 */
+    profile: {
+      title: "個人設定",
+      subtitle: "登録されているご自身の情報を確認・変更できます",
+      sections: {
+        fixed: "変更できない項目",
+        editable: "ご自身の情報",
+      },
+      fixedHint:
+        "所属会社・加盟店番号・利用状態・サインイン用のメールアドレスは変更できません。変更が必要なときは自社の管理者へご連絡ください。",
+      emailHint: "連絡先のメールアドレスです。サインインに使うメールアドレスは変わりません。",
+      fields: {
+        companyName: "所属会社",
+        franchiseNo: "加盟店番号",
+        loginEmail: "サインイン用メールアドレス",
+        isActive: "利用状態",
+      },
+      activeYes: "利用中",
+      activeNo: "停止中",
+      errors: {
+        noSalesperson:
+          "ご自身の販売員情報が見つかりません。自社の管理者に、アカウントと販売員情報の紐付けをご依頼ください。",
+      },
+    },
+
+    /** 催事シフトの出退勤（本人の打刻）。保存先は EventShift の実績列。 */
+    attendance: {
+      clockIn: "出勤",
+      clockOut: "退勤",
+      clockedInAt: "出勤",
+      clockedOutAt: "退勤",
+      worked: "勤務時間",
+      stateLabel: "勤務状態",
+      /** 休憩を控除しないことを必ず添える。 */
+      workedNote: "休憩時間は控除していません",
+      state: {
+        NOT_CHECKED_IN: "未出勤",
+        WORKING: "勤務中",
+        DONE: "退勤済み",
+      },
+      /** 当日でない割当に出す説明。 */
+      notTodayHint: "開催日当日に出勤できます",
+      needCheckInHint: "出勤すると、この催事のアポ登録と日報入力ができます",
+      clockedInHint: "出勤済みです。アポ登録と日報入力ができます",
+      doneHint: "退勤済みです。この催事の日報は引き続き提出できます",
+      errors: {
+        notYourShift: "対象のシフトが見つかりません",
+        notToday: "出勤できるのは開催日当日です",
+        notCheckedIn: "出勤の記録がありません",
+        clockOutBeforeIn: "退勤時刻が出勤時刻より前になります",
+        clockInFailed: "出勤を記録できませんでした",
+        clockOutFailed: "退勤を記録できませんでした",
+        needCheckIn: "この催事に出勤してから登録してください",
+      },
+    },
+    shift: {
+      /** 催事シフトから日報へ。対象の催事・開催日を引き継ぐ。 */
+      registerReport: "この催事から日報を入力",
+      listTitle: "シフト",
+      listSubtitle: "自分に割り当てられている催事の予定です（閲覧のみ）",
+      empty: "割り当てられているシフトがありません",
+      emptyCta: "代理店が催事の担当に割り当てると、ここに表示されます。",
+      /** 販売員との紐付けが無いアカウントに出す案内。 */
+      noSalespersonLink:
+        "このアカウントは販売員情報と紐付いていないため、催事の割当を表示できません。代理店にご確認ください。",
+      columns: {
+        date: "開催日",
+        venue: "開催場所",
+        time: "時間",
+        role: "役割",
+        note: "備考",
+        startAt: "開始時刻",
+        source: "区分",
+      },
+      filters: {
+        date: "日付",
+        venue: "開催場所",
+        source: "区分",
+      },
+      /** 時間の記録が無い割当（催事単位の割当）に出す表記。 */
+      timeUnset: "催事の時間に準ずる",
+      sources: {
+        event: "催事担当",
+        shift: "勤務シフト",
+      },
+      /** 二次店管理者向け（自社ユーザー全員のシフト状況）。 */
+      admin: {
+        listTitle: "シフト管理",
+        listSubtitle: "自社ユーザーのイベントに対するシフト状況です（閲覧のみ）",
+        empty: "自社ユーザーのシフトがありません",
+        emptyCta: "代理店が催事の担当に割り当てると、ここに表示されます。",
+        /** 販売員と紐付いていないアカウントがある旨。 */
+        unlinkedNote:
+          "販売員情報と紐付いていない利用者の催事割当は表示できません。アカウント管理から紐付けてください。",
+        columns: { member: "担当者" },
+        filters: { member: "担当者" },
+      },
+      /** 催事シフト（再構築版）。名称はメニュー・見出しとも「催事シフト」。 */
+      title: "催事シフト",
+      subtitle: "開催日・時間の順に、開催場所と配置スタッフを確認します",
+      prevMonth: "前月",
+      thisMonth: "当月",
+      nextMonth: "翌月",
+      monthLabel: "表示する月",
+      monthApply: "表示",
+      viewList: "一覧",
+      viewCalendar: "カレンダー",
+      viewLabel: "表示方法",
+      monthEmpty: "この月に対象の催事はありません",
+      dayEmpty: "配置はありません",
+      unassigned: "未配置",
+      staffCount: "{n}名",
+      timeUnknown: "開催時間未設定",
+      planned: "予定",
+      actual: "実績",
+      actualUnset: "実績なし",
+      /** 配置（管理者のみ）。 */
+      assign: {
+        title: "スタッフを配置する",
+        subtitle: "月内の対象催事・開催日をまとめて選び、複数スタッフを一度に配置します",
+        open: "配置する",
+        targets: "対象の催事・開催日",
+        targetsHint: "複数選べます。予定時間は開催時間を初期値にしています（変更できます）。",
+        targetsEmpty: "この月に配置できる催事がありません",
+        staff: "配置するスタッフ",
+        staffHint: "選んだ開催日の時間に別の催事へ配置済みのスタッフは選べません。",
+        staffEmpty: "配置できるスタッフがいません",
+        role: "役割",
+        note: "備考",
+        submit: "配置する",
+        submitting: "配置中…",
+        done: "配置しました",
+        busyNote: "（同時刻に別の催事へ配置済み）",
+        travelTitle: "移動条件",
+        travelHint:
+          "出発地点はスタッフの自宅住所、移動手段は公共交通機関を想定しています。最終的な配置は管理者が判断します。",
+        transitUnavailable: "経路情報は未取得（駅すぱあと未接続）",
+        homeAddressUnset: "自宅住所が未登録",
+        selectTargetsFirst: "先に対象の催事・開催日を選んでください",
+      },
+      /** 役割（業務上の一次値域）。旧値は rolesLegacy 側で表示する。 */
+      roles: {
+        CATCH: "キャッチ",
+        TOSS: "トス",
+      },
+      roleHints: {
+        CATCH: "ブースへお客様を呼び込む",
+        TOSS: "説明、ヒアリング、訪問日時の調整",
+      },
+      /** 既存データが持つ旧役割。意味が違うので キャッチ / トス へ読み替えない。 */
+      rolesLegacy: {
+        LEAD: "リーダー",
+        RECEPTION: "受付",
+        PITCH: "商談",
+        OTHER: "その他",
+      },
+      /** 勤務時間の記録（実績。予定は上書きしない）。 */
+      actualForm: {
+        title: "実際に勤務した時間",
+        hint: "遅刻・早退・体調不良などで予定と違ったときに記録します。予定時間はそのまま残ります。",
+        startActual: "実績開始",
+        endActual: "実績終了",
+        save: "実績を保存",
+        saved: "実績を保存しました",
+        clear: "実績を消す",
+      },
+      /** 予定時間・役割の変更。 */
+      planForm: {
+        title: "予定時間・役割",
+        save: "予定を保存",
+        saved: "予定を保存しました",
+      },
+      unassign: "配置を取り消す",
+      unassigned2: "配置を取り消しました",
+      errors: {
+        overlap: "このスタッフは同じ時間帯に別の催事へ配置されています",
+        noTarget: "配置する催事を選択してください",
+        noStaff: "スタッフを選択してください",
+        failed: "配置できませんでした",
+        eventTimeMissing: "開催時間が未設定の開催日があります。予定時間を入力してください。",
+      },
+    },
+    /** 成約（Google フォーム「成約フォーム」準拠・9 項目）。 */
+    contract: {
+      listTitle: "成約一覧",
+      newTitle: "成約を登録",
+      editTitle: "成約を編集",
+      detailTitle: "成約詳細",
+      empty: "登録された成約がありません",
+      emptyCta: "「成約を登録」から追加してください。",
+      sections: {
+        contract: "成約情報",
+        org: "体制",
+      },
+      fields: {
+        franchiseNo: "加盟店番号",
+        contractDate: "ご契約日",
+        tossDate: "トス日",
+        tossDept: "トス部署",
+        apptGetter: "アポ獲得者",
+        salesRep: "営業担当者",
+        referralBranch: "取次拠点",
+        affiliation: "所属",
+        affiliationDept: "所属部署",
+        acquisitionChannel: "アポ獲得時チャネル",
+        createdAt: "登録日時",
+      },
+      affiliationLabels: {
+        VE: "VE",
+        PS: "PS",
+      } as Record<string, string>,
+      /** 所属の意味（フォームの説明文に合わせる）。 */
+      affiliationHint: "バリューエコロジーの社員が獲得した場合は VE、それ以外は PS",
+      acquisitionChannelLabels: {
+        VISIT_SALES: "訪問販売",
+        TELE_APPOINTMENT: "テレアポ",
+        REFERRAL: "紹介",
+        EVENT: "催事",
+        INBOUND: "反響",
+      } as Record<string, string>,
+      columns: {
+        contractDate: "ご契約日",
+        tossDate: "トス日",
+        salesRep: "営業担当者",
+        referralBranch: "取次拠点",
+        affiliation: "所属",
+        acquisitionChannel: "獲得チャネル",
+        tossDept: "トス部署",
+        createdAt: "登録日時",
+      },
+      filters: {
+        contractDate: "契約日",
+        tossDate: "トス日",
+        tossDept: "トス部署",
+        apptGetter: "アポ獲得者",
+        salesRep: "営業担当者",
+        referralBranch: "取次拠点",
+        affiliation: "所属",
+        affiliationDept: "所属部署",
+        acquisitionChannel: "獲得チャネル",
       },
     },
     // 催事日報（Google フォーム「ES_日報」準拠）。
@@ -138,6 +940,13 @@ export const labels = {
       listTitle: "催事日報一覧",
       newTitle: "催事日報を登録",
       editTitle: "催事日報を編集",
+      correctTitle: "催事日報を訂正",
+      correctAction: "訂正して再提出",
+      correctHint:
+        "元の日報はそのまま残り、この訂正が集計の対象になります。元の内容が二重に数えられることはありません。",
+      correctedBadge: "訂正済み（この日報は集計の対象外）",
+      correctionBadge: "訂正として提出された日報",
+      alreadyCorrected: "この日報はすでに訂正されています。訂正後の日報を確認してください。",
       detailTitle: "催事日報詳細",
       empty: "登録された催事日報がありません",
       emptyCta: "「催事日報を登録」から追加してください。",
@@ -183,8 +992,43 @@ export const labels = {
       columns: {
         eventDate: "催事実施日",
         venuePlace: "催事場所",
+        category: "種別",
         venueChain: "催事区分",
         apptTotal: "アポ数",
+        lotteryTotal: "抽選数",
+        seatedTotal: "着座数",
+        createdAt: "登録日時",
+      },
+      /** 共通の催事への紐付けと、数値の集計単位（代理店-01）。 */
+      eventLink: {
+        label: "対象の催事",
+        hint: "自社が担当している催事から選びます。日報はその催事の開催日の記録なので、どちらも指定が必要です。",
+        none: "選択してください",
+        dayLabel: "対象の開催日",
+        dayNone: "選択してください",
+        noEvents:
+          "自社が担当している催事がまだありません。催事の担当が決まると、ここから日報を出せます。",
+      },
+      scope: {
+        label: "この数値の範囲",
+        hint: "誰の実績かで合計の扱いが変わります。分からないときは未選択のままで構いません。",
+        UNKNOWN: "選択しない",
+        PERSON: "自分ひとりの実績",
+        COMPANY: "自社の合計",
+        BOOTH: "ブース全体（他社を含む）",
+      },
+      errors: {
+        eventRequired: "対象の催事を選択してください",
+        eventDayRequired: "対象の開催日を選択してください",
+        eventNotAssigned: "選択した催事は自社の担当ではありません",
+        eventDayMismatch: "選択した開催日はこの催事のものではありません",
+      },
+      filters: {
+        eventDate: "催事実施日",
+        venuePlace: "催事場所",
+        category: "種別",
+        venueChain: "催事区分",
+        areaInFacility: "施設内エリア",
       },
     },
     // 販売員（Google フォームの販売員登録準拠）。
@@ -207,7 +1051,9 @@ export const labels = {
         residentAddress: "住民票住所",
         employmentType: "雇用形態",
         salesExperience: "営業経験歴",
-        note: "備考",
+        isGuest: "ゲストスタッフ",
+        isGuestHint:
+          "他社から受け入れたスタッフです。閲覧範囲は自社スタッフと同じで、登録・招待・催事への追加は管理者だけが行います。",
         isActive: "状態",
       },
       genderLabels: {
@@ -231,11 +1077,296 @@ export const labels = {
         kana: "カナ",
         phone: "電話番号",
         employmentType: "雇用形態",
+        /** ログイン利用者（User）との紐付け状況。 */
+        account: "アカウント",
       },
+      filters: {
+        keyword: "氏名・カナ・連絡先",
+        employmentType: "雇用形態",
+        isActive: "状態",
+        link: "アカウント紐付け",
+      },
+      /** 紐付け状況の表記。販売員情報とログインアカウントは別の管理対象。 */
+      linkLabels: {
+        LINKED: "紐付けあり",
+        UNLINKED: "紐付けなし",
+      } as Record<string, string>,
+      /** 紐付けの設定はアカウント管理側で行う旨。 */
+      linkNote: "ログインアカウントとの紐付けは「利用者アカウント」から設定します。",
+    },
+    /** 利用者アカウント管理（二次店管理者のみ）。 */
+    account: {
+      listTitle: "利用者アカウント",
+      listSubtitle: "自社のログイン利用者の利用区分・利用状況を管理します",
+      detailTitle: "利用者アカウント",
+      empty: "利用者がいません",
+      emptyCta: "「利用者を招待」からメールアドレスを登録してください。",
+      /** 所属二次店は 1 アカウント = 1 社で固定のため表示のみ。 */
+      belongNote: "所属パートナー会社はアカウント作成時に決まり、この画面では変更できません。",
+      columns: {
+        name: "氏名",
+        email: "メールアドレス",
+        role: "利用区分",
+        status: "利用状況",
+        salesperson: "紐付く販売員",
+        lastLoginAt: "最終ログイン",
+        createdAt: "登録日",
+      },
+      filters: {
+        keyword: "氏名・メールアドレス",
+        role: "利用区分",
+        status: "利用状況",
+        link: "販売員との紐付け",
+      },
+      roleLabels: {
+        DEALER_ADMIN: "管理者",
+        DEALER_STAFF: "スタッフ",
+      } as Record<string, string>,
+      statusLabels: {
+        ACTIVE: "利用中",
+        INVITED: "招待済み（未ログイン）",
+        SUSPENDED: "停止中",
+        DELETED: "削除済み",
+      } as Record<string, string>,
+      linkLabels: {
+        LINKED: "紐付けあり",
+        UNLINKED: "紐付けなし",
+      } as Record<string, string>,
+      invite: {
+        title: "利用者を招待",
+        open: "利用者を招待",
+        email: "メールアドレス",
+        // 同じ画面に絞り込みの「利用区分」があるので、招待側は語を変えて取り違えを防ぐ。
+        role: "付与する利用区分",
+        submit: "招待を発行",
+        done: "招待を発行しました",
+        /** メールは送らない。リンクを本人へ渡してもらう。 */
+        linkNote:
+          "次のリンクをご本人にお渡しください。利用区分に応じたサイトへつながります（メールは送信していません）。",
+      },
+      actions: {
+        title: "この利用者の設定",
+        activate: "利用を開始する",
+        suspend: "利用を停止する",
+        toAdmin: "管理者にする",
+        toStaff: "スタッフにする",
+        link: "販売員と紐付ける",
+        unlink: "紐付けを解除",
+        salespersonSelect: "紐付ける販売員",
+        salespersonNone: "紐付けない",
+        save: "保存",
+      },
+      /** 操作を止める理由。管理者が 0 人になる操作と自分自身の操作は禁止。 */
+      guards: {
+        self: "自分自身の利用区分・利用状況は変更できません",
+        lastAdmin: "管理者が 0 人になる操作はできません",
+        notDealerUser: "パートナー会社の利用者ではありません",
+        invited: "招待済みのアカウントは、本人が招待を受け入れるまで利用状況を変更できません",
+        salespersonTaken: "この販売員は別の利用者と紐付いています",
+      },
+      /** 紐付けの考え方。氏名一致などからの自動紐付けはしない。 */
+      linkNote:
+        "販売員との紐付けは管理者が明示的に指定します。氏名が同じでも自動では紐付きません。",
+    },
+    /** 手数料管理（営業フィー）。率の設定は代理店が行うため閲覧のみ。 */
+    commission: {
+      listTitle: "手数料管理",
+      listSubtitle: "自社に適用されている営業フィーの率と、確定した金額です",
+      rateSection: "適用中の手数料率",
+      rateEmpty: "手数料率が設定されていません",
+      rateEmptyCta: "代理店が設定すると、ここに表示されます。",
+      /** 変更は代理店側で行う旨。 */
+      readOnlyNote: "手数料率は代理店が設定します。この画面では変更できません。",
+      fields: {
+        tossUpRate: "トスアップ率",
+        closingRate: "クロージング率",
+        applyFrom: "適用開始",
+        applyTo: "適用終了",
+        updatedAt: "最終更新",
+      },
+      listSection: "確定した営業フィー",
+      empty: "確定した営業フィーがありません",
+      emptyCta: "契約が確定すると、ここに表示されます。",
+      columns: {
+        settledMonth: "対象月",
+        contractDate: "契約日",
+        targetProfit: "対象粗利",
+        rate: "率",
+        amount: "金額",
+        finalizedAt: "確定日",
+      },
+      filters: {
+        settledMonth: "対象月",
+        amount: "金額",
+        contractDate: "契約日",
+      },
+      totalLabel: "表示中の合計",
+      /** 表示できない情報の断り書き（代理店の原価は二次店に出さない）。 */
+      costNote: "代理店側の原価情報は含まれません。",
+    },
+    /** 希望ラインの提出（出店希望）。保存先は既存の LanePreference。 */
+    lanePreference: {
+      title: "出店希望の提出",
+      subtitle: "対象月ごとに、レーン単位で希望店舗・希望日程を提出します",
+      monthLabel: "対象月",
+      monthApply: "この月を表示",
+      submittedAt: "最終提出",
+      notSubmitted: "この月はまだ提出していません",
+      noteLabel: "特記事項",
+      itemsTitle: "希望箇所",
+      itemsHint: "上から希望順（1 番目が第一希望）になります。空欄の行は保存されません。",
+      addRow: "希望を追加",
+      removeRow: "この行を削除",
+      priority: "希望順",
+      venueLabel: "希望場所",
+      venueLabelHint: "店舗名など。候補から選ぶか、直接入力できます。",
+      /** 希望場所は店舗マスタから選ぶ（自由記述だとどの店舗か決まらないため）。 */
+      venueSelectHint:
+        "代理店に登録されている店舗から選びます。同じ名前の店舗は場所提供元と住所で見分けられます。",
+      venueSelectNone: "店舗を選択",
+      venueLabelAtSubmit: "提出時の名称",
+      venuePick: "候補から選ぶ",
+      venuePickNone: "直接入力",
+      desiredDates: "希望開催日",
+      desiredDatesHint: "複数ある場合は改行かカンマで区切ってください（例: 2026-06-05）。",
+      memo: "メモ",
+      submit: "提出する",
+      submitting: "提出中…",
+      submitted: "提出しました",
+      /** 再提出は全件入れ替えになる旨。 */
+      replaceNote: "同じ月に再提出すると、前回の内容は入れ替わります。",
+      /** 候補が無いとき。 */
+      candidatesEmpty: "代理店から公開されている候補はありません。希望場所は直接入力できます。",
+      /** 候補の絞り込み。 */
+      candidatesTitle: "公開中の候補",
+      candidatesHint: "代理店が自社に公開している候補です。希望場所の入力補助に使います。",
+      candidatesCount: "該当 {total}件",
+      candidatesNoMatch: "条件に一致する候補がありません",
+      filters: {
+        venue: "候補の場所",
+        eventDate: "開催日",
+      },
+      columns: {
+        eventDate: "開催日",
+        venue: "場所",
+        address: "住所",
+      },
+      errors: {
+        needItem: "希望店舗を 1 件以上入力してください",
+        invalidMonth: "対象月の指定が正しくありません",
+        invalidDate: "希望日程は YYYY-MM-DD 形式で入力してください",
+        ambiguousRelationship: "依頼先の代理店を選択してください",
+        storeNotAvailable: "選択された店舗は利用できません。候補から選び直してください",
+        failed: "提出できませんでした",
+      },
+      /** 一覧・詳細（提出したものを後から確認する）。 */
+      listTitle: "出店希望",
+      listSubtitle: "対象月ごとに、レーン単位で希望店舗・希望日程を提出します",
+      newSubmission: "希望を提出する",
+      resubmit: "内容を修正して再提出",
+      detailTitle: "出店希望の詳細",
+      empty: "提出した出店希望はまだありません",
+      noMatch: "条件に一致する提出はありません",
+      originLabel: "依頼先代理店",
+      originHint: "どの代理店への希望かを選びます。",
+      laneCountLabel: "希望レーン数",
+      laneCountHint: "申告値です。店舗が未定のレーンがあっても構いません。",
+      laneTitle: "{n}レーン目",
+      addLane: "レーンを追加",
+      removeLane: "このレーンを削除",
+      priorityLabel: "第{n}希望",
+      addPriority: "希望店舗を追加",
+      removePriority: "この希望を削除",
+      conditionNote: "個別条件",
+      conditionNoteHint:
+        "この店舗だけの条件（例: 上記日程のいずれか 2 日間を希望）。希望順位とは別に記録されます。",
+      laneDesiredDates: "希望日程",
+      laneDesiredDatesHint:
+        "このレーンで希望する開催日。複数指定できます（改行またはカンマ区切り、例: 2026-07-04）。",
+      statusLabel: "状態",
+      status: {
+        DRAFT: "下書き",
+        SUBMITTED: "提出済み",
+        ANSWERED: "代理店回答あり",
+        CONFIRMED: "確定",
+      },
+      /** 代理店とのやり取り。 */
+      threadTitle: "代理店とのやり取り",
+      threadHint: "この提出についての連絡と、代理店からの回答が残ります。",
+      threadEmpty: "やり取りはまだありません",
+      threadPost: "送信",
+      threadBody: "連絡内容",
+      threadSideDealer: "自社",
+      threadSideWholesaler: "代理店",
+      threadKindSubmission: "提出",
+      threadKindAnswer: "回答",
+      threadKindMessage: "連絡",
+      /** 確定した開催内容。 */
+      confirmedTitle: "確定した開催",
+      confirmedHint: "代理店が確定した開催場所・日程・担当会社です。",
+      confirmedEmpty: "確定した開催はまだありません",
+      /** 希望明細ごとの採用結果。代替提案（希望と違う店舗）は区別して出す。 */
+      adopted: "採用されました",
+      adoptedAlternative: "別の店舗で採用されました",
+      confirmedColumns: {
+        venue: "開催場所",
+        days: "開催日",
+        mode: "開催体制",
+        dealers: "担当会社",
+      },
+      listColumns: {
+        targetMonth: "対象月",
+        origin: "依頼先代理店",
+        laneCount: "レーン数",
+        status: "状態",
+        submittedAt: "提出",
+        submittedBy: "提出者",
+      },
+      listFilters: {
+        month: "対象月",
+        origin: "依頼先代理店",
+        status: "状態",
+        venue: "店舗名・住所",
+        area: "エリア",
+      },
+    },
+    /** 場所確保の相談（通常の希望提出とは別建て）。 */
+    consultation: {
+      title: "場所確保の相談",
+      subtitle: "地域の特性を伝えて、ブースの確保を相談します",
+      newTitle: "相談を送る",
+      detailTitle: "相談の詳細",
+      create: "相談を送る",
+      empty: "相談はまだありません",
+      noMatch: "条件に一致する相談はありません",
+      fields: {
+        origin: "相談先代理店",
+        targetMonth: "対象月（任意）",
+        area: "希望エリア",
+        areaHint: "例: 群馬県東部、静岡県東部",
+        title: "件名",
+        body: "相談内容",
+        bodyHint: "例: この地域はこういう特性があるため、○○でブースを確保できませんか。",
+      },
+      columns: {
+        createdAt: "送信",
+        title: "件名",
+        origin: "相談先",
+        area: "エリア",
+        targetMonth: "対象月",
+        status: "状態",
+      },
+      status: { OPEN: "回答待ち", ANSWERED: "回答あり", CLOSED: "完了" },
+      filters: { area: "エリア", keyword: "件名・内容", month: "対象月", status: "状態" },
+      errors: { failed: "送信できませんでした" },
     },
     errors: {
       notFound: "対象が見つかりません",
       forbidden: "この情報にアクセスできません",
+      /** スタッフが管理機能を開いたとき。 */
+      adminOnly: "この機能はパートナー管理者のみ利用できます",
+      /** 取引先の代理店が 1 社に決まらないとき。提出先を推測しない。 */
+      ambiguousOrigin: "依頼先の代理店が特定できません。代理店にご確認ください",
     },
   },
 
@@ -243,54 +1374,254 @@ export const labels = {
   // 二次店ポータルからの登録内容を代理店が確認できるようにするための最小表示で、
   // 編集導線は置かない。
   customerVenueInfo: {
-    section: "催事情報（二次店登録）",
+    section: "初訪アポ情報（パートナー様登録）",
     fromEvent: "登録済み催事から",
     directInput: "直接入力",
-    empty: "催事情報は登録されていません",
+    empty: "パートナー様からの登録情報はありません",
     fields: {
       eventDate: "催事実施日",
       venuePlace: "催事場所",
       venueChain: "催事種別",
       boothArea: "催事ブース場所",
+      closeCompany: "クローズ会社",
     },
   },
 
   // 代理店側で二次店の催事日報を確認する読み取り専用画面。
   dealerReportView: {
-    listTitle: "二次店 催事日報",
-    listSubtitle: "二次店から提出された催事日報です（閲覧のみ）",
+    listTitle: "パートナー 催事日報",
+    listSubtitle: "パートナー様から提出された催事日報です（閲覧のみ）",
     detailTitle: "催事日報詳細",
     backToList: "一覧へ戻る",
     empty: "提出された催事日報がありません",
-    emptyCta: "二次店が二次店ポータルから登録すると、ここに表示されます。",
-    readOnlyNote: "この画面は閲覧専用です。編集は二次店ポータルから行われます。",
+    emptyCta: "パートナー様がパートナーポータルから登録すると、ここに表示されます。",
+    readOnlyNote: "この画面は閲覧専用です。編集はパートナーポータルから行われます。",
     columns: {
       eventDate: "催事実施日",
-      dealerName: "二次店",
+      dealerName: "パートナー会社",
       venuePlace: "催事場所",
       venueChain: "催事区分",
       apptTotal: "アポ数",
     },
     filters: {
-      dealer: "二次店",
+      dealer: "パートナー会社",
       all: "すべて",
       resultCount: "{total}件",
     },
   },
 
-  // 製品カタログ（PV / 蓄電池）。MVP ではプレースホルダ。
+  // 代理店側で二次店の訪問アポを確認する読み取り専用画面。
+  dealerVisitAppointmentView: {
+    listTitle: "パートナー 訪問アポ",
+    listSubtitle: "パートナー様から提出された訪問アポです（閲覧のみ）",
+    detailTitle: "訪問アポ詳細",
+    backToList: "一覧へ戻る",
+    empty: "提出された訪問アポがありません",
+    emptyCta: "パートナー様がパートナーポータルから登録すると、ここに表示されます。",
+    readOnlyNote: "この画面は閲覧専用です。編集はパートナーポータルから行われます。",
+    columns: {
+      createdAt: "登録日時",
+      dealerName: "パートナー会社",
+      tossDept: "トス部署",
+      closeDept: "クローズ部署",
+      salesRep: "営業担当者",
+    },
+  },
+
+  // 代理店側で二次店の成約報告を確認する読み取り専用画面。
+  dealerContractView: {
+    listTitle: "パートナー 成約",
+    listSubtitle: "パートナー様から提出された成約報告です（閲覧のみ）",
+    detailTitle: "成約詳細",
+    backToList: "一覧へ戻る",
+    empty: "提出された成約がありません",
+    emptyCta: "パートナー様がパートナーポータルから登録すると、ここに表示されます。",
+    readOnlyNote: "この画面は閲覧専用です。編集はパートナーポータルから行われます。",
+    columns: {
+      contractDate: "ご契約日",
+      dealerName: "パートナー会社",
+      salesRep: "営業担当者",
+      referralBranch: "取次拠点",
+      affiliation: "所属",
+    },
+  },
+
+  // 決済（BizOrch 利用料）の状態表示と、支払い起因の利用制限。
+  //
+  // 内部の enum 名（ACTIVE / PAYMENT_METHOD_MISSING / …）はそのまま画面に出さない。
+  billing: {
+    // ナビの非活性項目に出す tooltip。
+    navDisabledReason: "決済情報の登録またはお支払いが必要です",
+    /** 支払い状態の表示名。/payments の「支払い状態」で使う。 */
+    statusLabels: {
+      ACTIVE: "支払い済み",
+      PAYMENT_METHOD_MISSING: "決済情報未登録",
+      UNPAID: "未払い",
+      STRIPE_UNAVAILABLE: "決済状態を確認できません",
+    } as Record<string, string>,
+    /** ホーム上部の警告（横長の 1 行。巨大なカードにはしない）。 */
+    alert: {
+      paymentMethodMissing: {
+        title: "決済情報が登録されていません",
+        body: "BizOrchを利用するには決済情報の登録が必要です。",
+        ownerAction: "決済管理ページへ",
+        otherAction: "オーナーに決済情報の登録を依頼してください",
+      },
+      unpaid: {
+        title: "お支払いが確認できていません",
+        body: "お支払いが確認できるまで、ホームと決済管理以外はご利用いただけません。",
+        ownerAction: "決済管理ページへ",
+        otherAction: "オーナーに支払い対応を依頼してください",
+      },
+      unavailable: {
+        title: "決済状態を確認できません",
+        body: "決済サービスに接続できていません。時間を置いて再度ご確認ください。",
+      },
+    },
+    /** 支払い方法の表示。カード番号そのものは扱わない（下 4 桁まで）。 */
+    card: {
+      /** ブランドが取れないときの言い換え。「カード •••• 4242」。 */
+      generic: "カード",
+      none: "未登録",
+      expiry: "有効期限",
+    },
+    /** 決済管理ページ（Stripe のカスタマーポータル）への導線。 */
+    portal: {
+      /** 決済情報が既にある場合。 */
+      manage: "決済管理ページ",
+      /** Stripe Customer がまだ無い場合。 */
+      start: "決済情報を登録",
+      opening: "決済管理ページを開いています…",
+      error: "決済管理ページを開けませんでした。時間を置いて再度お試しください",
+      notConfigured: "決済サービスが未設定のため、決済管理ページを開けません",
+    },
+  },
+
+  // 製品カタログ（商品マスタ管理）。
+  //
+  // カテゴリの表示順は PV → BT → エコキュート → IH → プレゼント品 → その他 で固定。
+  // 内部名は @solar/contracts の CATALOG_CATEGORY_VALUES が唯一の情報源で、
+  // ここは表示名だけを持つ。
   productCatalog: {
     title: "製品カタログ",
-    pv: {
-      title: "PVカタログ",
-      subtitle: "太陽光パネル（PV）の製品カタログを管理します。",
+    new: "商品を登録",
+    categories: {
+      PV: "PV",
+      BT: "BT",
+      ECO_CUTE: "エコキュート",
+      IH: "IH",
+      GIFT: "プレゼント品",
+      OTHER: "その他",
+    } as Record<string, string>,
+    categoryTabsAriaLabel: "商品カテゴリ",
+    // BT の機能区分。状態値ではなく分類なのでバッジにはせず、素の文字で出す。
+    batteryFunctionTypes: {
+      SINGLE: "単機能",
+      SPECIFIC_LOAD: "特定負荷",
+      FULL_LOAD: "全負荷",
+    } as Record<string, string>,
+    // 商品マスタの単位列。カタログ画面では入力させず、カテゴリごとの既定値を入れる。
+    defaultUnits: {
+      PV: "枚",
+      BT: "台",
+      ECO_CUTE: "台",
+      IH: "台",
+      GIFT: "個",
+      OTHER: "式",
+    } as Record<string, string>,
+    fields: {
+      name: "商品名",
+      maker: "メーカー",
+      series: "シリーズ",
+      modelNo: "型番",
+      capacity: "容量",
+      batteryFunctionType: "機能区分",
+      warranty: "保証",
+      // 「原価」「販売価格」等へ言い換えない。
+      // 仕入れ値 = 自社の仕入価格 / 卸値 = 取引先への卸価格。
+      purchasePrice: "仕入れ値",
+      dealerPrice: "卸値",
+      note: "備考",
+      status: "状態",
+      isActive: "有効",
+      updatedAt: "更新日時",
     },
-    bt: {
-      title: "BTカタログ",
-      subtitle: "蓄電池（BT）の製品カタログを管理します。",
+    // 一覧のチェックボックスからの有効 / 無効切替（削除とは別操作）。
+    activeToggle: {
+      // 見出しだけでは何のチェックか分からないので、行ごとに商品名を含めた
+      // aria-label を組み立てる（{name} を差し替える）。
+      ariaLabel: "{name} を有効にする",
+      activated: "有効にしました",
+      deactivated: "無効にしました",
     },
-    placeholderTitle: "カタログは準備中です",
-    placeholderBody: "この画面は今後実装予定です。",
+    capacitySuffix: "kWh",
+    warrantySuffix: "年保証",
+    filters: {
+      keyword: "商品名・メーカー・シリーズ・型番",
+      keywordPlaceholder: "商品名 / メーカー / シリーズ / 型番",
+      includeRetired: "無効の商品も表示",
+      resultCount: "{total}件",
+    },
+    // メーカー絞り込み（カテゴリ切替はサイドバーが担うので、画面中央はここ）。
+    makerFilter: {
+      label: "メーカー",
+      all: "すべて",
+      unset: "メーカー未設定",
+      empty: "登録済みのメーカーがありません",
+    },
+    // 登録・編集フォームのメーカー入力（既存から選択 + 新規名の直接入力）。
+    makerInput: {
+      hint: "一覧から選ぶか、新しいメーカー名を入力できます",
+      placeholder: "メーカー名",
+    },
+    sortFieldLabels: {
+      updated_at: "更新順",
+      created_at: "登録順",
+      maker: "メーカー",
+      series: "シリーズ",
+      modelNo: "型番",
+      capacity: "容量",
+      name: "商品名",
+      purchasePrice: "仕入れ値",
+      dealerPrice: "卸値",
+    } as Record<string, string>,
+    expand: {
+      open: "詳細を開く",
+      close: "詳細を閉じる",
+    },
+    empty: "登録された商品がありません",
+    emptyCta: "右上の「商品を登録」から追加してください。",
+    create: {
+      title: "商品を登録",
+      description: "カテゴリを選ぶと、そのカテゴリで必要な項目だけ表示されます。",
+      category: "カテゴリ",
+      submit: "登録",
+      submitting: "登録中…",
+      cancel: "キャンセル",
+      done: "商品を登録しました",
+    },
+    edit: {
+      trigger: "編集",
+      title: "商品を編集",
+      description: "登録済みの内容を変更します。カテゴリは変更できません。",
+      submit: "保存",
+      submitting: "保存中…",
+      cancel: "キャンセル",
+    },
+    remove: {
+      trigger: "削除",
+      confirmTitle: "この商品を削除しますか",
+      confirmBody:
+        "一覧から外れ、新規の商品選択にも出なくなります。過去の契約・見積から参照されている情報はそのまま残ります。",
+      submit: "削除",
+      submitting: "削除中…",
+      cancel: "キャンセル",
+      done: "商品を削除しました",
+    },
+    errors: {
+      duplicate: "同じ内容の商品がすでに登録されています",
+      notFound: "商品が見つかりません",
+    },
   },
 
   // Role-group navigation (SP-02+ で実体を入れる前提の最小 stub)
@@ -815,14 +2146,22 @@ export const labels = {
     filterByTargetMonth: "対象年月で絞り込み",
     allStatuses: "すべてのステータス",
     internalOnlyNotice: "このセクションは卸業者専用です（取引先には公開されません）",
+    /** 開催場所は店舗マスタが正本であることを画面に出す（同じ店舗が増殖しないように）。 */
+    storeHint: "住所・場所提供元・開催エリアは、選んだ店舗の登録内容から決まります",
+    /** マスタが改称されても、過去の開催記録は上書きしない。 */
+    storeRenamed: "現在の店舗マスタ上の名称: {name}",
+    storeMasterLink: "店舗マスタを開く",
+    storeUnregistered: "候補に無い店舗は、先に店舗マスタへ登録してください",
     fields: {
       venueProvider: "場所提供元",
       venueNegotiation: "場所提供元対応",
       targetMonth: "対象年月（YYYY-MM）",
       scheduledDate: "実施予定日",
+      /** 店舗マスタから選ぶ開催場所。住所・場所提供元・開催エリアはこの選択から決まる。 */
+      store: "開催店舗",
       storeName: "店舗名",
       address: "住所",
-      area: "エリア",
+      area: "開催エリア",
       deadlineAt: "回答期限",
       contractType: "場所提供元との契約形態",
       fixedFee: "固定費（円・内部）",
@@ -916,6 +2255,7 @@ export const labels = {
       targetMonthFormat: "対象年月は YYYY-MM 形式で入力してください",
       scheduledDateRequired: "実施予定日を入力してください",
       storeNameRequired: "店舗名を入力してください",
+      storeRequired: "開催店舗を選択してください",
       deadlineAtRequired: "回答期限を入力してください",
       invalidStateTransition: "この状態からその状態への変更はできません",
       nonDraftEditForbidden: "公開後は回答期限と内部メモのみ編集できます",
@@ -1101,6 +2441,9 @@ export const labels = {
       MOUNT: "架台",
       OTHER_PART: "その他部材",
       SET: "セット",
+      ECO_CUTE: "エコキュート",
+      IH: "IH",
+      GIFT: "プレゼント品",
     },
     sections: {
       basic: "基本情報",
@@ -1443,14 +2786,51 @@ export const labels = {
     empty: "店舗未登録",
     emptyCta: "最初の店舗を登録しましょう",
     searchByName: "名称で検索",
+    /** 所在地・開催エリアがイベント登録の正本であることを画面に出す。 */
+    venueHint: "住所と開催エリアは、イベント登録の初期値になります。",
+    /** エリア・場所管理の主画面。都道府県の一覧ではなく、実際の開催場所を最初に出す。 */
+    venueSection: {
+      title: "開催場所・店舗",
+      description: "実際に催事を行う場所を、所在地・管理エリア・場所提供元とあわせて管理します。",
+    },
+    noAddress: "住所未登録",
+    filters: {
+      keyword: "店舗名・住所",
+      keywordPlaceholder: "店舗名や住所の一部",
+      all: "すべて",
+      clear: "条件をクリア",
+      resultCount: "{n}件",
+    },
+    columns: {
+      store: "店舗・開催場所",
+      location: "所在地",
+      related: "関連",
+      events: "催事 {n}件",
+      preferences: "出店希望 {n}件",
+    },
+    /** 詳細の関連セクション。 */
+    relatedPreferences: "この店舗への出店希望",
+    relatedPreferencesEmpty: "この店舗を希望する提出はまだありません",
+    relatedPreferencesHint:
+      "店舗マスタに紐付いた希望だけが出ます（名称が似ているだけの希望は混ぜません）。",
+    laneAndPriority: "{lane} レーン目 / 第{priority}希望",
+    venueLabelAtSubmit: "提出時の希望場所名",
     fields: {
       name: "名称",
+      postalCode: "郵便番号",
+      address: "住所",
+      area: "開催エリア",
+      venueProvider: "場所提供元",
       isActive: "有効",
       updatedAt: "最終更新",
     },
     sections: {
       basic: "基本情報",
+      relatedEvents: "この店舗の催事",
     },
+    relatedEventsEmpty: "この店舗に紐づく催事はまだありません",
+    relatedEventsHint: "店舗マスタから登録した催事だけが出ます（店舗名の一致では紐付けません）。",
+    storeNameAtEvent: "開催当時の店舗名",
     actions: {
       createSubmit: "登録",
       updateSubmit: "保存",
@@ -1711,7 +3091,7 @@ export const labels = {
     columns: {
       scheduledDate: "開催日時",
       area: "エリア",
-      venue: "場所名",
+      venue: "開催場所・店舗",
       holdingStatus: "開催ステータス",
       assignStatus: "アサインステータス",
     },
@@ -1757,11 +3137,13 @@ export const labels = {
       resultCount: "件",
     },
     appointmentInfo: "アポ取り情報（顧客アポイント情報）",
-    appointmentPlaceholder: "開催体制決定後にアポ情報が表示されます",
+    appointmentPlaceholder: "この催事で獲得したアポイントはまだありません",
     appointmentColumns: {
       customerName: "顧客名",
       dateTime: "アポイント日時",
       address: "住所",
+      /** 獲得したパートナー会社。自社獲得なら「—」。 */
+      company: "獲得した会社",
       memo: "メモ",
     },
     assignPendingNote: "開催体制が決定されると、アサイン情報がここに表示されます",
@@ -1914,7 +3296,38 @@ export const labels = {
     submittedAtLabel: "提出日時",
     noteLabel: "特記事項",
     noNote: "特記事項はありません",
-    laneCountBadge: "希望レーン {n}件",
+    /** 回答画面（提出内容 + やり取り）への導線。 */
+    openDetail: "詳細・回答",
+    /** 申告されたレーン数。候補店舗の件数（storeCountBadge）とは別の数。 */
+    laneCountBadge: "希望レーン {n}本",
+    laneCountUnknown: "希望レーン数 未申告",
+    storeCountBadge: "候補店舗 {n}件",
+    /** レーン見出し。レーンごとに独立した希望順位を持つ。 */
+    laneTitle: "{n} レーン目",
+    laneItemsHint: "レーンごとに第一希望から順に並びます。",
+    /** 申告レーン数と明細の実レーン数が食い違うとき。数字を黙って合わせない。 */
+    laneCountMismatch: "申告は {declared} 本ですが、明細は {actual} 本ぶんです",
+    conditionNoteLabel: "この店舗の条件",
+    /** マスタ未登録の希望場所。提供元が確かめられないことを明示する。 */
+    storeUnlinked: "店舗マスタ未登録（場所提供元は確認できません）",
+    statusLabels: {
+      DRAFT: "下書き",
+      SUBMITTED: "提出済み",
+      ANSWERED: "回答済み",
+      CONFIRMED: "確定済み",
+    },
+    /** 採用して確定したイベントとの対応。 */
+    adoptionTitle: "採用した開催",
+    adoptionEmpty: "まだ採用されていません",
+    adoptionOpen: "イベントを開く",
+    adoptionSelect: "採用するイベントを選ぶ",
+    adoptionSubmit: "採用する",
+    adoptionWithdraw: "採用を外す",
+    adoptionNoEvents: "この対象月の確定イベントがまだありません",
+    adoptionCreateEvent: "イベント管理で催事を登録する",
+    /** 希望と違う店舗で採用した場合（代理店からの代替提案）。 */
+    adoptionAlternative: "代替提案（希望と違う店舗）",
+    adoptionHint: "採用しても開催の確定やスタッフ配置は行われません（催事側の操作のままです）。",
     filter: {
       month: "対象月",
       dealer: "取引先",
@@ -1941,6 +3354,339 @@ export const labels = {
       // 6 以上は priorityFallback で「第N希望」を生成する。
       fallback: "第{n}希望",
     },
+  },
+
+  // 顧客詳細に統合したパートナー会社の提出物（代理店-01）。
+  customerDealerSubmissions: {
+    title: "パートナー会社からの提出",
+    hint: "この顧客に紐付けた、訪問アポ報告と成約報告です。紐付けは内容を確認した人が行います。",
+    empty: "この顧客に紐付いた提出はありません",
+    visitTitle: "訪問アポ報告",
+    contractTitle: "成約報告",
+    contractNote:
+      "成約報告は「契約済」への変更や正式契約とは別の記録です。金額・粗利・手数料はこの報告からは作られません。",
+    submittedAt: "提出",
+    linkedAppointment: "アポイントに紐付け済み",
+    noAppointment: "アポイント未紐付け（この報告は日時を持ちません）",
+    linkedContract: "正式契約に紐付け済み",
+    noContract: "正式契約への紐付けなし",
+    fields: {
+      tossDept: "トス部署",
+      closeDept: "クローズ部署",
+      salesRep: "営業担当者",
+      maekakuOperator: "マエカク実施者",
+      contractDate: "ご契約日",
+      tossDate: "トス日",
+      referralBranch: "取次拠点",
+    },
+  },
+
+  /**
+   * 運営管理サイト（BizOrch 運営管理 / APP_VARIANT=system-admin）。
+   *
+   * システム提供者が使う画面の文言。業務画面（代理店 / パートナー）とは別に持つ。
+   */
+  systemAdmin: {
+    brand: "BizOrch 運営管理",
+    signOut: "サインアウト",
+    /** 環境区分。取り違え防止のためヘッダーに常時出す。 */
+    envLabel: "環境",
+    envLocal: "ローカル",
+    envProduction: "本番",
+    envUnknown: "未設定",
+    operator: "運営者",
+    nav: {
+      ariaLabel: "運営管理メニュー",
+      menuOpen: "メニューを開く",
+      menuClose: "メニューを閉じる",
+      dashboard: "ダッシュボード",
+      companies: "会社管理",
+      users: "利用者管理",
+      operators: "運営者管理",
+      audit: "操作履歴",
+      status: "稼働状況",
+    },
+    common: {
+      search: "検索",
+      clear: "条件をクリア",
+      keyword: "フリーワード",
+      keywordHint: "会社名・メールアドレスなどの一部で探せます",
+      all: "すべて",
+      notSet: "未設定",
+      dash: "—",
+      save: "保存",
+      saving: "保存中…",
+      cancel: "キャンセル",
+      backToList: "一覧へ戻る",
+      detail: "詳細",
+      total: "該当 {n}件",
+      page: "{page} / {pages} ページ",
+      prev: "前へ",
+      next: "次へ",
+      empty: "該当するデータがありません",
+      confirm: "実行",
+      /** 取得できない情報を 0 件や正常と書かないための表示。 */
+      unavailable: "未取得",
+      notConnected: "未連携",
+    },
+    dashboard: {
+      title: "ダッシュボード",
+      subtitle: "BizOrch 全体の利用状況と稼働状態です",
+      sections: {
+        attention: "要対応事項",
+        usage: "利用状況",
+        statusAndRecent: "稼働状態・直近の操作",
+      },
+      attentionNone: "対応が必要な項目はありません",
+      attention: {
+        suspendedCompanies: "利用停止中の会社が {n} 社あります",
+        pendingInvitations: "招待中のまま受諾されていない利用者が {n} 件あります",
+        siteDown: "応答しないサイトが {n} 件あります",
+        noOperatorMfa: "運営者の多要素認証が未強制です（本番公開前の必須要件）",
+      },
+      metrics: {
+        activeCompanies: "利用中の会社",
+        suspendedCompanies: "停止中の会社",
+        users: "利用者",
+        pendingInvitations: "招待中",
+      },
+      recentTitle: "直近の管理操作",
+      recentEmpty: "運営者による操作履歴はまだありません",
+      openCompanies: "会社管理へ",
+      openUsers: "利用者管理へ",
+      openAudit: "操作履歴へ",
+      openStatus: "稼働状況へ",
+      unit: "社",
+      unitUser: "人",
+      unitCase: "件",
+    },
+    company: {
+      title: "会社管理",
+      subtitle: "代理店・パートナー会社の登録状況と利用状態です",
+      detailTitle: "会社詳細",
+      newTitle: "パートナー会社を追加",
+      addAction: "パートナー会社を追加",
+      editTitle: "基本情報を編集",
+      columns: {
+        name: "会社名",
+        type: "区分",
+        status: "利用状態",
+        userCount: "所属利用者",
+        relation: "代理店との関係",
+        contact: "連絡先",
+        createdAt: "登録日",
+      },
+      types: { WHOLESALER: "代理店", DEALER: "パートナー会社" },
+      statuses: { ACTIVE: "利用中", SUSPENDED: "停止中" },
+      fields: {
+        name: "会社名",
+        contactEmail: "連絡先メールアドレス",
+        contactPhone: "連絡先電話番号",
+        note: "備考",
+      },
+      relationNone: "取引関係なし",
+      relationWith: "{name} と取引",
+      /** 停止・再開。削除とは分ける。 */
+      suspend: "利用を停止する",
+      resume: "利用を再開する",
+      suspendTitle: "利用停止の確認",
+      resumeTitle: "利用再開の確認",
+      suspendHint:
+        "停止してもデータは削除しません。停止中はこの会社の利用者がサインインできなくなります。",
+      resumeHint: "停止を解除し、この会社の利用者が再びサインインできるようにします。",
+      impactTitle: "影響する範囲",
+      impactUsers: "サインインできなくなる利用者: {n} 人",
+      impactRelationships: "取引関係: {n} 件（関係そのものは変更しません）",
+      impactOthers: "他社への影響: ありません",
+      suspendedNotice: "この会社は利用停止中です。所属利用者はサインインできません。",
+      errors: {
+        notFound: "会社が見つかりません",
+        nameRequired: "会社名を入力してください",
+        cannotSuspendWholesaler: "代理店の利用停止はこの画面では行えません",
+      },
+    },
+    user: {
+      title: "利用者管理",
+      subtitle: "各社の利用者アカウントの状態です",
+      detailTitle: "利用者詳細",
+      columns: {
+        name: "氏名",
+        email: "ログインメール",
+        company: "所属会社",
+        roles: "利用区分",
+        sites: "利用可能サイト",
+        status: "状態",
+        lastLoginAt: "最終ログイン",
+        salesperson: "販売員との紐付け",
+      },
+      statuses: {
+        INVITED: "招待中",
+        ACTIVE: "利用中",
+        SUSPENDED: "停止中",
+        LOCKED: "ロック中",
+      },
+      sites: {
+        agency: "代理店",
+        partner: "パートナー",
+        partnerAdmin: "パートナー管理者",
+        systemAdmin: "運営管理",
+      },
+      linkedYes: "紐付けあり（{name}）",
+      linkedNo: "紐付けなし",
+      neverLoggedIn: "未ログイン",
+      invite: "利用者を招待",
+      inviteTitle: "利用者を招待",
+      inviteHint: "招待メールの代わりに、発行した招待リンクをこの画面に表示します。",
+      inviteIssued: "招待リンクを発行しました（この画面でのみ表示します）",
+      suspend: "利用を停止",
+      resume: "利用を再開",
+      revokeSessions: "サインイン中のセッションを失効",
+      revokeHint: "この利用者の全セッションを無効にします。次回からは再サインインが必要です。",
+      sendReset: "パスワード再設定を案内",
+      resetHint: "パスワードそのものは表示しません。再設定用のリンクを発行します。",
+      resetIssued: "パスワード再設定リンクを発行しました（この画面でのみ表示します）",
+      changeRole: "利用区分を変更",
+      relatedAudit: "この利用者に関する操作履歴",
+      errors: {
+        notFound: "利用者が見つかりません",
+        emailRequired: "メールアドレスを入力してください",
+        emailTaken: "このメールアドレスは既に使われています",
+        roleRequired: "利用区分を選択してください",
+      },
+    },
+    operators: {
+      title: "運営者管理",
+      subtitle: "運営管理サイトを利用できる人の一覧です",
+      columns: {
+        name: "氏名",
+        email: "ログインメール",
+        status: "状態",
+        lastLoginAt: "最終ログイン",
+      },
+      invite: "運営者を招待",
+      grant: "運営権限を付与",
+      revoke: "運営権限を解除",
+      suspend: "利用を停止",
+      resume: "利用を再開",
+      grantHint: "運営権限の付与・解除はこの画面だけで行います。",
+      lastOperatorNotice: "有効な運営管理者が 1 人のため、この操作はできません。",
+      errors: {
+        notFound: "運営者が見つかりません",
+        lastOperator: "最後の有効な運営管理者を無効にすることはできません",
+        notOperator: "この利用者は運営者ではありません",
+      },
+      mfaNotice:
+        "運営者の多要素認証は本番公開の必須要件です。現在の実装では強制していません（残課題）。",
+    },
+    audit: {
+      title: "操作履歴",
+      subtitle: "運営者による会社・利用者・権限の変更を記録しています",
+      columns: {
+        createdAt: "日時",
+        actor: "操作者",
+        target: "対象",
+        action: "操作種別",
+        changes: "変更項目",
+        result: "結果",
+      },
+      filters: {
+        from: "期間（開始）",
+        to: "期間（終了）",
+        actor: "操作者",
+        company: "対象会社",
+        action: "操作種別",
+      },
+      resultOk: "成功",
+      /** 失敗は記録しない方針なので、表示もしない。 */
+      noChanges: "変更内容なし",
+      readOnlyNotice: "この履歴は編集・削除できません。",
+      targetTypes: {
+        Tenant: "会社",
+        User: "利用者",
+        UserRole: "権限",
+        UserInvitation: "招待",
+      },
+      actions: {
+        CREATE: "作成",
+        UPDATE: "更新",
+        DELETE: "削除",
+        STATUS_CHANGE: "状態変更",
+        ROLE_CHANGE: "権限変更",
+        RELATION_SUSPEND: "取引停止",
+        RELATION_RESUME: "取引再開",
+        PUBLISH: "公開",
+        UNPUBLISH: "非公開",
+        CANCEL: "取消",
+        FINALIZE: "確定",
+        UNLOCK: "ロック解除",
+        MANUAL_ADJUST: "手動調整",
+        REVEAL_PII: "個人情報表示",
+      },
+    },
+    status: {
+      title: "稼働状況",
+      subtitle: "各サイト・データベース・外部連携の状態です",
+      checkedAt: "確認日時",
+      sitesTitle: "サイト",
+      dbTitle: "データベース",
+      integrationsTitle: "外部連携",
+      columns: { name: "対象", state: "状態", detail: "内容" },
+      states: { up: "正常", down: "異常", unknown: "未取得", notConnected: "未連携" },
+      dbName: "PostgreSQL",
+      notConfiguredHint: "設定されていないため確認していません",
+      noMonitoring: "監視基盤は新設していません。この画面はその場で取得した結果を表示します。",
+      integrations: {
+        email: "メール送信（Resend）",
+        storage: "オブジェクトストレージ（Cloudflare R2）",
+        sentry: "エラー監視（Sentry）",
+      },
+    },
+  },
+
+  // 旧「パートナー報告」メニューから統合先への案内（代理店-01）。
+  integratedViewNotice: {
+    keepsPermissions: "表示できる範囲と個人情報の扱いは、これまでと同じです。",
+    dealerReports:
+      "この一覧の内容は、イベント詳細の「日報・実績（パートナー会社）」からも確認できます。日報は対象の催事・開催日を選んで提出するので、催事に紐付かない日報は新しく増えません。",
+    visitAppointments:
+      "この一覧の内容は、顧客に紐付けたものは顧客詳細から、アポイントに紐付けたものはアポイント一覧から確認できます。",
+    contracts:
+      "この一覧の内容は、顧客に紐付けたものは顧客／商談詳細から確認できます。金額・粗利を伴う正式な契約はここからは作られません。",
+    links: {
+      events: "イベント管理",
+      customers: "顧客一覧",
+      appointments: "アポイント一覧",
+    },
+  },
+
+  // イベント詳細に統合したパートナー会社の催事日報（代理店-01）。
+  // 独立メニューではなく、催事の「日報・実績」としてここに出す。
+  dealerEventReportSection: {
+    title: "日報・実績（パートナー会社）",
+    hint: "この催事に紐づく、パートナー会社からの催事日報です。",
+    empty: "この催事に紐づく日報はまだありません",
+    submitter: "提出者",
+    areaInFacility: "施設内エリア",
+    supersededBadge: "訂正により差し替え済み",
+    metrics: {
+      lottery: "抽選数",
+      seated: "着座数",
+      appointment: "アポ数",
+      counted: "合計の対象",
+      countedValue: "{n}件",
+    },
+    /** 合計に入れなかった理由と件数。黙って捨てない。 */
+    excluded: {
+      unknown: "集計単位が未設定のため合計に入れていない報告: {n}件",
+      booth: "ブース全体の数値のため別扱いにした報告: {n}件（他社と重複しうるので合算しません）",
+      superseded: "訂正で差し替えられた報告: {n}件",
+    },
+    scopeLabels: {
+      PERSON: "個人の実績",
+      COMPANY: "会社の合計",
+      BOOTH: "ブース全体",
+      UNKNOWN: "集計単位 未設定",
+    } as Record<string, string>,
   },
 
   // 手数料管理 — 一覧・設定（ページ内要素は後続で定義。現状はプレースホルダ）。
@@ -3613,11 +5359,37 @@ export const labels = {
         status: "状態",
         all: "すべて",
         resultCount: "表示件数: {total}件",
+        /** 「検索範囲」が何の日付かを曖昧にしない。2 つの期間は別条件。 */
+        scheduledRange: "アポ予定日",
+        createdRange: "登録日",
+        area: "エリア",
+        company: "担当会社",
+        /** 担当会社と提出会社は同じとは限らないので、担当会社であることを明記する。 */
+        companyHint: "アポイントを取得した会社です（報告の提出会社とは限りません）。",
+        appointmentType: "アポイント種別",
+        partnerKind: "フォーム区分",
+        event: "獲得元催事",
+        eventQuery: "催事の開催場所",
+        eventQueryHint: "催事の開催場所で探します（訪問先の住所ではありません）。",
+        preCall: "マエカク対応状況",
+        preCallNone: "未実施",
+        /** 詳細条件の開閉。よく使う条件を上に、それ以外をここへ。 */
+        moreTitle: "詳細条件",
+        invalidRange: "開始日が終了日より後になっています",
       },
-      /** 【並び替え項目】の選択肢（Appointment の実列）。 */
+      /** 【並び替え項目】の選択肢。許可したものだけを受け付ける。 */
       sortFieldLabels: {
         scheduled_at: "アポ日時",
         created_at: "登録日時",
+        customer_name: "顧客名",
+        area: "エリア",
+        assignee: "担当者",
+        company: "担当会社",
+        appointment_type: "アポイント種別",
+        partner_kind: "フォーム区分",
+        event: "獲得元催事",
+        status: "状態",
+        pre_call: "マエカク対応状況",
       } as Record<string, string>,
       columns: {
         scheduledAt: "予定日時",
@@ -3629,7 +5401,20 @@ export const labels = {
         preCall: "対応状況（マエカク）",
         // 次に必要な対応は文章なので通常列には出さず、行を展開して全文を読む。
         nextAction: "次に必要な対応",
+        /** 狭い画面で隠した列は、展開部分から必ず読めるようにする。 */
+        company: "担当会社",
+        partnerKind: "フォーム区分",
+        event: "獲得元催事",
+        createdAt: "登録日時",
+        location: "訪問先",
       },
+      /** フォーム区分の表示。アポイント種別（初回訪問・見積提示…）とは別概念。 */
+      partnerKindLabels: {
+        FIRST_VISIT: "初訪アポ",
+        VISIT: "訪問アポ",
+      } as Record<string, string>,
+      /** 自社（代理店）が取得したアポイント。 */
+      ownCompany: "自社",
       // 行の展開（詳細バナー）。文言はコール一覧と揃える。
       expand: {
         open: "詳細を開く",
@@ -4914,58 +6699,62 @@ export const labels = {
   // WHOLESALER_ADMIN は /members、DEALER_ADMIN は /d-members で利用。
   // 決済管理（/payments）。契約済み顧客の決済状況の確認と Stripe への導線。
   // Stripe API はまだ接続していないので、操作系の文言は「Stripe を開く」だけ。
+  // 決済管理（/payments）。
+  //
+  // 太陽光顧客の決済ではなく、**このシステム（BizOrch）の利用契約**
+  // — プラン / 利用料 / 契約期間 / 支払い状況 — を扱う画面。
+  // 料金の値そのものは lib/config/billing.ts が持つ（ここには置かない）。
   payment: {
     title: "決済管理",
-    stripeLink: "Stripeを開く",
-    stripeManage: "Stripeで管理",
-    tabs: {
-      all: "すべて",
-      unpaid: "未決済",
-      paid: "決済済",
-      ariaLabel: "決済状態",
-    },
-    countSuffix: "件",
-    empty: "契約済みの顧客がまだいません",
-    columns: {
-      customer: "顧客",
-      contractDate: "契約日",
-      amount: "契約金額",
-      status: "決済状態",
-      lastPaidAt: "最終決済日",
-      method: "決済方法",
-      detail: "詳細",
-    },
-    detailLink: "詳細",
-    statuses: {
-      UNPAID: "未決済",
-      PARTIAL: "一部決済",
-      PAID: "決済済",
-    } as Record<string, string>,
-    /** ContractPayment そのものが無い契約。 */
-    statusUnset: "未設定",
-    methodUnset: "未設定",
-    notSet: "—",
-    detail: {
-      backToList: "決済管理へ戻る",
-      infoSection: "決済情報",
-      historySection: "決済履歴",
-      historyEmpty: "決済の記録はまだありません",
+    subtitle: "本システムの利用契約と支払い状況です",
+    notSet: "未設定",
+    dash: "—",
+    info: {
+      section: "決済情報",
       fields: {
-        customer: "顧客",
-        contract: "契約",
-        contractDate: "契約日",
-        amount: "契約金額",
-        method: "決済方法",
-        status: "現在の決済状態",
-        paymentCount: "支払い回数",
-        downPayment: "頭金",
-        loanNote: "備考",
+        tenantName: "契約者",
+        plan: "契約プラン",
+        unitPrice: "利用料金",
+        contractPeriod: "契約期間",
+        method: "支払い方法",
+        nextBillingAt: "次回請求日",
+        status: "現在の支払い状態",
       },
-      contractLink: "契約詳細を開く",
-      historyColumns: {
-        occurredAt: "日時",
-        label: "内容",
+      /** Tenant.plan の表示名。 */
+      planLabels: {
+        PILOT: "パイロット",
+        SMALL: "スモール",
+        MEDIUM: "ミディアム",
+        LARGE: "ラージ",
+      } as Record<string, string>,
+      cycleSuffix: {
+        MONTHLY: "／月",
+        YEARLY: "／年",
+      } as Record<string, string>,
+      methodStripe: "Stripe",
+      /** 契約期間の「N か月契約」表記。 */
+      periodMonths: "{n}か月契約",
+      periodSeparator: "〜",
+    },
+    history: {
+      section: "決済履歴",
+      empty: "決済履歴はまだありません",
+      emptyHint: "利用料の請求が発生すると、ここに支払い記録が並びます",
+      columns: {
+        paidAt: "支払日",
+        period: "対象期間",
+        amount: "金額",
+        status: "状態",
+        method: "支払い方法",
       },
+      /** Stripe の invoice.status。内部値をそのまま出さない。 */
+      invoiceStatus: {
+        draft: "下書き",
+        open: "未払い",
+        paid: "支払い済み",
+        uncollectible: "回収不能",
+        void: "無効",
+      } as Record<string, string>,
     },
   },
 
@@ -4977,13 +6766,24 @@ export const labels = {
     // 一覧上部に常設する権限の早見表。編集ダイアログの選択肢と同じ 3 ロール。
     roleGuide: {
       title: "権限について",
+      /** 階層ルールの一言補足（3 ロールの機能説明とは別行）。 */
+      hierarchyNote: "システムユーザーは、自分と同じ権限または下位の権限のみ管理できます。",
       items: [
         { role: "オーナー", scope: "全機能を利用できます" },
         { role: "システム管理者", scope: "決済管理以外を利用できます" },
-        { role: "一般ユーザー", scope: "設定以外を利用できます" },
+        { role: "一般ユーザー", scope: "設定・決済管理以外を利用できます" },
       ],
     },
     resultCount: "表示件数: {total}件",
+    // 行の展開（スタッフ一覧と同じ操作体系）。
+    expand: {
+      open: "詳細を開く",
+      close: "詳細を閉じる",
+    },
+    /** 取引先タブは閲覧のみ。展開しても操作を出さない理由をその場に書く。 */
+    dealerReadOnly: "取引先のアカウントはこの画面では編集できません",
+    /** 自分より上位のロールを持つユーザー。表示はするが操作は出さない。 */
+    upperRoleReadOnly: "上位権限のユーザーは編集できません",
     // 所属で 2 タブに分ける。自社は招待・ロール管理まで、取引先は閲覧のみ。
     tabs: {
       own: "自社",
@@ -5487,6 +7287,23 @@ export const labels = {
     placeholderTitle: "この機能は準備中です",
     placeholderBody:
       "市況分析（競合店分析・地域別需要トレンド・価格動向など）は Phase 2 で実装予定です。現在は BI ダッシュボード（/bi）で売上・粗利・取引先ランキングを確認できます。",
+  },
+  /** 催事の開催日（複数日 × 日別開催時間）。代理店が登録する。 */
+  eventDays: {
+    title: "開催日",
+    subtitle: "複数日にまたがる催事は、日ごとに開催時間を登録できます",
+    empty: "開催日が登録されていません",
+    dateLabel: "開催日",
+    startLabel: "開始時刻",
+    endLabel: "終了時刻",
+    add: "追加・更新",
+    remove: "削除",
+    saved: "保存しました",
+    deleted: "削除しました",
+    failed: "保存できませんでした",
+    timeUnset: "開催時間未設定",
+    shiftCount: "配置 {n}件",
+    hint: "開催時間は、パートナー会社のシフト配置で予定時間の初期値になります。未定なら空のままで構いません。",
   },
 } as const;
 
