@@ -19,6 +19,8 @@
     "prisma:migrate:deploy": "prisma migrate deploy --schema=prisma/schema.prisma",
     "prisma:studio": "prisma studio --schema=prisma/schema.prisma",
     "db:seed": "tsx prisma/seed.ts",
+    "demo:minimal": "tsx prisma/seed-demo-minimal.ts",
+    "demo:purge-e2e": "tsx prisma/purge-e2e-data.ts",
     "ops:create-operator": "tsx prisma/create-system-operator.ts"
   },
   "dependencies": {

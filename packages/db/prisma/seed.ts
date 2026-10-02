@@ -36,7 +36,23 @@ import argon2 from "argon2";
 import { rawPrisma, SYSTEM_TENANT_CONTEXT, withTenant } from "../src/index.js";
 
 import type { TxClient } from "../src/with-tenant.js";
-import type { AppRole, DealerScope } from "@prisma/client";
+import type { AppRole, BatteryFunctionType, DealerScope, ProductCategory } from "@prisma/client";
+
+/**
+ * 業務デモ（サンプル顧客・商談・契約・案件情報・横断一覧のデモ値）を入れるか。
+ *
+ * 会社・ログイン・権限・マスタ・商品は常に入れる。業務デモだけを切り離せるようにして、
+ * ローカル確認用 DB は最小デモ（prisma/seed-demo-minimal.ts）だけを載せられるようにする。
+ * 既定は従来どおり入れる（E2E と DB テストが前提にしているため）。
+ *
+ *   SEED_BUSINESS_DEMO=0 … 業務デモを入れない
+ */
+const SEED_BUSINESS_DEMO_DEFAULT = process.env.SEED_BUSINESS_DEMO !== "0";
+
+export interface SeedOptions {
+  /** 業務デモを入れるか。既定は環境変数 SEED_BUSINESS_DEMO（"0" で入れない）。 */
+  businessDemo?: boolean;
+}
 
 // argon2id parameters mirror `packages/auth/src/password.ts` so a seeded user
 // can authenticate via the live login pipeline without any additional rehash.
@@ -384,7 +400,8 @@ async function upsertUser(
   await tx.userRole.deleteMany({ where: { userId: user.id, role: { not: args.role } } });
 }
 
-export async function seedAll(): Promise<SeedSummary> {
+export async function seedAll(options: SeedOptions = {}): Promise<SeedSummary> {
+  const SEED_BUSINESS_DEMO = options.businessDemo ?? SEED_BUSINESS_DEMO_DEFAULT;
   // Single pre-hash: every seeded user shares the pilot password, and argon2id
   // hashes are salted internally, so generating distinct hashes per user would
   // just slow down the seed (each hash is ~80ms). Re-running the seed will
@@ -563,7 +580,8 @@ export async function seedAll(): Promise<SeedSummary> {
         contractType: "FIXED" | "PERFORMANCE" | "OTHER";
         fixedFee?: number;
         performanceRate?: number;
-        stores: string[];
+        /** 支店。住所と開催エリアは店舗側が正本（チェーン本部の住所とは別）。 */
+        stores: Array<{ name: string; address: string; areaName: string; postalCode?: string }>;
       }> = [
         {
           name: "カインズ",
@@ -573,7 +591,26 @@ export async function seedAll(): Promise<SeedSummary> {
           address: "埼玉県本庄市早稲田の杜1-2-1",
           contractType: "FIXED",
           fixedFee: 80_000,
-          stores: ["浦和美園店", "新所沢店", "幕張店"],
+          stores: [
+            {
+              name: "浦和美園店",
+              address: "埼玉県さいたま市緑区大字大門3710",
+              areaName: "埼玉県",
+              postalCode: "336-0967",
+            },
+            {
+              name: "新所沢店",
+              address: "埼玉県所沢市けやき台2-32-1",
+              areaName: "埼玉県",
+              postalCode: "359-1111",
+            },
+            {
+              name: "幕張店",
+              address: "千葉県千葉市花見川区幕張町5-417-２",
+              areaName: "千葉県",
+              postalCode: "262-0032",
+            },
+          ],
         },
         {
           name: "コメリパワー",
@@ -583,7 +620,20 @@ export async function seedAll(): Promise<SeedSummary> {
           address: "新潟県新潟市南区清水4501-1",
           contractType: "PERFORMANCE",
           performanceRate: 5,
-          stores: ["千葉ニュータウン店", "船橋店"],
+          stores: [
+            {
+              name: "千葉ニュータウン店",
+              address: "千葉県印西市中央北3-2",
+              areaName: "千葉県",
+              postalCode: "270-1350",
+            },
+            {
+              name: "船橋店",
+              address: "千葉県船橋市習志野4-4-1",
+              areaName: "千葉県",
+              postalCode: "274-0063",
+            },
+          ],
         },
         {
           name: "ホームセンタームサシ",
@@ -593,7 +643,20 @@ export async function seedAll(): Promise<SeedSummary> {
           address: "石川県金沢市鞍月東2-21",
           contractType: "FIXED",
           fixedFee: 65_000,
-          stores: ["横浜瀬谷店", "町田忠生店"],
+          stores: [
+            {
+              name: "横浜瀬谷店",
+              address: "神奈川県横浜市瀬谷区目黒町3-1",
+              areaName: "神奈川県",
+              postalCode: "246-0021",
+            },
+            {
+              name: "町田忠生店",
+              address: "東京都町田市忠生3-14-1",
+              areaName: "東京都",
+              postalCode: "194-0037",
+            },
+          ],
         },
         {
           name: "ヤマダデンキ",
@@ -603,7 +666,26 @@ export async function seedAll(): Promise<SeedSummary> {
           address: "群馬県高崎市栄町1-1",
           contractType: "PERFORMANCE",
           performanceRate: 7,
-          stores: ["テックランド町田店", "テックランド川越店", "テックランド千葉店"],
+          stores: [
+            {
+              name: "テックランド町田店",
+              address: "東京都町田市原町田6-14-10",
+              areaName: "東京都",
+              postalCode: "194-0013",
+            },
+            {
+              name: "テックランド川越店",
+              address: "埼玉県川越市脇田本町8-1",
+              areaName: "埼玉県",
+              postalCode: "350-1123",
+            },
+            {
+              name: "テックランド千葉店",
+              address: "千葉県千葉市中央区問屋町1-35",
+              areaName: "千葉県",
+              postalCode: "260-0025",
+            },
+          ],
         },
         {
           name: "ベイシア",
@@ -612,7 +694,20 @@ export async function seedAll(): Promise<SeedSummary> {
           phone: "0270-555-0500",
           address: "群馬県前橋市亀里町900",
           contractType: "OTHER",
-          stores: ["前橋みなみモール店", "渋川店"],
+          stores: [
+            {
+              name: "前橋みなみモール店",
+              address: "群馬県前橋市新堀町350",
+              areaName: "群馬県",
+              postalCode: "379-2147",
+            },
+            {
+              name: "渋川店",
+              address: "群馬県渋川市中村481-1",
+              areaName: "群馬県",
+              postalCode: "377-0008",
+            },
+          ],
         },
         {
           name: "ロイヤルホームセンター",
@@ -622,7 +717,20 @@ export async function seedAll(): Promise<SeedSummary> {
           address: "大阪府大阪市住之江区南港北1-21-72",
           contractType: "FIXED",
           fixedFee: 70_000,
-          stores: ["大宮店", "千葉北店"],
+          stores: [
+            {
+              name: "大宮店",
+              address: "埼玉県さいたま市北区吉野町2-195-1",
+              areaName: "埼玉県",
+              postalCode: "331-0811",
+            },
+            {
+              name: "千葉北店",
+              address: "千葉県千葉市稲毛区六方町125-1",
+              areaName: "千葉県",
+              postalCode: "263-0001",
+            },
+          ],
         },
       ];
 
@@ -657,24 +765,51 @@ export async function seedAll(): Promise<SeedSummary> {
 
         // Stores（支店）— venueProviderId で紐づける。同 (wholesalerId, name) で
         // upsert。既に親未紐づけで存在していたら親をセット。
-        for (const storeName of vp.stores) {
+        for (const st of vp.stores) {
+          // 開催エリアはエリアマスタ(EVENT)の行。エリアの定義はこの下で行うので、
+          // ここで find-or-create して順序に依存しないようにする
+          // （以前は先に店舗を作っていたため、新規 DB では紐付かないままだった）。
+          let eventArea = await tx.area.findFirst({
+            where: { wholesalerId: pilot.id, type: "EVENT", name: st.areaName },
+            select: { id: true },
+          });
+          if (!eventArea) {
+            eventArea = await tx.area.create({
+              data: { wholesalerId: pilot.id, name: st.areaName, type: "EVENT", isActive: true },
+              select: { id: true },
+            });
+          }
           const existingStore = await tx.store.findFirst({
-            where: { wholesalerId: pilot.id, name: storeName },
-            select: { id: true, venueProviderId: true },
+            where: { wholesalerId: pilot.id, name: st.name },
+            select: { id: true, venueProviderId: true, address: true, areaId: true },
           });
           if (!existingStore) {
             await tx.store.create({
               data: {
                 wholesalerId: pilot.id,
                 venueProviderId: providerId,
-                name: storeName,
+                name: st.name,
+                postalCode: st.postalCode ?? null,
+                address: st.address,
+                areaId: eventArea?.id ?? null,
                 isActive: true,
               },
             });
-          } else if (existingStore.venueProviderId !== providerId) {
+          } else {
+            // 既存行は「未設定のところだけ」埋める。運用で直した値を上書きしない。
+            // ただし開催エリアだけは、以前のシードが所在地と食い違う区分
+            // （群馬の店舗に埼玉県）を入れてしまっていたので、この定義へ揃え直す。
             await tx.store.update({
               where: { id: existingStore.id },
-              data: { venueProviderId: providerId },
+              data: {
+                ...(existingStore.venueProviderId !== providerId
+                  ? { venueProviderId: providerId }
+                  : {}),
+                ...(existingStore.address === null
+                  ? { address: st.address, postalCode: st.postalCode ?? null }
+                  : {}),
+                ...(existingStore.areaId !== eventArea.id ? { areaId: eventArea.id } : {}),
+              },
             });
           }
         }
@@ -787,7 +922,7 @@ export async function seedAll(): Promise<SeedSummary> {
           },
         ];
 
-        for (const n of DEMO_NEGOTIATIONS) {
+        for (const n of SEED_BUSINESS_DEMO ? DEMO_NEGOTIATIONS : []) {
           const providerId = venueProviderIdsByName[n.providerName];
           if (!providerId) continue;
           await tx.venueNegotiation.create({
@@ -811,7 +946,9 @@ export async function seedAll(): Promise<SeedSummary> {
       // エリア選択肢が空にならない。Area has no schema-level UNIQUE constraint
       // beyond `id`, so we find-or-create manually per (wholesalerId, name).
       // イベント開催エリア (EVENT) — イベント候補登録時に選択する開催地区分。
-      const EVENT_AREA_NAMES = ["東京都", "神奈川県", "埼玉県", "千葉県"];
+      // 開催エリア（催事の分類・検索に使う区分）。店舗の所在地に出てくる都県は
+      // ひととおり用意する。顧客エリア（CUSTOMER）は別の値域なので混ぜない。
+      const EVENT_AREA_NAMES = ["東京都", "神奈川県", "埼玉県", "千葉県", "群馬県"];
       for (const areaName of EVENT_AREA_NAMES) {
         const existingArea = await tx.area.findFirst({
           where: { wholesalerId: pilot.id, name: areaName, type: "EVENT" },
@@ -860,7 +997,7 @@ export async function seedAll(): Promise<SeedSummary> {
       // 店舗選択肢が空にならない。Store has no schema-level UNIQUE constraint
       // beyond `id`, so we find-or-create manually per (wholesalerId, name).
       const STORE_NAMES = ["テスト店舗A", "テスト店舗B", "テスト店舗C"];
-      for (const storeName of STORE_NAMES) {
+      for (const storeName of SEED_BUSINESS_DEMO ? STORE_NAMES : []) {
         const existingStore = await tx.store.findFirst({
           where: { wholesalerId: pilot.id, name: storeName },
           select: { id: true },
@@ -912,7 +1049,7 @@ export async function seedAll(): Promise<SeedSummary> {
           status: "DRAFT" as const,
         },
       ];
-      for (const le of LINE_EVENT_SEEDS) {
+      for (const le of SEED_BUSINESS_DEMO ? LINE_EVENT_SEEDS : []) {
         const existingLine = await tx.lineEvent.findFirst({
           where: { wholesalerId: pilot.id, name: le.name },
           select: { id: true },
@@ -942,6 +1079,22 @@ export async function seedAll(): Promise<SeedSummary> {
       // 突合用に付与（loader が name 解決）。idempotent: (relationshipId, targetMonth) 一意。
       // rels[] is [alpha, beta, gamma]. 日付は決定論的に lineMonth から週単位で組む。
       const wd = (day: number) => `${lineMonth}-${String(day).padStart(2, "0")}`;
+
+      /**
+       * 希望明細の表示名。必ず「チェーン名 支店名」の形で店舗マスタから組み立てる。
+       * 自由記述を許すと、マスタのどの行を指すのか決まらない名前（「カインズ 大宮店」）が残る。
+       */
+      const laneVenueLabel = (st: {
+        name: string;
+        venueProvider: { name: string } | null;
+      }): string => (st.venueProvider ? `${st.venueProvider.name} ${st.name}` : st.name);
+      // 希望場所は **店舗マスタに実在する支店** だけを指す。
+      //
+      // 旧シードは「カインズ 大宮店」という、マスタに無い名前を自由記述で入れていた。
+      // 店舗マスタのカインズは 浦和美園店 / 新所沢店 / 幕張店 で、「大宮店」は
+      // ロイヤルホームセンターの支店。チェーンが同じでも店舗は別なので、
+      // 名前を近い支店へ寄せると誤った対応になる。ここでは支店名で引き当て、
+      // 表示名（venueLabel）もマスタから組み立てて食い違いを作らない。
       const LANE_PREFERENCE_SEEDS = [
         {
           relationshipId: rels[0]!.id, // alpha
@@ -949,14 +1102,13 @@ export async function seedAll(): Promise<SeedSummary> {
           items: [
             {
               priority: 1,
-              venueLabel: "カインズ 大宮店",
-              venueProviderId: venueProvider.id,
+              storeLabel: "浦和美園店",
               desiredDates: [wd(7), wd(8), wd(14), wd(15)],
               memo: "駐車場側スペースを希望",
             },
             {
               priority: 2,
-              venueLabel: "コメリ 大宮店",
+              storeLabel: "大宮店",
               desiredDates: [wd(21), wd(22)],
               memo: null,
             },
@@ -968,14 +1120,13 @@ export async function seedAll(): Promise<SeedSummary> {
           items: [
             {
               priority: 1,
-              venueLabel: "ビバホーム さいたま新都心店",
+              storeLabel: "新所沢店",
               desiredDates: [wd(7), wd(8), wd(9)],
               memo: "初週に集中したい",
             },
             {
               priority: 2,
-              venueLabel: "カインズ 大宮店",
-              venueProviderId: venueProvider.id,
+              storeLabel: "テックランド川越店",
               desiredDates: [wd(28), wd(29)],
               memo: null,
             },
@@ -986,14 +1137,42 @@ export async function seedAll(): Promise<SeedSummary> {
       // 行が残る環境でも新構造デモへ収束させる。既存があれば note を更新し子 items を
       // 全削除→新構造で再作成。無ければ create。tx 内なので delete→create は原子的。
       // 複数回流しても同一結果（決定論的・冪等）。
-      for (const pref of LANE_PREFERENCE_SEEDS) {
-        const itemsCreate = pref.items.map((it) => ({
-          priority: it.priority,
-          venueLabel: it.venueLabel,
-          venueProviderId: it.venueProviderId ?? null,
-          desiredDates: it.desiredDates,
-          memo: it.memo ?? null,
-        }));
+      // 店舗名 → 店舗マスタ（id と親チェーン）。希望明細のリンクはここからだけ取る。
+      const seedStores = await tx.store.findMany({
+        where: { wholesalerId: pilot.id },
+        select: {
+          id: true,
+          name: true,
+          venueProviderId: true,
+          venueProvider: { select: { name: true } },
+        },
+      });
+      const storeByName = new Map(seedStores.map((st) => [st.name, st]));
+      const storeById = new Map(seedStores.map((st) => [st.id, st]));
+
+      for (const pref of SEED_BUSINESS_DEMO ? LANE_PREFERENCE_SEEDS : []) {
+        const itemsCreate = pref.items.map((it) => {
+          const linked = storeByName.get(it.storeLabel);
+          if (!linked) {
+            throw new Error(
+              `[seed] 希望場所 "${it.storeLabel}" が店舗マスタにありません。デモ定義を直してください。`,
+            );
+          }
+          return {
+            // このデモ提出は 1 レーンぶん。レーン番号は明示して持たせる
+            // （表示順から推測させない）。
+            laneNo: 1,
+            priority: it.priority,
+            // 表示名は店舗マスタから組み立てる。自由記述だと「カインズ 大宮店」のように
+            // マスタのどの行を指すか決まらない名前が残ってしまう。
+            venueLabel: laneVenueLabel(linked),
+            // 店舗と場所提供元は必ず同じ店舗マスタ行から取る（ちぐはぐな組合せを作らない）。
+            storeId: linked.id,
+            venueProviderId: linked.venueProviderId,
+            desiredDates: it.desiredDates,
+            memo: it.memo ?? null,
+          };
+        });
         const existingPref = await tx.lanePreference.findUnique({
           where: {
             relationshipId_targetMonth: {
@@ -1012,6 +1191,8 @@ export async function seedAll(): Promise<SeedSummary> {
             data: {
               note: pref.note,
               submittedBy: pilotAdminId,
+              // 希望レーン数は申告値。候補店舗の件数（itemsCreate.length）ではない。
+              laneCount: 1,
               items: { create: itemsCreate },
             },
           });
@@ -1023,35 +1204,105 @@ export async function seedAll(): Promise<SeedSummary> {
               targetMonth: lineMonth,
               note: pref.note,
               submittedBy: pilotAdminId,
+              laneCount: 1,
               items: { create: itemsCreate },
             },
           });
         }
       }
 
+      // ---------------------------------------------------------------------
+      // 既存データの修復 — 希望明細の「店舗」と「場所提供元」「表示名」を揃える
+      // ---------------------------------------------------------------------
+      //
+      // 定義（上の LANE_PREFERENCE_SEEDS）を直しても、以前の実行で入った行は古いまま
+      // 残る。対象月が変わると自然キーで引き当てられず、入れ替えも効かない。
+      // ここで、**シードが作った提出**（submittedBy = パイロット管理者）の明細だけを
+      // 現在の店舗マスタに合わせて直す。
+      //
+      // 直すのは 2 つの不整合だけで、内容（希望日程・メモ・条件）には触らない:
+      //   (a) storeId がある行 … 場所提供元と表示名をその店舗の値へ揃える
+      //   (b) storeId が無い行 … 店舗で裏付けできない venueProviderId を外す
+      //       （「カインズ 大宮店 / 場所提供元: スーパービバホーム」を残さない）
+      //
+      // シード由来と判別できない行（利用者が入れた可能性がある行）は触らず、
+      // 件数だけを出す。
+      const seededPrefs = await tx.lanePreference.findMany({
+        where: { submittedBy: pilotAdminId },
+        select: { id: true },
+      });
+      const seededPrefIds = seededPrefs.map((x) => x.id);
+      let repairedLinked = 0;
+      let repairedUnlinked = 0;
+      if (seededPrefIds.length > 0) {
+        const staleItems = await tx.lanePreferenceItem.findMany({
+          where: { lanePreferenceId: { in: seededPrefIds } },
+          select: { id: true, storeId: true, venueProviderId: true, venueLabel: true },
+        });
+        for (const it of staleItems) {
+          if (it.storeId) {
+            const st = storeById.get(it.storeId);
+            if (!st) continue;
+            const label = laneVenueLabel(st);
+            if (it.venueProviderId !== st.venueProviderId || it.venueLabel !== label) {
+              await tx.lanePreferenceItem.update({
+                where: { id: it.id },
+                data: { venueProviderId: st.venueProviderId, venueLabel: label },
+              });
+              repairedLinked += 1;
+            }
+          } else if (it.venueProviderId) {
+            await tx.lanePreferenceItem.update({
+              where: { id: it.id },
+              data: { venueProviderId: null },
+            });
+            repairedUnlinked += 1;
+          }
+        }
+      }
+      const untouched = await tx.lanePreferenceItem.count({
+        where: {
+          lanePreferenceId: { notIn: seededPrefIds.length > 0 ? seededPrefIds : ["__none__"] },
+          storeId: null,
+        },
+      });
+      console.info(
+        `[seed] 希望明細の修復: 店舗リンクあり ${repairedLinked}件 / 裏付け無しの提供元を解除 ${repairedUnlinked}件 / シード由来と判別できず据え置き ${untouched}件`,
+      );
+
       // Seed ~12 sample customers for pilotWholesaler with VARIED related records
       // so every status badge value on the 顧客一覧 screen (F-032) is visible.
       // Idempotent: skipped entirely if any sample customer (by name prefix) is
       // already present, mirroring the find-or-create style used above.
-      await seedCustomers(tx, { wholesalerId: pilot.id, userId: pilotAdminId, now });
+      if (SEED_BUSINESS_DEMO) {
+        await seedCustomers(tx, { wholesalerId: pilot.id, userId: pilotAdminId, now });
+      }
 
       // 顧客ファイルのカテゴリ分離（GENERAL / APPLICATION）のデモシード。先頭サンプル顧客に
       // 各カテゴリ 1 件ずつメタデータのみ投入（冪等）。activity 投入有無に依存しない独立ステップ。
-      await seedCustomerFiles(tx, { wholesalerId: pilot.id, userId: pilotAdminId });
+      if (SEED_BUSINESS_DEMO) {
+        await seedCustomerFiles(tx, { wholesalerId: pilot.id, userId: pilotAdminId });
+      }
 
       // F-061 案件情報の実データ化（docs/05 §16-C）。サンプル / イベントデモ顧客の
       // 契約に ContractPayment / ContractEquipment + Contract/Construction 拡張列の
       // デモ値を冪等に投入する。
-      await seedContractProjectData(tx, { wholesalerId: pilot.id, now });
+      if (SEED_BUSINESS_DEMO) {
+        await seedContractProjectData(tx, { wholesalerId: pilot.id, now });
+      }
 
       // F-063 住環境・家族属性ヒアリングのデモ化（docs/05 §17）。既設設備（現況）・家族
       // 年齢・分離電話・マエカク希望日時・アポ取得日を冪等に投入（既存顧客に紐づけ）。
-      await seedCustomerHearing(tx, { wholesalerId: pilot.id, now });
+      if (SEED_BUSINESS_DEMO) {
+        await seedCustomerHearing(tx, { wholesalerId: pilot.id, now });
+      }
 
       // 顧客管理系の横断一覧（アポイント / 契約 / 施工 / 設置申請）で「状態の違い」を
       // 目視確認できるようにするデモ値。既存レコードの未設定列を埋めるだけで、
       // 新しいレコードは作らない（何度実行しても増えない）。
-      await seedCrossListDemoData(tx, { wholesalerId: pilot.id, now });
+      if (SEED_BUSINESS_DEMO) {
+        await seedCrossListDemoData(tx, { wholesalerId: pilot.id, now });
+      }
 
       // Seed DealerCommissionRate (F-049 / S-049) — 手数料設定. 3 つのパイロット
       // 関係に対し率と履歴 1〜2 行を作る。idempotent：relationshipId に対する
@@ -1061,6 +1312,10 @@ export async function seedAll(): Promise<SeedSummary> {
         userId: pilotAdminId,
         relationshipIds: rels.map((r) => r.id),
       });
+
+      // 製品カタログ（6 カテゴリ）のデモ商品。ローカルで全カテゴリを
+      // 切り替えて確認できるだけの最小件数を冪等に投入する。
+      await seedProductCatalog(tx, { wholesalerId: pilot.id, userId: pilotAdminId });
 
       return {
         saasOpsTenantId: saasOps.id,
@@ -1081,6 +1336,26 @@ function sampleCustomerName(spec: { family: string; given: string }): string {
   return `${spec.family} ${spec.given}`;
 }
 const SAMPLE_CUSTOMER_NAMES = (): string[] => SAMPLE_CUSTOMERS.map(sampleCustomerName);
+
+/**
+ * 基本シードが作るサンプル顧客の氏名（確定リスト）。
+ *
+ * 最小デモの整備（seed-demo-minimal.ts）が「基本シード由来の業務デモ」を
+ * 推測ではなく一致で判定するために公開する。
+ */
+export const baseSeedSampleCustomerNames = (): readonly string[] => SAMPLE_CUSTOMER_NAMES();
+
+/** 基本シードが作るレーン催事（LineEvent）の名前。 */
+export const BASE_SEED_LINE_EVENT_NAMES: readonly string[] = [
+  "イオンモール幕張新都心",
+  "ららぽーとTOKYO-BAY",
+];
+
+/** 基本シードが作る場所交渉（VenueNegotiation）の条件メモ。 */
+export const BASE_SEED_NEGOTIATION_NOTES: readonly string[] = [
+  "浦和美園店の入口正面ブース、2 日間借用で確定",
+  "大宮店、別催事と重複のため当月開催不可、来月再打診",
+];
 
 interface SampleCustomerSpec {
   family: string;
@@ -2172,6 +2447,287 @@ async function seedDealerCommissionRates(
           summary: profile.adjustSummary,
         },
       ],
+    });
+  }
+}
+
+// 製品カタログ（/product-catalog）のデモ商品。
+//
+// ローカルで 6 カテゴリすべてを目視確認できるだけの最小データ。
+// BT は「同じシリーズ・同じ容量でも機能区分が違えば別商品」という
+// このカタログの肝が一目で分かるよう、6.3kWh の 単機能 / 特定負荷 / 全負荷 を
+// 揃えたうえで容量違い（6.5 / 9.8 / 12.7 / 16.4）も入れている。
+//
+// 価格はローカル確認用のデモ値。listPrice（参考売価）はカタログ画面の
+// 管理対象外なので、アプリ側の登録と同じく卸値と同額で入れる。
+// idempotent — (wholesalerId, category, maker, name) で既存行を探してスキップする。
+type CatalogSeedRow = {
+  category: ProductCategory;
+  maker: string;
+  name: string;
+  series?: string;
+  modelNo?: string;
+  capacity?: string;
+  batteryFunctionType?: BatteryFunctionType;
+  warrantyYears?: number;
+  unit: string;
+  purchasePrice: string;
+  dealerPrice: string;
+  note?: string;
+};
+
+const BATTERY_FUNCTION_LABEL: Record<BatteryFunctionType, string> = {
+  SINGLE: "単機能",
+  SPECIFIC_LOAD: "特定負荷",
+  FULL_LOAD: "全負荷",
+};
+
+/** BT のデモ行を 1 件組み立てる（表示名は画面側の導出規則と同じ）。 */
+function batteryRow(
+  spec: { maker: string; series: string; warrantyYears: number },
+  capacity: string,
+  fn: BatteryFunctionType,
+  purchasePrice: string,
+  dealerPrice: string,
+): CatalogSeedRow {
+  return {
+    category: "BATTERY",
+    maker: spec.maker,
+    series: spec.series,
+    name: `${spec.series} ${capacity}kWh ${BATTERY_FUNCTION_LABEL[fn]}`,
+    capacity,
+    batteryFunctionType: fn,
+    warrantyYears: spec.warrantyYears,
+    unit: "台",
+    purchasePrice,
+    dealerPrice,
+  };
+}
+
+// BT のメーカー。メーカー絞り込みをローカルで確認できるよう複数社を入れる。
+const BT_CHOSHU = { maker: "長州産業", series: "スマートPVマルチ", warrantyYears: 20 };
+const BT_NICHICON = { maker: "ニチコン", series: "ESSシリーズ", warrantyYears: 15 };
+const BT_OMRON = { maker: "オムロン", series: "マルチ蓄電プラットフォーム", warrantyYears: 15 };
+
+const CATALOG_SEED_ROWS: CatalogSeedRow[] = [
+  // --- PV（太陽光パネル） ---
+  {
+    category: "PANEL",
+    maker: "Qセルズ",
+    series: "Q.PEAK DUO",
+    modelNo: "ML-G11S 400",
+    name: "Qセルズ Q.PEAK DUO ML-G11S 400",
+    unit: "枚",
+    purchasePrice: "38000",
+    dealerPrice: "46000",
+  },
+  {
+    category: "PANEL",
+    maker: "長州産業",
+    series: "プレミアムブルー",
+    modelNo: "CS-340B81",
+    name: "長州産業 プレミアムブルー CS-340B81",
+    unit: "枚",
+    purchasePrice: "41000",
+    dealerPrice: "49500",
+  },
+  {
+    category: "PANEL",
+    maker: "カナディアンソーラー",
+    modelNo: "CS6R-410MS",
+    name: "カナディアンソーラー CS6R-410MS",
+    unit: "枚",
+    purchasePrice: "36500",
+    dealerPrice: "44000",
+  },
+
+  // --- BT（蓄電池） ---
+  batteryRow(BT_CHOSHU, "6.3", "SINGLE", "620000", "748000"),
+  batteryRow(BT_CHOSHU, "6.3", "SPECIFIC_LOAD", "648000", "780000"),
+  batteryRow(BT_CHOSHU, "6.3", "FULL_LOAD", "676000", "812000"),
+  batteryRow(BT_CHOSHU, "6.5", "SINGLE", "640000", "770000"),
+  batteryRow(BT_CHOSHU, "6.5", "SPECIFIC_LOAD", "668000", "802000"),
+  batteryRow(BT_CHOSHU, "6.5", "FULL_LOAD", "696000", "834000"),
+  batteryRow(BT_CHOSHU, "9.8", "SINGLE", "880000", "1058000"),
+  batteryRow(BT_CHOSHU, "9.8", "SPECIFIC_LOAD", "912000", "1094000"),
+  batteryRow(BT_CHOSHU, "9.8", "FULL_LOAD", "944000", "1132000"),
+  batteryRow(BT_CHOSHU, "12.7", "SINGLE", "1120000", "1344000"),
+  batteryRow(BT_CHOSHU, "12.7", "SPECIFIC_LOAD", "1156000", "1386000"),
+  batteryRow(BT_CHOSHU, "12.7", "FULL_LOAD", "1192000", "1430000"),
+  batteryRow(BT_CHOSHU, "16.4", "SINGLE", "1420000", "1704000"),
+  batteryRow(BT_NICHICON, "11.1", "FULL_LOAD", "1180000", "1416000"),
+  batteryRow(BT_NICHICON, "16.6", "FULL_LOAD", "1560000", "1872000"),
+  batteryRow(BT_OMRON, "6.5", "SPECIFIC_LOAD", "610000", "732000"),
+  batteryRow(BT_OMRON, "9.8", "FULL_LOAD", "930000", "1116000"),
+
+  // --- エコキュート ---
+  {
+    category: "ECO_CUTE",
+    maker: "Panasonic",
+    series: "Sシリーズ",
+    modelNo: "HE-S37LQS",
+    name: "Panasonic Sシリーズ HE-S37LQS",
+    unit: "台",
+    purchasePrice: "198000",
+    dealerPrice: "238000",
+  },
+  {
+    category: "ECO_CUTE",
+    maker: "Panasonic",
+    series: "Jシリーズ",
+    modelNo: "HE-J37LQS",
+    name: "Panasonic Jシリーズ HE-J37LQS",
+    unit: "台",
+    purchasePrice: "176000",
+    dealerPrice: "212000",
+  },
+  {
+    category: "ECO_CUTE",
+    maker: "三菱電機",
+    series: "Sシリーズ",
+    modelNo: "SRT-S375U",
+    name: "三菱電機 Sシリーズ SRT-S375U",
+    unit: "台",
+    purchasePrice: "205000",
+    dealerPrice: "246000",
+  },
+
+  // --- IH ---
+  {
+    category: "IH",
+    maker: "Panasonic",
+    modelNo: "KZ-YS36S",
+    name: "Panasonic KZ-YS36S",
+    unit: "台",
+    purchasePrice: "88000",
+    dealerPrice: "108000",
+  },
+  {
+    category: "IH",
+    maker: "日立",
+    modelNo: "HT-M9STWF",
+    name: "日立 HT-M9STWF",
+    unit: "台",
+    purchasePrice: "96000",
+    dealerPrice: "118000",
+  },
+  {
+    category: "IH",
+    maker: "三菱電機",
+    modelNo: "CS-T321BFR",
+    name: "三菱電機 CS-T321BFR",
+    unit: "台",
+    purchasePrice: "79000",
+    dealerPrice: "96000",
+  },
+
+  // --- プレゼント品 ---
+  {
+    category: "GIFT",
+    maker: "",
+    name: "商品券5万円分",
+    unit: "個",
+    purchasePrice: "50000",
+    dealerPrice: "50000",
+    note: "成約時の即決特典",
+  },
+  {
+    category: "GIFT",
+    maker: "象印",
+    modelNo: "NW-JD10",
+    name: "炊飯器",
+    unit: "個",
+    purchasePrice: "32000",
+    dealerPrice: "42000",
+  },
+  {
+    category: "GIFT",
+    maker: "シャープ",
+    modelNo: "KI-PS40",
+    name: "空気清浄機",
+    unit: "個",
+    purchasePrice: "28000",
+    dealerPrice: "36000",
+  },
+  {
+    category: "GIFT",
+    maker: "",
+    name: "カタログギフト",
+    unit: "個",
+    purchasePrice: "20000",
+    dealerPrice: "26000",
+  },
+
+  // --- その他 ---
+  {
+    category: "OTHER_PART",
+    maker: "",
+    name: "電気工事一式",
+    unit: "式",
+    purchasePrice: "60000",
+    dealerPrice: "85000",
+    note: "分電盤・配線を含む",
+  },
+  {
+    category: "OTHER_PART",
+    maker: "スワロー工業",
+    modelNo: "SR-K200",
+    name: "屋根補強金具セット",
+    unit: "式",
+    purchasePrice: "18000",
+    dealerPrice: "24000",
+  },
+  {
+    category: "OTHER_PART",
+    maker: "",
+    series: "見守りパック",
+    name: "遠隔モニタリング初期設定",
+    unit: "式",
+    purchasePrice: "12000",
+    dealerPrice: "18000",
+  },
+];
+
+async function seedProductCatalog(
+  tx: TxClient,
+  args: { wholesalerId: string; userId: string },
+): Promise<void> {
+  const { wholesalerId, userId } = args;
+  const effectiveFrom = new Date("2026-04-01T00:00:00Z");
+
+  for (const row of CATALOG_SEED_ROWS) {
+    const existing = await tx.product.findFirst({
+      where: {
+        wholesalerId,
+        category: row.category,
+        maker: row.maker,
+        name: row.name,
+      },
+      select: { id: true },
+    });
+    if (existing) continue;
+
+    await tx.product.create({
+      data: {
+        wholesalerId,
+        category: row.category,
+        maker: row.maker,
+        name: row.name,
+        series: row.series ?? null,
+        modelNo: row.modelNo ?? null,
+        capacity: row.capacity ?? null,
+        batteryFunctionType: row.batteryFunctionType ?? null,
+        warrantyYears: row.warrantyYears ?? null,
+        unit: row.unit,
+        purchasePrice: row.purchasePrice,
+        dealerPrice: row.dealerPrice,
+        // 参考売価はカタログ画面の管理対象外。卸値と同額で入れる。
+        listPrice: row.dealerPrice,
+        effectiveFrom,
+        effectiveTo: null,
+        note: row.note ?? null,
+        createdBy: userId,
+      },
     });
   }
 }

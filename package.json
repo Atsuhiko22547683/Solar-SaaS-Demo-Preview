@@ -28,6 +28,8 @@
     "db:migrate:deploy": "pnpm -F @solar/db prisma:migrate:deploy",
     "db:studio": "pnpm -F @solar/db prisma:studio",
     "db:seed": "pnpm -F @solar/db db:seed",
+    "demo:minimal": "pnpm -F @solar/db demo:minimal",
+    "demo:purge-e2e": "pnpm -F @solar/db demo:purge-e2e",
     "ops:create-operator": "pnpm -F @solar/db ops:create-operator",
     "db:up": "docker compose -f docker-compose.dev.yml up -d",
     "db:down": "docker compose -f docker-compose.dev.yml down",

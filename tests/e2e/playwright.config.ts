@@ -19,6 +19,9 @@ const BASE_URL = `http://localhost:${PORT}`;
 export default defineConfig({
   testDir: ".",
   testMatch: /.*\.spec\.ts$/,
+  // 二次店サイト（スタッフ / 管理者）は別プロセス・別 URL で動くので、
+  // 専用設定 playwright.partner.config.ts で実行する。
+  testIgnore: /partner-.*\.spec\.ts$/,
   fullyParallel: false,
   workers: 1,
   forbidOnly: !!process.env.CI,
@@ -27,6 +30,8 @@ export default defineConfig({
   timeout: 30_000,
   expect: { timeout: 5_000 },
   globalSetup: require.resolve("./global-setup"),
+  // 実行後に E2E が作った行を片付ける（確認用 DB を膨らませない）。
+  globalTeardown: require.resolve("./global-teardown"),
 
   use: {
     baseURL: BASE_URL,

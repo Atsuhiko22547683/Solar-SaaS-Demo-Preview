@@ -18,4 +18,11 @@ export default async function globalSetup(): Promise<void> {
     stdio: "inherit",
     env: process.env,
   });
+  // デモ用テストデータ（代理店 1 社 × 複数パートナー会社）。db:seed のあとに入れる
+  // （基本シードは当月の出店希望明細を入れ替えるので、順番が逆だと消える）。
+  execSync("pnpm -F @solar/db exec tsx prisma/seed-demo-single-agency.ts", {
+    cwd: REPO_ROOT,
+    stdio: "inherit",
+    env: process.env,
+  });
 }
