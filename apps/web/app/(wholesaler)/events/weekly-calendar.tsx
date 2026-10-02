@@ -7,46 +7,13 @@ import { useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { formatMonthDayWithWeekday } from "@/lib/format/date";
+import { formatWeekRange, mondayOf, parseLocalDate, shiftWeekStart } from "@/lib/format/week";
 import { labels } from "@/lib/i18n/labels";
 
 import type { DaySummary } from "./unified-data";
 
-const DAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
-
-function localDateStr(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-function parseLocalDate(s: string): Date {
-  const parts = s.split("-").map(Number);
-  return new Date(parts[0]!, parts[1]! - 1, parts[2]!);
-}
-
 function formatDayHeader(dateStr: string): string {
-  const d = parseLocalDate(dateStr);
-  return formatMonthDayWithWeekday(d);
-}
-
-function formatRangeLabel(start: string, end: string): string {
-  const s = parseLocalDate(start);
-  const e = parseLocalDate(end);
-  return `${s.getFullYear()}年${s.getMonth() + 1}月${s.getDate()}日(${DAY_LABELS[s.getDay()]}) 〜 ${e.getMonth() + 1}月${e.getDate()}日(${DAY_LABELS[e.getDay()]})`;
-}
-
-function shiftWeek(weekStart: string, delta: number): string {
-  const d = parseLocalDate(weekStart);
-  d.setDate(d.getDate() + 7 * delta);
-  return localDateStr(d);
-}
-
-function todayMonday(): string {
-  const d = new Date();
-  const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  return localDateStr(new Date(d.getFullYear(), d.getMonth(), d.getDate() + diff));
+  return formatMonthDayWithWeekday(parseLocalDate(dateStr));
 }
 
 function cellBg(day: DaySummary, isSelected: boolean): string {
@@ -94,11 +61,11 @@ export function WeeklyCalendar({
   );
 
   const navigateWeek = useCallback(
-    (delta: number) => navigate(shiftWeek(weekStart, delta)),
+    (delta: number) => navigate(shiftWeekStart(weekStart, delta)),
     [weekStart, navigate],
   );
 
-  const goToday = useCallback(() => navigate(todayMonday()), [navigate]);
+  const goToday = useCallback(() => navigate(mondayOf()), [navigate]);
 
   const handleDayClick = useCallback((date: string) => onToggleDate(date), [onToggleDate]);
 
@@ -132,7 +99,7 @@ export function WeeklyCalendar({
             <ChevronLeft />
           </Button>
           <span className="text-ink px-2 text-sm tabular-nums">
-            {formatRangeLabel(weekStart, weekEnd)}
+            {formatWeekRange(weekStart, weekEnd)}
           </span>
           <Button
             variant="outline"
