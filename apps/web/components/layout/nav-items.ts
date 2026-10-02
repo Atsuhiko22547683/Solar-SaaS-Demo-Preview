@@ -16,10 +16,20 @@ import {
   Wallet,
   Package,
   CreditCard,
-  ClipboardList,
   type NavEntry,
 } from "@/components/layout/role-shell";
+import { isNavHrefAllowedWhileBlocked } from "@/lib/billing/access";
+import { labels } from "@/lib/i18n/labels";
 import { hasCapability } from "@/lib/permissions/can";
+
+/**
+ * 一時的に通常導線から外すトップレベル項目。
+ *
+ * route / component / data / API / permission はそのまま残し、ここから
+ * ラベルを外すだけで再表示できる。個々の画面側では hide しない
+ * （複数箇所に散らすと「今どこから消しているか」が追えなくなるため）。
+ */
+const HIDDEN_NAV_LABELS: readonly string[] = ["BIツール"];
 
 /** 卸業者テナントのナビゲーション。 */
 export const wholesalerNav: NavEntry[] = [
@@ -49,14 +59,6 @@ export const wholesalerNav: NavEntry[] = [
     ],
   },
   {
-    label: "二次店報告",
-    icon: ClipboardList,
-    children: [
-      // 二次店ポータルから提出された催事日報の閲覧のみ。登録・編集は二次店側。
-      { label: "二次店 催事日報", href: "/dealer-reports" },
-    ],
-  },
-  {
     label: "手数料管理",
     icon: Wallet,
     children: [
@@ -67,11 +69,16 @@ export const wholesalerNav: NavEntry[] = [
   {
     label: "製品カタログ",
     icon: Package,
-    // 未実装の画面は導線から隠さず、押す前に分かるよう印を付ける。
-    // ナビを「機能の地図」として信用できる状態に保つのが目的。
+    // 並び順は画面のタブ・登録ダイアログのセレクトと同一
+    // （@solar/contracts の CATALOG_CATEGORY_VALUES の順）。
+    // ここだけ順序が違うと、同じ機能が場所によって別物に見えるため。
     children: [
-      { label: "PVカタログ", href: "/product-catalog/pv", upcoming: true },
-      { label: "BTカタログ", href: "/product-catalog/bt", upcoming: true },
+      { label: "PV", href: "/product-catalog/pv" },
+      { label: "BT", href: "/product-catalog/bt" },
+      { label: "エコキュート", href: "/product-catalog/eco-cute" },
+      { label: "IH", href: "/product-catalog/ih" },
+      { label: "プレゼント品", href: "/product-catalog/gift" },
+      { label: "その他", href: "/product-catalog/other" },
     ],
   },
   {
@@ -159,6 +166,34 @@ export function navForRoles(roles: readonly string[], isSaasAdmin: boolean): Nav
 }
 
 /**
+ * 決済の問題で利用停止中のとき、ホームと決済管理以外を押せない状態にする。
+ *
+ * 項目自体は消さない — 消すと「機能が無くなった」ように見えるため、
+ * 「支払いにより利用停止中」だと分かる形で残す。押せる／押せないの境界は
+ * lib/billing/access.ts が持ち、レイアウトのガードと同じ判定を使う。
+ */
+export function applyBillingBlockToNav(items: NavEntry[]): NavEntry[] {
+  const reason = labels.billing.navDisabledReason;
+  return items.map((entry) => {
+    if ("children" in entry) {
+      const children = entry.children.map((child) =>
+        isNavHrefAllowedWhileBlocked(child.href)
+          ? child
+          : { ...child, disabled: true, disabledReason: reason },
+      );
+      return {
+        ...entry,
+        children,
+        disabled: children.every((c) => c.disabled),
+        disabledReason: reason,
+      };
+    }
+    if (isNavHrefAllowedWhileBlocked(entry.href)) return entry;
+    return { ...entry, disabled: true, disabledReason: reason };
+  });
+}
+
+/**
  * 卸業者ナビをシステムロールで絞る。
  *
  * 設定       — OWNER / SYSTEM_ADMIN
@@ -171,6 +206,8 @@ export function wholesalerNavFor(roles: readonly string[]): NavEntry[] {
   const canSettings = hasCapability(roles, "settings");
   const canPayment = hasCapability(roles, "payment");
   return wholesalerNav.filter((entry) => {
+    // 一時非表示の項目（機能自体は残っている）。
+    if (HIDDEN_NAV_LABELS.includes(entry.label)) return false;
     if (entry.label === "設定") return canSettings;
     if (entry.label === "決済管理") return canPayment;
     return true;

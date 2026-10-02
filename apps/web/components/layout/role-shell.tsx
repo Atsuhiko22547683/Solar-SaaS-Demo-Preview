@@ -35,12 +35,22 @@ export interface NavLeaf {
    * 導線からは隠さず、押す前に分かるよう一覧側に印を出す。
    */
   upcoming?: boolean;
+  /**
+   * 利用停止中（決済情報未登録 / 未払い）で押せない項目。
+   * ナビからは消さず、押せない状態で残す — 消すと「機能が無くなった」ように
+   * 見えてしまうため。実際の遮断はレイアウトのガードが行い、ここは見た目だけ。
+   */
+  disabled?: boolean;
+  /** 非活性の理由（tooltip）。 */
+  disabledReason?: string;
 }
 
 export interface NavGroup {
   label: string;
   icon: LucideIcon;
   children: NavLeaf[];
+  disabled?: boolean;
+  disabledReason?: string;
 }
 
 export type NavEntry = (NavLeaf & { icon: LucideIcon }) | NavGroup;
@@ -154,6 +164,17 @@ function SidebarGroup({
 
   if (collapsed) {
     const firstHref = group.children[0]?.href ?? "/";
+    if (group.disabled) {
+      return (
+        <span
+          aria-disabled="true"
+          title={group.disabledReason ?? group.label}
+          className="text-mute-light/70 flex cursor-not-allowed items-center justify-center rounded-md py-2.5"
+        >
+          <Icon size={18} />
+        </span>
+      );
+    }
     return (
       <Link
         href={firstHref}
@@ -173,11 +194,16 @@ function SidebarGroup({
       <button
         type="button"
         onClick={() => setOpen(!open)}
+        title={group.disabled ? group.disabledReason : undefined}
         className={[
           "flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
-          hasActive
-            ? "text-ink font-medium"
-            : "text-body-light hover:bg-surface-soft hover:text-ink",
+          // 中の項目が全部使えないときは見出しも落とす。開閉は残す
+          // （何がある機能なのかは見えたままにしておきたいため）。
+          group.disabled
+            ? "text-mute-light/70"
+            : hasActive
+              ? "text-ink font-medium"
+              : "text-body-light hover:bg-surface-soft hover:text-ink",
         ].join(" ")}
       >
         <Icon size={18} className="shrink-0" />
@@ -200,24 +226,47 @@ function SidebarGroup({
           <div className="border-hairline-light mb-1 ml-5 mt-0.5 space-y-0.5 border-l pl-3">
             {group.children.map((child) => {
               const isActive = child.href === activeChildHref;
-              return (
-                <Link
-                  key={child.href}
-                  href={child.href}
-                  onClick={onNavigate}
-                  className={[
-                    "flex items-center justify-between gap-2 rounded-md px-3 py-1.5 text-[13px] transition-colors",
-                    isActive
-                      ? "text-primary bg-primary/5 font-medium"
-                      : "text-body-light hover:bg-surface-soft hover:text-ink",
-                  ].join(" ")}
-                >
+              const content = (
+                <>
                   <span>{child.label}</span>
                   {child.upcoming ? (
                     <span className="text-mute-light border-hairline-light shrink-0 rounded-sm border px-1 text-[10px] font-normal leading-4">
                       {labels.nav.upcoming}
                     </span>
                   ) : null}
+                </>
+              );
+              const base =
+                "flex items-center justify-between gap-2 rounded-md px-3 py-1.5 text-[13px] transition-colors";
+
+              // 非活性の項目は Link にしない。押せる見た目のまま無効化すると
+              // 「壊れている」と受け取られるので、色とカーソルで押せないと示す。
+              if (child.disabled) {
+                return (
+                  <span
+                    key={child.href}
+                    aria-disabled="true"
+                    title={child.disabledReason}
+                    className={base + " text-mute-light/70 cursor-not-allowed"}
+                  >
+                    {content}
+                  </span>
+                );
+              }
+
+              return (
+                <Link
+                  key={child.href}
+                  href={child.href}
+                  onClick={onNavigate}
+                  className={[
+                    base,
+                    isActive
+                      ? "text-primary bg-primary/5 font-medium"
+                      : "text-body-light hover:bg-surface-soft hover:text-ink",
+                  ].join(" ")}
+                >
+                  {content}
                 </Link>
               );
             })}
@@ -251,6 +300,17 @@ function SidebarLeaf({
       : pathname.startsWith(item.href);
 
   if (collapsed) {
+    if (item.disabled) {
+      return (
+        <span
+          aria-disabled="true"
+          title={item.disabledReason ?? item.label}
+          className="text-mute-light/70 flex cursor-not-allowed items-center justify-center rounded-md py-2.5"
+        >
+          <Icon size={18} />
+        </span>
+      );
+    }
     return (
       <Link
         href={item.href}
@@ -262,6 +322,19 @@ function SidebarLeaf({
       >
         <Icon size={18} />
       </Link>
+    );
+  }
+
+  if (item.disabled) {
+    return (
+      <span
+        aria-disabled="true"
+        title={item.disabledReason}
+        className="text-mute-light/70 flex cursor-not-allowed items-center gap-3 rounded-md px-3 py-2 text-sm"
+      >
+        <Icon size={18} className="shrink-0" />
+        <span className="truncate">{item.label}</span>
+      </span>
     );
   }
 

@@ -1,45 +1,76 @@
 // 決済管理（/payments）の server-side data loader。
 //
-// 目的は「契約済み顧客の決済状況を確認し、必要なら Stripe 側で操作する」こと。
-// Stripe API はまだ接続していないので、ここは既存 DB の読み取りだけを行う。
+// ここで扱うのは **BizOrch の利用契約**（このシステムを使っている契約者側の
+// プラン / 利用料 / 契約期間 / 支払い状況）であって、太陽光顧客の決済ではない。
+// Customer / Contract / ContractPayment はこの画面では一切参照しない。
 //
-// 契約済みの判定は新設しない。既存の契約一覧と同じく Contract 行の存在＋
-// status が CANCELLED 以外であることを「契約済み」とする。
+// 責務の分け方:
+//   契約プラン / 利用料 / 契約期間 … BizOrch 側（lib/config/billing.ts）
+//   支払い方法 / 支払い状態 / 請求履歴 … Stripe（Sandbox）
+// Stripe の Price / Product へ料金表を全面移行はしない。
 //
 // auth → assertCan("payment.read") → withTenant の順は他ローダーと同じ。
+// payment.read は capability "payment" を持ち、オーナー専用。
 
 import "server-only";
 
-import { maskName } from "@solar/contracts/services/masking";
-
 import { auth } from "@/auth";
+import { getBillingSnapshot } from "@/lib/billing/resolve";
+import { resolveBillingConfig, type BillingCycle } from "@/lib/config/billing";
 import { UnauthorizedError } from "@/lib/errors";
 import { assertCan } from "@/lib/permissions/can";
+import { getStripe } from "@/lib/stripe/client";
 import { getTenantContext } from "@/lib/tenancy/context";
 import { withTenant } from "@/lib/tenancy/with-tenant";
 
-import type { ViewerContext } from "@solar/contracts/services/masking";
-import type { ContractPaymentStatus, ContractStatus } from "@solar/db";
+import type { BillingCard, BillingStatus } from "@/lib/billing/status";
+import type { TenantPlan } from "@solar/db";
 
-/** 一覧のタブ。既存データだけで安全に判定できる範囲に絞る。 */
-export type PaymentFilterTab = "all" | "unpaid" | "paid";
+/** 決済情報（A）— 画面が表示する契約 1 件ぶん。 */
+export interface SubscriptionInfo {
+  /** 契約テナント名（＝この画面を見ている会社）。 */
+  tenantName: string;
+  /** 契約プラン。Tenant.plan の実データ。未設定なら null。 */
+  plan: TenantPlan | null;
+  /** 請求サイクルあたりの単価（円）。参照元は billing config。 */
+  unitPrice: number | null;
+  cycle: BillingCycle;
+  /** 支払い方法。Stripe 固定。 */
+  method: "STRIPE";
+  contractStartAt: string | null;
+  contractEndAt: string | null;
+  nextBillingAt: string | null;
+  /** Stripe から判定した支払い状態。 */
+  paymentStatus: BillingStatus;
+  /**
+   * 表示用のカード情報。Stripe から取得した brand / 下 4 桁 / 有効期限だけで、
+   * カード番号そのものは受け取らないし保存もしない。
+   */
+  card: BillingCard | null;
+  /** Stripe Customer が未作成なら false（導線を「決済情報を登録」に変える）。 */
+  hasStripeCustomer: boolean;
+}
 
-export interface PaymentListItem {
-  /** Contract.id。決済は契約ごとに 1 件（ContractPayment は contractId 一意）。 */
-  contractId: string;
-  customerId: string;
-  /** PII マスク済みの顧客名。 */
-  customerName: string;
-  contractDate: string;
-  /** 契約金額（円）。文字列で持ち、表示側で整形する。 */
-  contractAmount: string;
-  contractStatus: ContractStatus;
-  /** ContractPayment が無ければ null（＝決済情報未登録）。 */
-  paymentStatus: ContractPaymentStatus | null;
-  /** 入金日。ContractPayment.depositDate。 */
-  lastPaidAt: string | null;
-  /** 決済方法。ローン会社が入っていればローン、無ければ未設定として扱う。 */
-  paymentMethod: string | null;
+/** 決済履歴（B）— BizOrch 利用料の請求 1 件（Stripe の Invoice）。 */
+export interface SubscriptionInvoice {
+  id: string;
+  /** 支払日（ISO）。未払いの請求はまだ支払日が無いので null。 */
+  paidAt: string | null;
+  /** 対象期間の表示文字列。 */
+  period: string;
+  /** 金額（最小通貨単位ではなく円などの表示単位に直した値）。 */
+  amount: number;
+  /** Stripe の invoice.status（open / paid / …）。表示名は画面側で引く。 */
+  status: string;
+  /** その請求に使われた支払い方法の表示文字列。取得できなければ null。 */
+  method: string | null;
+}
+
+export interface PaymentPageData {
+  info: SubscriptionInfo;
+  invoices: SubscriptionInvoice[];
+  /** Stripe に接続できていない（未設定 / 障害）。画面の注意書きに使う。 */
+  stripeUnavailable: boolean;
 }
 
 async function requirePaymentCtx() {
@@ -63,185 +94,98 @@ async function requirePaymentCtx() {
     },
     action: "payment.read",
   });
-  return { session, ctx };
+  return ctx;
 }
 
-function viewerOf(roles: string[], piiMaskingMode: string | null | undefined): ViewerContext {
+/** 通貨の最小単位から表示単位へ。JPY は元から最小単位＝円なので割らない。 */
+function toDisplayAmount(amount: number, currency: string): number {
+  const zeroDecimal = new Set(["jpy", "krw", "vnd", "clp"]);
+  return zeroDecimal.has(currency.toLowerCase()) ? amount : amount / 100;
+}
+
+function isoOrNull(unixSeconds: number | null | undefined): string | null {
+  if (!unixSeconds) return null;
+  return new Date(unixSeconds * 1000).toISOString();
+}
+
+/** "2026/04/01 〜 2026/04/30" 形式の対象期間。画面側で整形しないよう ISO 2 つを渡す。 */
+function periodText(start: number | null | undefined, end: number | null | undefined): string {
+  const s = isoOrNull(start);
+  const e = isoOrNull(end);
+  if (!s || !e) return "";
+  return `${s}/${e}`;
+}
+
+/**
+ * Stripe から利用料の請求履歴を取る。
+ *
+ * 架空の履歴は作らない。Stripe に無ければ空配列を返し、画面は
+ * 「決済履歴はまだありません」と出す。
+ */
+async function loadInvoices(stripeCustomerId: string | null): Promise<SubscriptionInvoice[]> {
+  const stripe = getStripe();
+  if (!stripe || !stripeCustomerId) return [];
+
+  try {
+    const list = await stripe.invoices.list({ customer: stripeCustomerId, limit: 24 });
+    return list.data.map((inv) => {
+      const currency = inv.currency ?? "jpy";
+      // 支払い済みなら実際に支払われた額、未払いなら請求額を出す。
+      const raw = inv.status === "paid" ? inv.amount_paid : (inv.amount_due ?? inv.total ?? 0);
+      return {
+        id: inv.id ?? "",
+        paidAt: isoOrNull(inv.status_transitions?.paid_at),
+        period: periodText(inv.period_start, inv.period_end),
+        amount: toDisplayAmount(raw ?? 0, currency),
+        status: inv.status ?? "",
+        method: null,
+      };
+    });
+  } catch {
+    // Stripe 障害時に履歴だけ落ちても画面全体は開けるようにする。
+    return [];
+  }
+}
+
+/**
+ * 決済管理画面のデータ。
+ *
+ * 実データとして読むのは自テナントの `name` / `plan` / `stripeCustomerId` だけ。
+ * 単価・期間は billing config、支払い方法・状態・履歴は Stripe から。
+ * 無いものは null にして画面側で「未設定」と出す。架空の値は作らない。
+ */
+export async function getPaymentPageData(): Promise<PaymentPageData> {
+  const ctx = await requirePaymentCtx();
+  const billing = await getBillingSnapshot();
+
+  const tenant = await withTenant(ctx, async (tx) =>
+    ctx.tenantId
+      ? tx.tenant.findUnique({
+          where: { id: ctx.tenantId },
+          select: { name: true, plan: true },
+        })
+      : null,
+  );
+
+  const plan = tenant?.plan ?? null;
+  const config = resolveBillingConfig(plan);
+  const invoices = await loadInvoices(billing.stripeCustomerId);
+
   return {
-    role: (roles[0] ?? "OWNER") as ViewerContext["role"],
-    tenantType: "WHOLESALER",
-    isSelfTenant: true,
-    piiMaskingMode: (piiMaskingMode ?? "MASKED") as "FULL" | "PARTIAL" | "MASKED",
+    info: {
+      tenantName: tenant?.name ?? "—",
+      plan,
+      unitPrice: config.unitPrice ?? null,
+      cycle: config.cycle,
+      method: config.method,
+      contractStartAt: config.contractStartAt ?? null,
+      contractEndAt: config.contractEndAt ?? null,
+      nextBillingAt: config.nextBillingAt ?? null,
+      paymentStatus: billing.status,
+      card: billing.card,
+      hasStripeCustomer: billing.stripeCustomerId !== null,
+    },
+    invoices,
+    stripeUnavailable: billing.status === "STRIPE_UNAVAILABLE",
   };
-}
-
-/** ローン会社が入っていれば「ローン」、無ければ未設定。新しい決済ロジックは作らない。 */
-function methodOf(loanCompany: string | null): string | null {
-  return loanCompany?.trim() ? loanCompany.trim() : null;
-}
-
-/**
- * 決済一覧。契約済み（Contract 行があり status !== CANCELLED）の契約だけを返す。
- *
- * tab は既存 ContractPayment.paymentStatus だけで判定する:
- *   unpaid = 決済情報が無い、または UNPAID / PARTIAL
- *   paid   = PAID
- */
-export async function listPayments(tab: PaymentFilterTab = "all"): Promise<PaymentListItem[]> {
-  const { session, ctx } = await requirePaymentCtx();
-
-  return withTenant(ctx, async (tx) => {
-    const settings = ctx.wholesalerId
-      ? await tx.wholesalerSettings.findUnique({
-          where: { wholesalerId: ctx.wholesalerId },
-          select: { piiMaskingMode: true },
-        })
-      : null;
-    const viewer = viewerOf(session.user.roles, settings?.piiMaskingMode);
-
-    const rows = await tx.contract.findMany({
-      where: {
-        status: { not: "CANCELLED" },
-        ...(tab === "paid" ? { payment: { paymentStatus: "PAID" } } : {}),
-        ...(tab === "unpaid"
-          ? {
-              OR: [
-                { payment: { is: null } },
-                { payment: { paymentStatus: { in: ["UNPAID", "PARTIAL"] } } },
-              ],
-            }
-          : {}),
-      },
-      orderBy: [{ contractDate: "desc" }],
-      select: {
-        id: true,
-        contractDate: true,
-        contractAmount: true,
-        status: true,
-        customer: { select: { id: true, name: true } },
-        payment: {
-          select: { paymentStatus: true, depositDate: true, loanCompany: true },
-        },
-      },
-    });
-
-    return rows.map<PaymentListItem>((r) => ({
-      contractId: r.id,
-      customerId: r.customer.id,
-      customerName: maskName(r.customer.name, viewer),
-      contractDate: r.contractDate.toISOString(),
-      contractAmount: r.contractAmount.toString(),
-      contractStatus: r.status,
-      paymentStatus: r.payment?.paymentStatus ?? null,
-      lastPaidAt: r.payment?.depositDate?.toISOString() ?? null,
-      paymentMethod: methodOf(r.payment?.loanCompany ?? null),
-    }));
-  });
-}
-
-/** 決済履歴 1 行。既存 DB にある記録だけを日時順に並べる。 */
-export interface PaymentHistoryRow {
-  /** 表示ラベル（入金 / 代理店支払 など）。 */
-  label: string;
-  occurredAt: string;
-  note: string | null;
-}
-
-export interface PaymentDetail extends PaymentListItem {
-  /** 支払い回数。ContractPayment.paymentCount。 */
-  paymentCount: number | null;
-  /** 頭金（円）。 */
-  downPayment: number | null;
-  /** ローン備考。 */
-  loanNote: string | null;
-  /** 決済情報レコード自体の有無。 */
-  hasPaymentRecord: boolean;
-  history: PaymentHistoryRow[];
-}
-
-/**
- * 決済詳細。決済情報と決済履歴を返す。
- *
- * 履歴専用テーブルは無いので、ContractPayment に記録されている日付
- * （入金日 / 代理店支払日）と決済情報の作成・更新日時を時系列に並べる。
- * 架空のデータは作らない。
- */
-export async function getPaymentDetail(contractId: string): Promise<PaymentDetail | null> {
-  const { session, ctx } = await requirePaymentCtx();
-
-  return withTenant(ctx, async (tx) => {
-    const settings = ctx.wholesalerId
-      ? await tx.wholesalerSettings.findUnique({
-          where: { wholesalerId: ctx.wholesalerId },
-          select: { piiMaskingMode: true },
-        })
-      : null;
-    const viewer = viewerOf(session.user.roles, settings?.piiMaskingMode);
-
-    const r = await tx.contract.findUnique({
-      where: { id: contractId },
-      select: {
-        id: true,
-        contractDate: true,
-        contractAmount: true,
-        status: true,
-        customer: { select: { id: true, name: true } },
-        payment: {
-          select: {
-            paymentStatus: true,
-            paymentCount: true,
-            loanCompany: true,
-            downPayment: true,
-            loanNote: true,
-            depositDate: true,
-            dealerPayoutDate: true,
-            createdAt: true,
-            updatedAt: true,
-          },
-        },
-      },
-    });
-    if (!r || r.status === "CANCELLED") return null;
-
-    const p = r.payment;
-    const history: PaymentHistoryRow[] = [];
-    if (p) {
-      history.push({ label: "決済情報を登録", occurredAt: p.createdAt.toISOString(), note: null });
-      if (p.depositDate) {
-        history.push({ label: "入金", occurredAt: p.depositDate.toISOString(), note: null });
-      }
-      if (p.dealerPayoutDate) {
-        history.push({
-          label: "代理店支払",
-          occurredAt: p.dealerPayoutDate.toISOString(),
-          note: null,
-        });
-      }
-      if (p.updatedAt.getTime() !== p.createdAt.getTime()) {
-        history.push({
-          label: "決済情報を更新",
-          occurredAt: p.updatedAt.toISOString(),
-          note: null,
-        });
-      }
-      history.sort((a, b) => a.occurredAt.localeCompare(b.occurredAt));
-    }
-
-    return {
-      contractId: r.id,
-      customerId: r.customer.id,
-      customerName: maskName(r.customer.name, viewer),
-      contractDate: r.contractDate.toISOString(),
-      contractAmount: r.contractAmount.toString(),
-      contractStatus: r.status,
-      paymentStatus: p?.paymentStatus ?? null,
-      lastPaidAt: p?.depositDate?.toISOString() ?? null,
-      paymentMethod: methodOf(p?.loanCompany ?? null),
-      paymentCount: p?.paymentCount ?? null,
-      downPayment: p?.downPayment ?? null,
-      loanNote: p?.loanNote ?? null,
-      hasPaymentRecord: p != null,
-      history,
-    };
-  });
 }

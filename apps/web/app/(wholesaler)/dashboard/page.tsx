@@ -2,9 +2,12 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
+import { BillingAlert } from "@/components/billing/billing-alert";
 import { Metric, SectionLabel, TodoRow } from "@/components/home/home-sections";
 import { Card } from "@/components/ui/card";
+import { getBillingSnapshot } from "@/lib/billing/resolve";
 import { labels } from "@/lib/i18n/labels";
+import { hasCapability } from "@/lib/permissions/can";
 
 import { getDashboardSummary } from "./data";
 import { SalesTrendChart } from "./sales-trend-chart";
@@ -24,6 +27,11 @@ export default async function WholesalerDashboardPage() {
     redirect("/saas-admin-dashboard");
   }
 
+  // 決済に問題があるときは、ここが唯一「気付ける場所」になる
+  // （他の画面は開けなくなるため）。支払い済みなら何も出さない。
+  const billing = await getBillingSnapshot();
+  const canManagePayment = hasCapability(session?.user?.roles ?? [], "payment");
+
   const summary = await getDashboardSummary();
   const todo = t.sections.todo;
   const ms = t.sections.monthlySummary;
@@ -36,6 +44,8 @@ export default async function WholesalerDashboardPage() {
         <h1 className="text-ink text-xl font-bold">{t.title}</h1>
         <p className="text-mute-light mt-0.5 text-[13px]">{t.subtitle}</p>
       </div>
+
+      <BillingAlert status={billing.status} canManagePayment={canManagePayment} />
 
       {/* ── 要対応 ──
           催事営業で売上を落とす原因は「体制が決まらない」「コールが漏れる」
