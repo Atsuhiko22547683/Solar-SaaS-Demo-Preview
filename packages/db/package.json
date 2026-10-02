@@ -18,7 +18,8 @@
     "prisma:migrate:dev": "prisma migrate dev --schema=prisma/schema.prisma",
     "prisma:migrate:deploy": "prisma migrate deploy --schema=prisma/schema.prisma",
     "prisma:studio": "prisma studio --schema=prisma/schema.prisma",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "ops:create-operator": "tsx prisma/create-system-operator.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.1.0",

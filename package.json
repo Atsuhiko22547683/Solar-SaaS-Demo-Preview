@@ -28,6 +28,7 @@
     "db:migrate:deploy": "pnpm -F @solar/db prisma:migrate:deploy",
     "db:studio": "pnpm -F @solar/db prisma:studio",
     "db:seed": "pnpm -F @solar/db db:seed",
+    "ops:create-operator": "pnpm -F @solar/db ops:create-operator",
     "db:up": "docker compose -f docker-compose.dev.yml up -d",
     "db:down": "docker compose -f docker-compose.dev.yml down",
     "prepare": "husky"

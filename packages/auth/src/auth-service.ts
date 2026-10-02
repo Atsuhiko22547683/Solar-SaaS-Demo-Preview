@@ -215,6 +215,13 @@ export async function verifyPassword(input: VerifyPasswordInput): Promise<Verify
     throw new UnauthorizedError({ code: "INVALID_CREDENTIALS" });
   }
 
+  // 会社（テナント）が利用停止中なら、利用者本人が有効でもサインインさせない。
+  // 運営管理サイトの「利用停止」をサーバー側で効かせる箇所。停止したのはその会社だけで、
+  // 他社のテナントには触っていないので、他社の利用者には影響しない。
+  if (outcome.user!.tenant.status !== "ACTIVE") {
+    throw new UnauthorizedError({ code: "TENANT_SUSPENDED" });
+  }
+
   return {
     user: outcome.user!,
     sessionVersion: outcome.user!.sessionVersion,

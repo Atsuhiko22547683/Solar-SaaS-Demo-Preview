@@ -13,6 +13,9 @@ export type UnauthorizedReason =
   | "LOCKED_TEMPORARILY"
   | "USER_SUSPENDED"
   | "USER_INVITED"
+  // 会社（テナント）が利用停止中。利用者本人は有効でもサインインさせない。
+  // 停止はデータ削除と分けているので、再開すればそのまま使える。
+  | "TENANT_SUSPENDED"
   // T-01-07 — password reset + invitation tokens.
   // Single bucket for "the token you supplied is bad" covering not-found /
   // expired / already-used. We intentionally do NOT differentiate so the
