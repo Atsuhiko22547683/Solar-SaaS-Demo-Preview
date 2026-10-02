@@ -17,6 +17,7 @@ import type {
   SubsidyStatusValue,
 } from "./constants";
 import type { BadgeVariant } from "@/components/ui/badge";
+import type { ReactNode } from "react";
 
 export function maekakuVariant(v: MaekakuValue): BadgeVariant {
   return v === "present" ? "success" : "secondary";
@@ -80,8 +81,11 @@ const TH = "px-4 py-2.5 text-left text-xs font-semibold text-mute-light";
 const COL = {
   /** 常時 — 誰の案件か。 */
   customer: "",
-  /** 常時 — 商談の現在地。 */
-  progress: "",
+  /**
+   * 商談の現在地。スマホでは列を落とし、顧客セルの 2 行目にバッジを寄せる。
+   * 狭い列に残すと「商／談／中」と 1 文字ずつ折り返してしまうため。
+   */
+  progress: "hidden sm:table-cell",
   /** 次に何をするか。狭い画面でも残す（この一覧の主目的）。 */
   nextAction: "",
   /** 契約後の工程。1024px 以上で 2 列に分けて追えるようにする。 */
@@ -110,13 +114,15 @@ const COL = {
 //
 // ブレークポイントごとに合計 100% になるよう 2 組持つ。
 // lg 未満では施工/申請を出さないので、その分を残る列へ配分する。
+// 表示する列数が breakpoint で変わるので、幅もそのつど配分し直す
+// （PC 用の % をそのままスマホに残すと、どの列も狭すぎて溢れる）。
 const COL_WIDTH = {
-  customer: "w-[40%] lg:w-[28%]",
-  progress: "w-[18%] lg:w-[13%]",
-  nextAction: "w-[36%] lg:w-[25%]",
+  customer: "w-[48%] sm:w-[40%] lg:w-[28%]",
+  progress: "sm:w-[18%] lg:w-[13%]",
+  nextAction: "w-[40%] sm:w-[36%] lg:w-[25%]",
   construction: "lg:w-[15%]",
   subsidy: "lg:w-[15%]",
-  chevron: "w-[6%] lg:w-[4%]",
+  chevron: "w-[12%] sm:w-[6%] lg:w-[4%]",
 } as const;
 
 /** 次アクションの強さに対応する文字色。high だけが色を持つ。 */
@@ -139,11 +145,23 @@ const NOT_APPLICABLE_CLASS = "text-slate-300";
  * 全セルを top 揃えにすることで 1 段のセルも 2 段セルの 1 行目と
  * 同じベースラインに乗る（行の中央に浮かない）。
  */
-function CustomerCell({ name, meta }: { name: string; meta: string }) {
+function CustomerCell({
+  name,
+  meta,
+  badge,
+}: {
+  name: string;
+  meta: string;
+  /** スマホでのみ 2 行目に出す進捗バッジ（sm 以上では専用列が担当する）。 */
+  badge: ReactNode;
+}) {
   return (
     <span className="block">
       <span className="text-ink block truncate text-sm font-medium leading-5">{name}</span>
-      <span className="text-mute-light block h-4 truncate text-xs leading-4">{meta}</span>
+      <span className="flex h-4 items-center gap-1.5 text-xs leading-4">
+        <span className="text-mute-light min-w-0 truncate">{meta}</span>
+        <span className="shrink-0 sm:hidden">{badge}</span>
+      </span>
     </span>
   );
 }
@@ -174,7 +192,7 @@ export function CustomerTable({ customers }: CustomerTableProps) {
             <th scope="col" className={`${TH} ${COL_WIDTH.customer}`}>
               {t.columns.customer}
             </th>
-            <th scope="col" className={`${TH} ${COL_WIDTH.progress}`}>
+            <th scope="col" className={`${TH} ${COL.progress} ${COL_WIDTH.progress}`}>
               {t.columns.progress}
             </th>
             <th scope="col" className={`${TH} ${COL_WIDTH.nextAction}`}>
@@ -220,12 +238,17 @@ export function CustomerTable({ customers }: CustomerTableProps) {
                   <CustomerCell
                     name={`${row.name} ${t.honorific}`}
                     meta={[row.area, row.assigneeName].filter(Boolean).join("・")}
+                    badge={
+                      <Badge variant={contractVariant(row.contractStatus)}>
+                        {t.contractStatusLabels[row.contractStatus]}
+                      </Badge>
+                    }
                   />
                 </td>
 
                 {/* 進捗 — 一覧で badge を使うのはここだけに絞る。
                     h-5 は顧客セルの 1 行目と同じ高さで、上端が揃う。 */}
-                <td className="px-4 py-2 align-top">
+                <td className={`px-4 py-2 align-top ${COL.progress}`}>
                   <span className="flex h-5 items-center">
                     <Badge variant={contractVariant(row.contractStatus)}>
                       {t.contractStatusLabels[row.contractStatus]}

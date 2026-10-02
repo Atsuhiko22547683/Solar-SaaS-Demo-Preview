@@ -14,6 +14,7 @@ import {
   COL_MD,
   COL_SM,
   COL_XL,
+  LIST_CHEVRON_TD,
   LIST_ROW,
   LIST_TD,
   LIST_TD_NUM,
@@ -73,14 +74,15 @@ export function ContractTable({ contracts }: ContractTableProps) {
   } as const;
 
   // 列幅は固定（table-fixed）。絞り込み結果や金額の桁数で列位置が動かないようにする。
+  // 表示列数が breakpoint で変わるので、幅もそのつど配分し直す。
   const W = {
     date: "sm:w-[12%]",
-    customer: "w-[52%] lg:w-[24%]",
+    customer: "w-[52%] sm:w-[32%] lg:w-[24%]",
     assignee: "xl:w-[13%]",
-    status: "w-[24%] lg:w-[14%]",
+    status: "w-[36%] sm:w-[20%] lg:w-[14%]",
     amount: "md:w-[15%]",
     payment: "lg:w-[18%]",
-    chevron: "w-[10%] lg:w-[4%]",
+    chevron: "w-[12%] sm:w-[8%] lg:w-[4%]",
   } as const;
 
   return (
@@ -156,7 +158,7 @@ export function ContractTable({ contracts }: ContractTableProps) {
                   }
                 />
               </td>
-              <td className={`${LIST_TD} text-right`}>
+              <td className={LIST_CHEVRON_TD}>
                 <ChevronRight className="text-mute-light inline size-4" />
               </td>
             </tr>

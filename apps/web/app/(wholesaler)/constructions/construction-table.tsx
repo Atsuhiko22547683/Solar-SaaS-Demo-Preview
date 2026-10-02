@@ -23,11 +23,13 @@ import { toDateInputValue } from "@/components/list/inline-date-input";
 import {
   COL_LG,
   COL_MD,
+  COL_SM,
   COL_XL,
+  LIST_CHEVRON_BUTTON,
+  LIST_CHEVRON_TD,
   LIST_ROW,
   LIST_TD,
   LIST_TD_NUM,
-  LIST_TD_STRONG,
   LIST_TH,
 } from "@/components/list/list-shell";
 import { Badge } from "@/components/ui/badge";
@@ -169,6 +171,9 @@ export function ConstructionTable({ constructions }: ConstructionTableProps) {
   // 一覧の主目的は「施工前 / 施工中 / 完工待ちのどこにいるか」。
   // 顧客・工事予定日・施工状態・現地調査を常時、担当と実績日は幅に余裕があるときに出す。
   const COL = {
+    // 工事予定日と現地調査はスマホでは列にせず、顧客セルの 2 行目 / 展開側へ寄せる。
+    plannedDate: COL_SM,
+    survey: COL_MD,
     installer: COL_MD,
     startedDate: COL_LG,
     completedDate: COL_LG,
@@ -176,16 +181,20 @@ export function ConstructionTable({ constructions }: ConstructionTableProps) {
   } as const;
 
   // 列幅は固定（table-fixed）。事業者名や氏名の長さで列位置が動かないようにする。
+  // 表示列数が breakpoint で変わるので、幅もそのつど配分し直す。
+  // 非表示にした列にも必ず w-0 を置く。展開行の colSpan は非表示列にも
+  // 幅を配分するので、幅指定が無いと展開時だけ列が痩せて chevron の
+  // x 座標がずれる。
   const W = {
-    plannedDate: "w-[22%] lg:w-[11%]",
-    customer: "w-[38%] lg:w-[19%]",
-    assignee: "xl:w-[10%]",
-    installer: "md:w-[13%]",
-    survey: "w-[16%] lg:w-[11%]",
-    status: "w-[18%] lg:w-[11%]",
-    startedDate: "lg:w-[10%]",
-    completedDate: "lg:w-[11%]",
-    chevron: "w-[6%] lg:w-[4%]",
+    plannedDate: "w-0 sm:w-[16%] lg:w-[11%]",
+    customer: "w-[52%] sm:w-[28%] lg:w-[19%]",
+    assignee: "w-0 xl:w-[10%]",
+    installer: "w-0 md:w-[13%]",
+    survey: "w-0 md:w-[11%]",
+    status: "w-[36%] sm:w-[20%] lg:w-[11%]",
+    startedDate: "w-0 lg:w-[10%]",
+    completedDate: "w-0 lg:w-[11%]",
+    chevron: "w-[12%] sm:w-[6%] lg:w-[4%]",
   } as const;
 
   return (
@@ -193,7 +202,7 @@ export function ConstructionTable({ constructions }: ConstructionTableProps) {
       <table className="w-full table-fixed text-sm">
         <thead>
           <tr className="border-hairline-light bg-surface-soft/50 border-b">
-            <th scope="col" className={`${LIST_TH} ${W.plannedDate}`}>
+            <th scope="col" className={`${LIST_TH} ${COL.plannedDate} ${W.plannedDate}`}>
               {t.columns.plannedDate}
             </th>
             <th scope="col" className={`${LIST_TH} ${W.customer}`}>
@@ -205,7 +214,7 @@ export function ConstructionTable({ constructions }: ConstructionTableProps) {
             <th scope="col" className={`${LIST_TH} ${COL.installer} ${W.installer}`}>
               {t.columns.installer}
             </th>
-            <th scope="col" className={`${LIST_TH} ${W.survey}`}>
+            <th scope="col" className={`${LIST_TH} ${COL.survey} ${W.survey}`}>
               {t.columns.surveyStatus}
             </th>
             <th scope="col" className={`${LIST_TH} ${W.status}`}>
@@ -232,23 +241,34 @@ export function ConstructionTable({ constructions }: ConstructionTableProps) {
                 className={`group ${LIST_ROW} ${isExpanded ? "bg-page" : ""}`}
                 onClick={toggle}
               >
-                <td className={LIST_TD_NUM}>{formatDate(row.plannedDate) ?? c.none}</td>
-                {/* 顧客名だけは遷移リンク。行クリック（= 展開）と取り違えないよう伝播を止める。 */}
-                <td className={LIST_TD_STRONG}>
-                  <Link
-                    href={customerHref(row.customerId)}
-                    onClick={(e) => e.stopPropagation()}
-                    className="focus-visible:ring-primary/40 rounded-sm underline-offset-4 hover:underline focus:outline-none focus-visible:ring-2"
-                  >
-                    {row.customerName} {c.honorific}
-                  </Link>
+                <td className={`${LIST_TD_NUM} ${COL.plannedDate}`}>
+                  {formatDate(row.plannedDate) ?? c.none}
+                </td>
+                {/* 顧客名だけは遷移リンク。行クリック（= 展開）と取り違えないよう伝播を止める。
+                    スマホでは工事予定日の列が無いので、2 行目に日付を出す。 */}
+                <td className="whitespace-nowrap px-4 py-2.5 align-top">
+                  <span className="block">
+                    <Link
+                      href={customerHref(row.customerId)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-ink focus-visible:ring-primary/40 block truncate rounded-sm text-sm font-medium leading-5 underline-offset-4 hover:underline focus:outline-none focus-visible:ring-2"
+                    >
+                      {row.customerName} {c.honorific}
+                    </Link>
+                    <span className="text-mute-light block truncate text-xs tabular-nums leading-4 sm:hidden">
+                      {formatDate(row.plannedDate) ?? c.none}
+                    </span>
+                  </span>
                 </td>
                 <td className={`${LIST_TD} ${COL.assignee}`}>{row.assigneeName ?? c.none}</td>
-                <td className={`${LIST_TD} ${COL.installer}`}>
+                <td
+                  className={`${LIST_TD} ${COL.installer} truncate`}
+                  title={row.installerName ?? undefined}
+                >
                   {row.installerName ?? t.noInstaller}
                 </td>
                 {/* 現地調査は施工状態の前工程。補助情報なのでバッジにせず文字で出す。 */}
-                <td className={LIST_TD}>
+                <td className={`${LIST_TD} ${COL.survey}`}>
                   {row.surveyStatus ? (
                     c.surveyStatusLabels[row.surveyStatus]
                   ) : (
@@ -270,7 +290,7 @@ export function ConstructionTable({ constructions }: ConstructionTableProps) {
                     <span className="text-mute-light">{t.notCompleted}</span>
                   )}
                 </td>
-                <td className={`${LIST_TD} text-right`}>
+                <td className={LIST_CHEVRON_TD}>
                   <button
                     type="button"
                     aria-expanded={isExpanded}
@@ -280,7 +300,7 @@ export function ConstructionTable({ constructions }: ConstructionTableProps) {
                       e.stopPropagation();
                       toggle();
                     }}
-                    className="text-mute-light hover:bg-surface-soft hover:text-ink focus-visible:ring-primary/40 rounded-md p-1 transition-colors focus:outline-none focus-visible:ring-2"
+                    className={LIST_CHEVRON_BUTTON}
                   >
                     <ChevronDown
                       className={`size-4 transition-transform ${isExpanded ? "rotate-180" : ""}`}

@@ -20,7 +20,7 @@ export default function AuthGroupLayout({ children }: { children: ReactNode }) {
         </header>
         <section
           aria-label={labels.groups.auth}
-          className="border-border rounded-lg border bg-white p-8"
+          className="border-border rounded-lg border bg-white p-5 sm:p-8"
         >
           {children}
         </section>

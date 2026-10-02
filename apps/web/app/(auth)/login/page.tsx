@@ -107,17 +107,17 @@ export default function SignInPage() {
           <div className="text-primary text-sm font-semibold">{labels.signIn.demoPanelTitle}</div>
           <p className="text-muted-foreground mt-1 text-xs">{labels.signIn.demoPanelDescription}</p>
           <dl className="mt-3 space-y-1 font-mono text-xs">
-            <div className="flex gap-2">
-              <dt className="text-muted-foreground min-w-[7.5rem]">
+            <div className="flex flex-wrap gap-x-2">
+              <dt className="text-muted-foreground sm:min-w-[7.5rem]">
                 {labels.signIn.demoEmailLabel}
               </dt>
-              <dd className="text-foreground">{DEMO_EMAIL}</dd>
+              <dd className="text-foreground break-all">{DEMO_EMAIL}</dd>
             </div>
-            <div className="flex gap-2">
-              <dt className="text-muted-foreground min-w-[7.5rem]">
+            <div className="flex flex-wrap gap-x-2">
+              <dt className="text-muted-foreground sm:min-w-[7.5rem]">
                 {labels.signIn.demoPasswordLabel}
               </dt>
-              <dd className="text-foreground">{DEMO_PASSWORD}</dd>
+              <dd className="text-foreground break-all">{DEMO_PASSWORD}</dd>
             </div>
           </dl>
           <p className="text-primary/80 mt-3 text-xs underline-offset-4 hover:underline">
@@ -182,7 +182,8 @@ export default function SignInPage() {
         <Link href="/reset" className="underline-offset-4 hover:underline">
           {labels.signIn.forgotPassword}
         </Link>
-        <Link href="/signup/code" className="underline-offset-4 hover:underline">
+        {/* 招待コードの入力画面は /signup（SignupCodePage）。/signup/code は存在しない。 */}
+        <Link href="/signup" className="underline-offset-4 hover:underline">
           {labels.signIn.dealerInviteCode}
         </Link>
       </div>

@@ -114,7 +114,11 @@
     @apply border-hairline-light hover:bg-surface-soft border-b transition-colors last:border-0;
   }
 
-  /* ── 入力欄基本形 ── */
+  /* ── 入力欄基本形 ──
+     文字は狭い画面で 16px、640px 以上で 14px。16px 未満だと iOS が focus 時に
+     画面を自動拡大し、入力中の項目や保存ボタンへ届かなくなる。
+     なお input[type="…"] は属性セレクタのぶん .text-base より詳細度が高いので、
+     各部品のクラスでは上書きできない。既定値をここで持つ。 */
   input[type="text"],
   input[type="email"],
   input[type="password"],
@@ -127,7 +131,7 @@
   input[type="month"],
   select,
   textarea {
-    @apply border-ash-light text-ink focus:border-primary focus:ring-primary/40 w-full rounded-md border bg-white px-3 py-2 text-sm transition-colors placeholder:text-slate-400 focus:outline-none focus:ring-2;
+    @apply border-ash-light text-ink focus:border-primary focus:ring-primary/40 w-full rounded-md border bg-white px-3 py-2 text-base transition-colors placeholder:text-slate-400 focus:outline-none focus:ring-2 sm:text-sm;
   }
 }
 

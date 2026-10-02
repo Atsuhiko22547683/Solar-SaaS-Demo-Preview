@@ -20,13 +20,22 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import { LIST_ROW, LIST_TD, LIST_TD_STRONG, LIST_TH } from "@/components/list/list-shell";
+import {
+  COL_LG,
+  COL_MD,
+  LIST_CHEVRON_BUTTON,
+  LIST_CHEVRON_TD,
+  LIST_ROW,
+  LIST_TD,
+  LIST_TD_STRONG,
+  LIST_TH,
+} from "@/components/list/list-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { labels } from "@/lib/i18n/labels";
 
 import { saveProjectCallStatusAction } from "../actions";
-import { CALL_STATUS_VALUES, MAEKAKU_STATUS_VALUES } from "./constants";
+import { CALL_STATUS_VALUES, MAEKAKU_STATUS_VALUES, callStatusVariant } from "./constants";
 
 import type { CallListItem, CallSectionCell, NextTaskCell } from "./constants";
 import type { ReactNode } from "react";
@@ -69,21 +78,28 @@ const TD_COMPACT = "whitespace-nowrap px-3 py-3 text-body-light";
 /**
  * コール 1 種類の状況。
  *
- * 4 種類ぶん並ぶ列なので、バッジではなく文字で出す（1 行に色付きバッジが 4 つ並ぶと
- * どれが要対応なのか読み取れなくなる）。この一覧で強調するのは右端の「次回対応」だけ。
- * 未設定は "—"（顧客詳細と同じ値域ラベルを引く）。
+ * 色分けは他の顧客管理一覧と同じ既存トークンに揃える（callStatusVariant）:
+ *   実施済 → success / 未実施・実施前 → warning / 不要 → secondary（灰）。
+ * Badge は淡い背景 + 同系文字色の soft スタイルなので、4 列並んでも
+ * 「済 / 未 / 不要」が一目で判別でき、かつ画面が派手にならない。
+ * 未設定は色を持たせず "—"（顧客詳細と同じ値域ラベルを引く）。
  */
 function StatusCell({
   cell,
   labelMap,
+  colClass,
 }: {
   cell: CallSectionCell;
   labelMap: Record<string, string>;
+  /** 画面幅による列の出し分け。th 側と必ず同じ値を渡す。 */
+  colClass: string;
 }) {
   return (
-    <td className={TD_COMPACT}>
+    <td className={`${TD_COMPACT} ${colClass}`}>
       {cell.status ? (
-        (labelMap[cell.status] ?? cell.status)
+        <Badge variant={callStatusVariant(cell.status)}>
+          {labelMap[cell.status] ?? cell.status}
+        </Badge>
       ) : (
         <span className="text-mute-light">{NONE}</span>
       )}
@@ -101,18 +117,16 @@ function NextTaskCellView({ task }: { task: NextTaskCell | null }) {
   // 2 行構成を必ず描く（対応が無い行は 2 行目を "—" にする）。
   return (
     <td className={LIST_TD}>
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 items-center gap-2">
         <span className="text-mute-light truncate text-xs">
           {task ? (t.nextTaskKindLabels[task.kind] ?? task.kind) : t.nextTaskNone}
         </span>
         {task?.overdue && (
-          <Badge variant="destructive" className="shrink-0">
-            {t.overdue}
-          </Badge>
+          <span className="text-danger shrink-0 text-xs font-medium">{t.overdue}</span>
         )}
       </div>
       <div
-        className={`whitespace-nowrap tabular-nums ${
+        className={`truncate tabular-nums ${
           task ? (task.overdue ? "text-destructive font-medium" : "text-ink") : "text-mute-light"
         }`}
       >
@@ -457,12 +471,22 @@ export function CallTable({ rows }: CallTableProps) {
 
   // 列幅は固定（table-fixed）。コール状況の文字数で列位置が動かないようにする。
   // 「誰に」「何が済んでいて」「次に何をするか」の順で左から読める配分にする。
+  //
+  // 狭い画面では 4 コール列と担当者を落とし、「誰に / 次に何をするか」だけ残す
+  // （落とした列は展開バナーで確認できる）。
+  const COL = {
+    assignee: COL_LG,
+    call: COL_MD,
+  } as const;
+  // 非表示にした列にも必ず w-0 を置く。展開行の colSpan は非表示列にも
+  // 幅を配分するので、幅指定が無いと展開時だけ列が痩せて chevron の
+  // x 座標がずれる。
   const W = {
-    name: "w-[20%]",
-    assignee: "w-[10%]",
-    call: "w-[10%]",
-    nextTask: "w-[26%]",
-    chevron: "w-[4%]",
+    name: "w-[50%] md:w-[24%] lg:w-[20%]",
+    assignee: "w-0 lg:w-[10%]",
+    call: "w-0 md:w-[10%]",
+    nextTask: "w-[38%] md:w-[30%] lg:w-[26%]",
+    chevron: "w-[12%] sm:w-[10%] md:w-[6%] lg:w-[4%]",
   } as const;
 
   return (
@@ -472,19 +496,19 @@ export function CallTable({ rows }: CallTableProps) {
           <th scope="col" className={`${LIST_TH} ${W.name}`}>
             {t.columns.name}
           </th>
-          <th scope="col" className={`${LIST_TH} ${W.assignee}`}>
+          <th scope="col" className={`${LIST_TH} ${COL.assignee} ${W.assignee}`}>
             {t.columns.assignee}
           </th>
-          <th scope="col" className={`${TH_COMPACT} ${W.call}`}>
+          <th scope="col" className={`${TH_COMPACT} ${COL.call} ${W.call}`}>
             {t.columns.maekaku}
           </th>
-          <th scope="col" className={`${TH_COMPACT} ${W.call}`}>
+          <th scope="col" className={`${TH_COMPACT} ${COL.call} ${W.call}`}>
             {t.columns.thankYouCall}
           </th>
-          <th scope="col" className={`${TH_COMPACT} ${W.call}`}>
+          <th scope="col" className={`${TH_COMPACT} ${COL.call} ${W.call}`}>
             {t.columns.loanCompletionCall}
           </th>
-          <th scope="col" className={`${TH_COMPACT} ${W.call}`}>
+          <th scope="col" className={`${TH_COMPACT} ${COL.call} ${W.call}`}>
             {t.columns.postCompletionCall}
           </th>
           <th scope="col" className={`${LIST_TH} ${W.nextTask}`}>
@@ -515,17 +539,33 @@ export function CallTable({ rows }: CallTableProps) {
                   {row.name} {c.honorific}
                 </Link>
               </td>
-              <td className={LIST_TD}>{orNone(row.assigneeName)}</td>
+              <td className={`${LIST_TD} ${COL.assignee}`}>{orNone(row.assigneeName)}</td>
 
-              {/* 4 種のコール状況 — 通常行は状態の文字だけ（希望日時・メモは展開側）。 */}
-              <StatusCell cell={row.maekaku} labelMap={p.maekakuStatusDisplayLabels} />
-              <StatusCell cell={row.thankYouCall} labelMap={p.callPhaseStatusLabels} />
-              <StatusCell cell={row.loanCompletionCall} labelMap={p.callPhaseStatusLabels} />
-              <StatusCell cell={row.postCompletionCall} labelMap={p.callPhaseStatusLabels} />
+              {/* 4 種のコール状況 — 通常行は状態のみ（希望日時・メモは展開側）。 */}
+              <StatusCell
+                cell={row.maekaku}
+                labelMap={p.maekakuStatusDisplayLabels}
+                colClass={COL.call}
+              />
+              <StatusCell
+                cell={row.thankYouCall}
+                labelMap={p.callPhaseStatusLabels}
+                colClass={COL.call}
+              />
+              <StatusCell
+                cell={row.loanCompletionCall}
+                labelMap={p.callPhaseStatusLabels}
+                colClass={COL.call}
+              />
+              <StatusCell
+                cell={row.postCompletionCall}
+                labelMap={p.callPhaseStatusLabels}
+                colClass={COL.call}
+              />
 
               <NextTaskCellView task={row.nextTask} />
 
-              <td className={`${LIST_TD} text-right`}>
+              <td className={LIST_CHEVRON_TD}>
                 <button
                   type="button"
                   aria-expanded={isExpanded}
@@ -535,7 +575,7 @@ export function CallTable({ rows }: CallTableProps) {
                     e.stopPropagation();
                     toggle();
                   }}
-                  className="text-mute-light hover:bg-surface-soft hover:text-ink focus-visible:ring-primary/40 rounded-md p-1 transition-colors focus:outline-none focus-visible:ring-2"
+                  className={LIST_CHEVRON_BUTTON}
                 >
                   <ChevronDown
                     className={`size-4 transition-transform ${isExpanded ? "rotate-180" : ""}`}

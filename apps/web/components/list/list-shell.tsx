@@ -43,6 +43,19 @@ export const LIST_TD_STRONG = "whitespace-nowrap px-4 py-2.5 font-medium text-in
 
 export const LIST_TD_NUM = "whitespace-nowrap px-4 py-2.5 tabular-nums text-body-light";
 
+/**
+ * 展開シェブロンのセル。常に行の右端に置き、展開の有無で位置を変えない。
+ * 余白は詰めておき、幅は th 側の % で決める。
+ */
+export const LIST_CHEVRON_TD = "px-0 py-2.5 text-right align-top sm:px-2";
+
+/**
+ * 展開シェブロンのボタン。アイコンは小さいままで、
+ * スマホでは 44px 角のタップ領域を確保する（指で押せる最小サイズ）。
+ */
+export const LIST_CHEVRON_BUTTON =
+  "text-mute-light hover:bg-surface-soft hover:text-ink focus-visible:ring-primary/40 inline-flex size-11 items-center justify-center rounded-md transition-colors focus:outline-none focus-visible:ring-2 sm:size-8";
+
 export const LIST_ROW =
   "cursor-pointer transition-colors hover:bg-page active:bg-surface-soft focus:outline-none focus-visible:bg-page focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/60";
 
@@ -75,10 +88,17 @@ export const COL_XL = "hidden xl:table-cell";
  * 読む理由が無いため。業務上の補足がある場合だけ渡す。
  */
 export function ListPageHeader({
+  eyebrow,
   title,
   subtitle,
   action,
 }: {
+  /**
+   * 見出しの上に置く上位概念（例: 「製品カタログ」配下の「PV」）。
+   * サイドバーで小分類を切り替える画面で、いまどこにいるかを見出し側に持たせる。
+   * 指定しない画面はこれまでどおり h1 だけを描く。
+   */
+  eyebrow?: string;
   title: string;
   subtitle?: string;
   action?: ReactNode;
@@ -88,6 +108,7 @@ export function ListPageHeader({
   return (
     <div className="flex items-center justify-between gap-4">
       <div className="min-w-0">
+        {eyebrow ? <p className="text-mute-light text-[13px] leading-tight">{eyebrow}</p> : null}
         <h1 className="text-ink text-xl font-bold">{title}</h1>
         {subtitle ? <p className="text-mute-light mt-0.5 text-[13px]">{subtitle}</p> : null}
       </div>

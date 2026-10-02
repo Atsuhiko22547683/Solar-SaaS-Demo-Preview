@@ -10,7 +10,9 @@ import { useRouter } from "next/navigation";
 import {
   COL_LG,
   COL_MD,
+  COL_SM,
   COL_XL,
+  LIST_CHEVRON_TD,
   LIST_ROW,
   LIST_TD,
   LIST_TD_STRONG,
@@ -43,18 +45,21 @@ export function LoanReviewTable({ reviews }: LoanReviewTableProps) {
     loanCompany: COL_MD,
     assignee: COL_XL,
     defectAssignee: COL_LG,
+    // 最新結果は審査状態と重複しがちな補助情報。狭い画面では落とす。
+    latestResult: COL_SM,
   } as const;
 
   // 列幅は固定（table-fixed）。会社名や氏名の長さで列位置が動かないようにする。
+  // 表示列数が breakpoint で変わるので、幅もそのつど配分し直す。
   const W = {
-    customer: "w-[40%] lg:w-[20%]",
+    customer: "w-[46%] sm:w-[34%] lg:w-[20%]",
     assignee: "xl:w-[11%]",
     loanCompany: "md:w-[14%]",
-    status: "w-[26%] lg:w-[14%]",
-    defect: "w-[20%] lg:w-[12%]",
+    status: "w-[30%] sm:w-[22%] lg:w-[14%]",
+    defect: "w-[16%] sm:w-[14%] lg:w-[12%]",
     defectAssignee: "lg:w-[11%]",
-    result: "w-[14%] lg:w-[14%]",
-    chevron: "lg:w-[4%]",
+    result: "sm:w-[14%] lg:w-[14%]",
+    chevron: "w-[12%] sm:w-[6%] lg:w-[4%]",
   } as const;
 
   return (
@@ -80,7 +85,7 @@ export function LoanReviewTable({ reviews }: LoanReviewTableProps) {
             <th scope="col" className={`${LIST_TH} ${COL.defectAssignee} ${W.defectAssignee}`}>
               {t.columns.defectAssignee}
             </th>
-            <th scope="col" className={`${LIST_TH} ${W.result}`}>
+            <th scope="col" className={`${LIST_TH} ${COL.latestResult} ${W.result}`}>
               {t.columns.latestResult}
             </th>
             <th className={W.chevron} aria-hidden />
@@ -105,8 +110,18 @@ export function LoanReviewTable({ reviews }: LoanReviewTableProps) {
               <td className={LIST_TD_STRONG}>
                 {row.customerName} {c.honorific}
               </td>
-              <td className={`${LIST_TD} ${COL.assignee}`}>{row.assigneeName ?? c.none}</td>
-              <td className={`${LIST_TD} ${COL.loanCompany}`}>{row.loanCompany ?? t.noCompany}</td>
+              <td
+                className={`${LIST_TD} ${COL.assignee} truncate`}
+                title={row.assigneeName ?? undefined}
+              >
+                {row.assigneeName ?? c.none}
+              </td>
+              <td
+                className={`${LIST_TD} ${COL.loanCompany} truncate`}
+                title={row.loanCompany ?? undefined}
+              >
+                {row.loanCompany ?? t.noCompany}
+              </td>
               {/* 審査状態が行の主 status。バッジはここ 1 つだけに絞る。 */}
               <td className={LIST_TD}>
                 <Badge variant={loanStatusVariant(row.status)}>
@@ -121,11 +136,14 @@ export function LoanReviewTable({ reviews }: LoanReviewTableProps) {
                   <span className="text-danger font-medium">{t.defectPresenceLabels.yes}</span>
                 )}
               </td>
-              <td className={`${LIST_TD} ${COL.defectAssignee}`}>
+              <td
+                className={`${LIST_TD} ${COL.defectAssignee} truncate`}
+                title={row.defectAssigneeName ?? undefined}
+              >
                 {row.defectAssigneeName ?? c.none}
               </td>
               {/* 最新結果は補助情報。審査状態と色を競わせない。 */}
-              <td className={LIST_TD}>
+              <td className={`${LIST_TD} ${COL.latestResult}`}>
                 {row.latestResult ? (
                   (t.resultLabels[row.latestResult as keyof typeof t.resultLabels] ??
                   row.latestResult)
@@ -133,7 +151,7 @@ export function LoanReviewTable({ reviews }: LoanReviewTableProps) {
                   <span className="text-mute-light">{t.noResult}</span>
                 )}
               </td>
-              <td className={`${LIST_TD} text-right`}>
+              <td className={LIST_CHEVRON_TD}>
                 <ChevronRight className="text-mute-light inline size-4" />
               </td>
             </tr>

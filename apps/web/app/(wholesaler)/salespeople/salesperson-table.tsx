@@ -19,6 +19,8 @@ import {
   COL_MD,
   COL_SM,
   COL_XL,
+  LIST_CHEVRON_BUTTON,
+  LIST_CHEVRON_TD,
   LIST_ROW,
   LIST_TD,
   LIST_TD_NUM,
@@ -84,14 +86,17 @@ export function SalespersonTable({ salespeople, affiliation }: SalespersonTableP
   } as const;
   // 列幅は固定（table-fixed）。氏名・会社名の長さで列位置が動かないようにする。
   // 所属会社列は二次店タブでだけ描くので、その分を氏名列に足す。
+  // 非表示にした列にも必ず w-0 を置く。展開行の colSpan は非表示列にも
+  // 幅を配分するので、幅指定が無いと展開時だけ列が痩せて chevron の
+  // x 座標がずれる（表示中の列だけに幅を持たせるのが目的）。
   const W = {
-    name: showCompany ? "w-[34%] sm:w-[20%]" : "w-[34%] sm:w-[26%]",
-    kana: "xl:w-[14%]",
-    company: "sm:w-[18%]",
-    employmentType: "md:w-[12%]",
-    phone: "lg:w-[14%]",
-    email: "xl:w-[18%]",
-    chevron: "w-[10%] sm:w-[6%]",
+    name: showCompany ? "w-[84%] sm:w-[20%]" : "w-[84%] sm:w-[26%]",
+    kana: "w-0 xl:w-[14%]",
+    company: "w-0 sm:w-[18%]",
+    employmentType: "w-0 md:w-[12%]",
+    phone: "w-0 lg:w-[14%]",
+    email: "w-0 xl:w-[18%]",
+    chevron: "w-[16%] sm:w-[6%]",
   } as const;
   const t = labels.salespersonList;
   const c = labels.customer;
@@ -168,7 +173,7 @@ export function SalespersonTable({ salespeople, affiliation }: SalespersonTableP
                 <td className={`${LIST_TD} ${COL.email}`} title={row.email ?? undefined}>
                   <span className="block max-w-[220px] truncate">{row.email ?? c.none}</span>
                 </td>
-                <td className="px-3 py-3 text-right">
+                <td className={LIST_CHEVRON_TD}>
                   <button
                     type="button"
                     aria-expanded={isExpanded}
@@ -178,7 +183,7 @@ export function SalespersonTable({ salespeople, affiliation }: SalespersonTableP
                       e.stopPropagation();
                       toggle();
                     }}
-                    className="text-mute-light hover:bg-surface-soft hover:text-ink focus-visible:ring-primary/40 rounded-md p-1 transition-colors focus:outline-none focus-visible:ring-2"
+                    className={LIST_CHEVRON_BUTTON}
                   >
                     <ChevronDown
                       className={`size-4 transition-transform ${isExpanded ? "rotate-180" : ""}`}
@@ -189,7 +194,10 @@ export function SalespersonTable({ salespeople, affiliation }: SalespersonTableP
 
               isExpanded ? (
                 <tr key={`${row.id}-detail`} className="bg-surface-soft/40">
-                  <td id={bannerId} colSpan={showCompany ? 8 : 7} className="px-6 py-4">
+                  {/* 通常行の列数と必ず一致させる（多いと phantom 列ができて
+                      展開時だけ chevron の x 座標がずれる）。
+                      氏名 / カナ / (所属会社) / 雇用形態 / 電話 / メール / chevron。 */}
+                  <td id={bannerId} colSpan={showCompany ? 7 : 6} className="px-6 py-4">
                     <div className="space-y-4">
                       {/* 住所はマスク済みの値（市区町村まで）。全文は編集フォームで確認する。 */}
                       <dl className="grid grid-cols-2 gap-x-8 gap-y-4 lg:grid-cols-5">

@@ -23,11 +23,13 @@ import { toDateInputValue } from "@/components/list/inline-date-input";
 import {
   COL_LG,
   COL_MD,
+  COL_SM,
   COL_XL,
+  LIST_CHEVRON_BUTTON,
+  LIST_CHEVRON_TD,
   LIST_ROW,
   LIST_TD,
   LIST_TD_NUM,
-  LIST_TD_STRONG,
   LIST_TH,
 } from "@/components/list/list-shell";
 import { Badge } from "@/components/ui/badge";
@@ -169,6 +171,10 @@ export function ApplicationTable({ applications }: ApplicationTableProps) {
   // 一覧の主目的は「未提出 / 審査中 / 完了のどこで滞留しているか」。
   // 顧客・申請状態・提出日を常時、種別と担当・添付は幅に余裕があるときに出す。
   const COL = {
+    // 予定日 / 提出日はスマホでは列にせず、顧客セルの 2 行目へ寄せる
+    // （狭い列に日付を並べると隣の列へ溢れて重なって見えるため）。
+    plannedDate: COL_SM,
+    submittedDate: COL_SM,
     type: COL_MD,
     approvedDate: COL_LG,
     assignee: COL_XL,
@@ -176,16 +182,20 @@ export function ApplicationTable({ applications }: ApplicationTableProps) {
   } as const;
 
   // 列幅は固定（table-fixed）。申請種別や氏名の長さで列位置が動かないようにする。
+  // 表示列数が breakpoint で変わるので、幅もそのつど配分し直す。
+  // 非表示にした列にも必ず w-0 を置く。展開行の colSpan は非表示列にも
+  // 幅を配分するので、幅指定が無いと展開時だけ列が痩せて chevron の
+  // x 座標がずれる。
   const W = {
-    plannedDate: "w-[22%] lg:w-[11%]",
-    customer: "w-[38%] lg:w-[20%]",
-    assignee: "xl:w-[10%]",
-    type: "md:w-[14%]",
-    status: "w-[18%] lg:w-[12%]",
-    submittedDate: "w-[16%] lg:w-[11%]",
-    approvedDate: "lg:w-[11%]",
-    files: "xl:w-[8%]",
-    chevron: "w-[6%] lg:w-[4%]",
+    plannedDate: "w-0 sm:w-[16%] lg:w-[11%]",
+    customer: "w-[52%] sm:w-[26%] lg:w-[20%]",
+    assignee: "w-0 xl:w-[10%]",
+    type: "w-0 md:w-[14%]",
+    status: "w-[36%] sm:w-[18%] lg:w-[12%]",
+    submittedDate: "w-0 sm:w-[14%] lg:w-[11%]",
+    approvedDate: "w-0 lg:w-[11%]",
+    files: "w-0 xl:w-[8%]",
+    chevron: "w-[12%] sm:w-[6%] lg:w-[4%]",
   } as const;
 
   return (
@@ -193,7 +203,7 @@ export function ApplicationTable({ applications }: ApplicationTableProps) {
       <table className="w-full table-fixed text-sm">
         <thead>
           <tr className="border-hairline-light bg-surface-soft/50 border-b">
-            <th scope="col" className={`${LIST_TH} ${W.plannedDate}`}>
+            <th scope="col" className={`${LIST_TH} ${COL.plannedDate} ${W.plannedDate}`}>
               {t.columns.plannedDate}
             </th>
             <th scope="col" className={`${LIST_TH} ${W.customer}`}>
@@ -208,7 +218,7 @@ export function ApplicationTable({ applications }: ApplicationTableProps) {
             <th scope="col" className={`${LIST_TH} ${W.status}`}>
               {t.columns.status}
             </th>
-            <th scope="col" className={`${LIST_TH} ${W.submittedDate}`}>
+            <th scope="col" className={`${LIST_TH} ${COL.submittedDate} ${W.submittedDate}`}>
               {t.columns.submittedDate}
             </th>
             <th scope="col" className={`${LIST_TH} ${COL.approvedDate} ${W.approvedDate}`}>
@@ -233,19 +243,32 @@ export function ApplicationTable({ applications }: ApplicationTableProps) {
                 onClick={toggle}
               >
                 {/* 日付は read-only。編集は展開バナー側（列幅を使いすぎないため）。 */}
-                <td className={LIST_TD_NUM}>{formatDate(row.plannedDate) ?? c.none}</td>
-                {/* 顧客名だけは遷移リンク。行クリック（= 展開）と取り違えないよう伝播を止める。 */}
-                <td className={LIST_TD_STRONG}>
-                  <Link
-                    href={customerHref(row.customerId)}
-                    onClick={(e) => e.stopPropagation()}
-                    className="focus-visible:ring-primary/40 rounded-sm underline-offset-4 hover:underline focus:outline-none focus-visible:ring-2"
-                  >
-                    {row.customerName} {c.honorific}
-                  </Link>
+                <td className={`${LIST_TD_NUM} ${COL.plannedDate}`}>
+                  {formatDate(row.plannedDate) ?? c.none}
+                </td>
+                {/* 顧客名だけは遷移リンク。行クリック（= 展開）と取り違えないよう伝播を止める。
+                    スマホでは日付の列が無いので、2 行目に「予定 / 提出」をまとめて出す。 */}
+                <td className="whitespace-nowrap px-4 py-2.5 align-top">
+                  <span className="block">
+                    <Link
+                      href={customerHref(row.customerId)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-ink focus-visible:ring-primary/40 block truncate rounded-sm text-sm font-medium leading-5 underline-offset-4 hover:underline focus:outline-none focus-visible:ring-2"
+                    >
+                      {row.customerName} {c.honorific}
+                    </Link>
+                    <span className="text-mute-light block truncate text-xs tabular-nums leading-4 sm:hidden">
+                      {`${t.columns.plannedDate} ${formatDate(row.plannedDate) ?? c.none}`}
+                      {" ／ "}
+                      {`${t.columns.submittedDate} ${formatDate(row.submittedDate) ?? t.notSubmitted}`}
+                    </span>
+                  </span>
                 </td>
                 <td className={`${LIST_TD} ${COL.assignee}`}>{row.assigneeName ?? c.none}</td>
-                <td className={`${LIST_TD} ${COL.type}`}>
+                <td
+                  className={`${LIST_TD} ${COL.type} truncate`}
+                  title={[row.type, row.agency].filter(Boolean).join(" ") || undefined}
+                >
                   {row.type || t.noType}
                   {row.agency ? (
                     <span className="text-mute-light ml-2 text-xs">{row.agency}</span>
@@ -258,7 +281,7 @@ export function ApplicationTable({ applications }: ApplicationTableProps) {
                   </Badge>
                 </td>
                 {/* 未提出は滞留の起点なので、他の未設定より強く出す。 */}
-                <td className={LIST_TD_NUM}>
+                <td className={`${LIST_TD_NUM} ${COL.submittedDate}`}>
                   {formatDate(row.submittedDate) ?? (
                     <span className="text-danger font-medium">{t.notSubmitted}</span>
                   )}
@@ -275,7 +298,7 @@ export function ApplicationTable({ applications }: ApplicationTableProps) {
                     <span className="text-mute-light">{t.noFiles}</span>
                   )}
                 </td>
-                <td className={`${LIST_TD} text-right`}>
+                <td className={LIST_CHEVRON_TD}>
                   <button
                     type="button"
                     aria-expanded={isExpanded}
@@ -285,7 +308,7 @@ export function ApplicationTable({ applications }: ApplicationTableProps) {
                       e.stopPropagation();
                       toggle();
                     }}
-                    className="text-mute-light hover:bg-surface-soft hover:text-ink focus-visible:ring-primary/40 rounded-md p-1 transition-colors focus:outline-none focus-visible:ring-2"
+                    className={LIST_CHEVRON_BUTTON}
                   >
                     <ChevronDown
                       className={`size-4 transition-transform ${isExpanded ? "rotate-180" : ""}`}

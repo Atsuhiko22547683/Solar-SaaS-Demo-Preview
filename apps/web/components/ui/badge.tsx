@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 //   destructive … 期限超過・失注・エラー
 //   secondary/outline … 状態を持たない中立の分類
 const badgeVariants = cva(
-  "inline-flex items-center rounded-sm border px-1.5 py-0.5 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  "inline-flex items-center whitespace-nowrap rounded-sm border px-1.5 py-0.5 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
   {
     variants: {
       variant: {
