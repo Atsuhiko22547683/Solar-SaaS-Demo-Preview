@@ -131,6 +131,11 @@ model Tenant {
   name      String
   plan      TenantPlan? // dealer is null
   status    TenantStatus @default(ACTIVE)
+  // BizOrch 利用料の決済に使う Stripe Customer（テナント 1 : Customer 1）。
+  // 保持するのは ID だけで、カード情報は一切持たない（brand / last4 も含めて
+  // 表示のたびに Stripe から取得する）。@unique で 1 テナントに複数 Customer が
+  // 紐づくのを DB 側でも防ぐ。
+  stripeCustomerId String?  @unique
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
@@ -201,6 +206,8 @@ model User {
   notifications       Notification[]
   notificationPrefs   NotificationPreference[]
   salesperson         Salesperson?
+  /// 自分が取得したアポイント（一覧の担当者名での並べ替えに使う）。
+  acquiredAppointments Appointment[] @relation("AppointmentAcquiredBy")
 
   @@index([tenantId, status])
   @@index([email])
@@ -243,9 +250,15 @@ model Relationship {
   commissionRate             DealerCommissionRate?
   salespeople                Salesperson[]
   dealerEventReports         DealerEventReport[]
+  dealerVisitAppointments    DealerVisitAppointment[]
+  dealerContractReports      DealerContractReport[]
+  venueConsultations         VenueConsultation[]
+  /// このパートナー会社が取得したアポイント（会社名での並べ替えに使う）。
+  acquiredAppointments       Appointment[]            @relation("AppointmentAcquiredRelationship")
 
   @@unique([wholesalerId, dealerId])
-  // DealerEventReport から (relationshipId, wholesalerId) の複合外部キーで参照するため。
+  // DealerEventReport / DealerVisitAppointment / DealerContractReport から
+  // (relationshipId, wholesalerId) の複合外部キーで参照するため。
   // id は既に主キーなので新たな制約は課さず、参照整合性を張るためだけの宣言。
   @@unique([id, wholesalerId])
   @@index([wholesalerId, status])
@@ -405,6 +418,18 @@ enum LineAssignStatus {
   ADJUSTING
 }
 
+// 商品マスタの分類。
+//
+// 製品カタログ画面（/product-catalog）が扱う 6 分類は、既存値をできる限り
+// 再利用してマッピングする（新しい語彙を無闇に増やさない）:
+//
+//   PV          -> PANEL      (既存)
+//   BT          -> BATTERY    (既存)
+//   エコキュート -> ECO_CUTE   (追加)
+//   IH          -> IH         (追加)
+//   プレゼント品 -> GIFT       (追加)
+//   その他       -> OTHER_PART (既存。POWER_CONDITIONER / MOUNT / SET の旧データも
+//                             カタログ上は「その他」に含めて表示する)
 enum ProductCategory {
   PANEL
   BATTERY
@@ -412,6 +437,16 @@ enum ProductCategory {
   MOUNT
   OTHER_PART
   SET
+  ECO_CUTE
+  IH
+  GIFT
+}
+
+// 蓄電池 (BT) の機能区分。同一シリーズ・同一容量でも機能区分が違えば別商品。
+enum BatteryFunctionType {
+  SINGLE
+  SPECIFIC_LOAD
+  FULL_LOAD
 }
 
 enum IncentiveTargetType {
@@ -482,6 +517,10 @@ model Area {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  /// 開催エリアとして参照している店舗（type=EVENT のときだけ使う想定）。
+  /// 顧客エリア（type=CUSTOMER）は Customer.area が名称を持つので関連は張らない。
+  stores Store[]
+
   @@index([wholesalerId, type, isActive])
   @@index([wholesalerId, isActive])
 }
@@ -495,14 +534,24 @@ model Store {
   wholesalerId    String
   venueProviderId String?
   name            String
+  /// 店舗の所在地。イベント候補の住所はここを初期値にする（親チェーンの本部住所ではない）。
+  postalCode      String?
+  address         String?
+  /// 開催エリア（AreaType.EVENT のエリアマスタ）。場所提供元の営業エリア
+  /// （VenueProvider.area・「関東」等の広域）とは値域が違うので別に持つ。
+  areaId          String?
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   venueProvider VenueProvider? @relation(fields: [venueProviderId], references: [id], onDelete: SetNull)
+  area          Area?          @relation(fields: [areaId], references: [id], onDelete: SetNull)
+
+  eventCandidates EventCandidate[]
 
   @@index([wholesalerId, isActive])
   @@index([venueProviderId])
+  @@index([areaId])
 }
 
 // ラインイベント — 懇意の場所提供元と月単位で複数開催日を契約するイベント。
@@ -546,6 +595,31 @@ model LineEvent {
 // 希望順位付きで複数件提出する（F-060）。旧仕様は卸業者が作成した確定レーン(LineEvent)
 // を二次店が優先順位付けするトップダウン構造だったが、新仕様は二次店が確定レーンに依存
 // せず希望場所・希望開催日を自由記述で提出するボトムアップ構造（docs/05 §3.4 / §9 申し送り）。
+/// 出店希望の提出状態。代理店の回答を受けたあとも提出内容を残すために持つ。
+enum LanePreferenceStatus {
+  DRAFT
+  SUBMITTED
+  /// 代理店が回答済み（確定前の往復も含む）。
+  ANSWERED
+  /// 開催場所・日程・担当会社まで確定。
+  CONFIRMED
+}
+
+/// 提出・相談スレッドの発言者側。
+enum PartnerThreadSide {
+  DEALER
+  WHOLESALER
+}
+
+/// スレッド発言の種別。提出・回答の記録と、ふつうの連絡を区別する。
+enum PartnerThreadEntryKind {
+  MESSAGE
+  /// パートナー会社が希望を提出した記録（明細入れ替えの履歴を兼ねる）。
+  SUBMISSION
+  /// 代理店からの回答。
+  ANSWER
+}
+
 model LanePreference {
   id             String   @id @default(cuid())
   wholesalerId   String
@@ -556,8 +630,13 @@ model LanePreference {
   note           String?
   submittedAt    DateTime @default(now())
   submittedBy    String
+  /// 提出状態。明細を入れ替えても回答スレッドは messages 側に残る。
+  status         LanePreferenceStatus @default(SUBMITTED)
+  /// 希望レーン数（提出時の申告値）。明細数から導出せず、申告をそのまま残す。
+  laneCount      Int?
 
-  items LanePreferenceItem[]
+  items    LanePreferenceItem[]
+  messages LanePreferenceMessage[]
 
   // 同一二次店 × 同一月の重複提出は不可（更新扱い）。
   @@unique([relationshipId, targetMonth])
@@ -571,6 +650,9 @@ model LanePreference {
 model LanePreferenceItem {
   id               String @id @default(cuid())
   lanePreferenceId String
+  /// 何レーン目の希望か（1 = 1 レーン目）。レーンごとに独立した希望順位を持つ。
+  laneNo           Int    @default(1)
+  /// レーン内の希望順位（1 = 第一希望）。
   priority         Int
   // 希望場所の表示用ラベル（例「カインズ 大宮店」）。一次ソース・必須。
   // マスタ未登録の場所も二次店が自由記述で提出できる。
@@ -585,10 +667,103 @@ model LanePreferenceItem {
   desiredDates     Json?
   // レーン別メモ（任意）。
   memo             String?
+  /// この店舗だけの個別条件（例「上記日程のいずれか 2 日間を希望」）。
+  /// 希望順位とは別の軸なので、順位へ読み替えずこの列に持つ。
+  conditionNote    String?
+
+  lanePreference LanePreference           @relation(fields: [lanePreferenceId], references: [id], onDelete: Cascade)
+  adoptions      LanePreferenceAdoption[]
+
+  @@unique([lanePreferenceId, laneNo, priority])
+  @@index([lanePreferenceId, laneNo, priority])
+}
+
+/// 出店希望の明細（レーン × 希望順位）が、どの確定イベントとして採用されたか。
+///
+/// 1 つの希望明細が複数イベント（複数日程・複数会場）になりうるので中間テーブルで持つ。
+/// この行があること自体が「代理店が採用を決めた」記録で、希望の提出だけでは作られない。
+/// 希望を出し直して明細が入れ替わったときは Cascade で採用記録も消える — 採用の事実は
+/// Event 側（decidedBy / decidedAt / EventChange）に残るので履歴は失われない。
+model LanePreferenceAdoption {
+  id                   String   @id @default(cuid())
+  /// テナント分離キー（代理店）。
+  wholesalerId         String
+  lanePreferenceItemId String
+  eventId              String
+  /// 採用を決めた利用者。
+  decidedBy            String
+  decidedAt            DateTime @default(now())
+  note                 String?
+
+  item  LanePreferenceItem @relation(fields: [lanePreferenceItemId], references: [id], onDelete: Cascade)
+  event Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([lanePreferenceItemId, eventId])
+  @@index([eventId])
+  @@index([wholesalerId])
+}
+
+/// 出店希望へのやり取り（パートナー会社の提出記録と代理店の回答）。
+///
+/// 明細（LanePreferenceItem）は再提出で入れ替わるが、この行は残す。汎用チャットではなく
+/// 対象の提出に紐づく往復だけを扱う。
+model LanePreferenceMessage {
+  id               String                 @id @default(cuid())
+  lanePreferenceId String
+  side             PartnerThreadSide
+  kind             PartnerThreadEntryKind @default(MESSAGE)
+  body             String
+  authorUserId     String
+  createdAt        DateTime               @default(now())
 
   lanePreference LanePreference @relation(fields: [lanePreferenceId], references: [id], onDelete: Cascade)
 
-  @@index([lanePreferenceId])
+  @@index([lanePreferenceId, createdAt])
+}
+
+/// 「この地域で○○にブースを確保できないか」という場所確保の相談。
+/// 通常の月次希望提出（LanePreference）とは別建て。対象月は任意。
+model VenueConsultation {
+  id              String                  @id @default(cuid())
+  wholesalerId    String
+  relationshipId  String
+  /// 対象月（'YYYY-MM'）。月をまたぐ相談もあるので任意。
+  targetMonth     String?
+  /// 希望エリア（自由記述。エリアマスタ名でも可）。
+  area            String?
+  title           String
+  body            String
+  status          VenueConsultationStatus @default(OPEN)
+  createdByUserId String
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  relationship Relationship                @relation(fields: [relationshipId], references: [id])
+  messages     VenueConsultationMessage[]
+
+  @@index([relationshipId, createdAt])
+  @@index([wholesalerId, status])
+}
+
+model VenueConsultationMessage {
+  id                  String                 @id @default(cuid())
+  venueConsultationId String
+  side                PartnerThreadSide
+  kind                PartnerThreadEntryKind @default(MESSAGE)
+  body                String
+  authorUserId        String
+  createdAt           DateTime               @default(now())
+
+  venueConsultation VenueConsultation @relation(fields: [venueConsultationId], references: [id], onDelete: Cascade)
+
+  @@index([venueConsultationId, createdAt])
+}
+
+/// 場所確保の相談の状態。
+enum VenueConsultationStatus {
+  OPEN
+  ANSWERED
+  CLOSED
 }
 
 model Product {
@@ -598,7 +773,9 @@ model Product {
   maker         String
   name          String
   modelNo       String?
-  // 容量（kW など。unit 列に単位を保持）
+  // シリーズ名。BT / エコキュートでは必須、PV / IH / その他では任意。
+  series        String?
+  // 容量（kW / kWh など。unit 列に単位を保持）
   capacity      Decimal?        @db.Decimal(10, 2)
   unit          String
   // 卸の仕入値（二次店には絶対に開示しない／docs/03 §4.3）
@@ -611,6 +788,10 @@ model Product {
   effectiveTo   DateTime?
   isActive      Boolean         @default(true)
   note          String?
+  // BT 固有。機能区分（単機能 / 特定負荷 / 全負荷）と保証年数。
+  // 他カテゴリでは null のまま使わない。
+  batteryFunctionType BatteryFunctionType?
+  warrantyYears       Int?
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
   createdBy     String
@@ -696,6 +877,9 @@ model Salesperson {
   /** 営業経験歴（自由記述: 「3年」「未経験」など）。 */
   salesExperience String?
   note           String?
+  /** ゲストスタッフか（管理者が受け入れた外部スタッフ）。通常スタッフと同じ閲覧範囲。
+      受け入れ会社は relationshipId、参加催事は EventShift / EventSalesperson で分かる。 */
+  isGuest        Boolean           @default(false)
   isActive       Boolean           @default(true)
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
@@ -707,6 +891,7 @@ model Salesperson {
   // 明示リンクされた顧客をここから辿れる（集計時は二重カウントしない）。
   tossUpCustomers  Customer[]        @relation("CustomerTossUpSalesperson")
   closingCustomers Customer[]        @relation("CustomerClosingSalesperson")
+  visitAppointments DealerVisitAppointment[]
 
   @@index([wholesalerId, isActive])
   @@index([wholesalerId, franchiseNo])
@@ -723,6 +908,10 @@ enum VenueChain {
   SHIMACHU
   KOMERI
   OTHER
+  // 「カインズ」（W / V の別を持たない粒度）。二次店ポータルの初訪アポフォームは
+  // Google フォーム準拠でカインズを 1 つの選択肢として扱うため、既存の
+  // CAINZ_W / CAINZ_V を統合・置換せずに値だけを追加する。既存データは触らない。
+  CAINZ
 }
 
 /** 催事ブース場所（施設内エリア）。OTHER のときだけ自由記述を併記する。 */
@@ -889,9 +1078,13 @@ enum EventStatus {
 }
 
 // Shift role for EventShift (T-03-10).
+// 催事での役割。キャッチ（呼び込み）/ トス（説明・ヒアリング・訪問日時の調整）を
+// 業務上の一次値域とする。LEAD / RECEPTION / PITCH / OTHER は旧値で、既存 EventShift 行が
+// 参照しているため残す（キャッチ / トスへ読み替えず、旧ラベルのまま表示する）。
 enum ShiftRole {
-  LEAD
   CATCH
+  TOSS
+  LEAD
   RECEPTION
   PITCH
   OTHER
@@ -952,6 +1145,10 @@ model EventCandidate {
   // 'YYYY-MM' — kept as TEXT to keep the unique-month groupby trivial.
   targetMonth        String
   scheduledDate      DateTime
+  /// 店舗マスタへの参照。マスタ未登録の場所も登録できるよう NULL 許容。
+  /// storeName / address / area は「開催当時の記録」として残すスナップショットで、
+  /// マスタの改称・移転で過去の催事表示が変わらないようにする（上書きしない）。
+  storeId            String?
   storeName          String
   address            String?
   area               String?
@@ -978,12 +1175,14 @@ model EventCandidate {
   createdAt          DateTime             @default(now())
   updatedAt          DateTime             @updatedAt
 
+  store        Store?                     @relation(fields: [storeId], references: [id], onDelete: SetNull)
   visibilities EventCandidateVisibility[]
   preferences  DealerPreference[]
   event        Event?
 
   @@index([wholesalerId, targetMonth, status])
   @@index([wholesalerId, scheduledDate])
+  @@index([storeId])
 }
 
 model EventCandidateVisibility {
@@ -1035,6 +1234,7 @@ model Event {
   updatedAt        DateTime    @updatedAt
 
   eventCandidate EventCandidate @relation(fields: [eventCandidateId], references: [id])
+  days           EventDay[]
   dealers        EventDealer[]
   shifts         EventShift[]
   salespeople    EventSalesperson[]
@@ -1042,8 +1242,39 @@ model Event {
   changes        EventChange[]
   appointments   Appointment[]
   customers      Customer[]
+  activities     CustomerActivity[]
+  /// パートナー会社が提出した催事日報。代理店自身の EventReport と同じ催事に並ぶ。
+  dealerReports  DealerEventReport[]
+  /// この催事として採用された出店希望の明細。
+  adoptedFrom    LanePreferenceAdoption[]
 
   @@index([wholesalerId, status])
+}
+
+/// 催事の開催日。1 催事 = 1 日とは限らないため、開催日を行として持つ。
+///
+/// 月間の希望枠（LanePreference）を 1 件の連続催事として扱わないための受け皿でもある。
+/// 開催時間は日ごとに違いうる（初日だけ短い等）ので EventDay 側に持ち、シフトの予定時間の
+/// 初期値に使う。時間が未登録の日は null のまま（架空の時間で埋めない）。
+model EventDay {
+  id        String    @id @default(cuid())
+  eventId   String
+  /// 開催日（暦日）。既存 EventCandidate.scheduledDate と同じ保存方式に合わせる。
+  eventDate DateTime
+  /// その日の開催時間。未登録なら null（画面では「未設定」と出す）。
+  startAt   DateTime?
+  endAt     DateTime?
+  note      String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  event        Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  shifts       EventShift[]
+  /// この開催日についてのパートナー催事日報。
+  dealerReports DealerEventReport[]
+
+  @@unique([eventId, eventDate])
+  @@index([eventDate])
 }
 
 model EventDealer {
@@ -1064,6 +1295,8 @@ model EventDealer {
 model EventShift {
   id           String      @id @default(cuid())
   eventId      String
+  /// 複数日催事の「どの開催日の配置か」。旧データ（開催日レコードなし）は null。
+  eventDayId   String?
   userId       String
   role         ShiftRole
   startPlanned DateTime
@@ -1075,12 +1308,17 @@ model EventShift {
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
-  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event    Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventDay EventDay? @relation(fields: [eventDayId], references: [id], onDelete: SetNull)
 
-  // F-025: 同一ユーザの同時刻開始シフトは禁止。アプリ層が「終了時刻」も含めた
-  // 区間重複を事前チェックし、DB は最終ガードとして開始時刻の UNIQUE で抑える。
-  @@unique([userId, startPlanned])
+  // F-025: 同一ユーザの予定時間帯の重複は禁止。アプリ層で候補から除外し保存時にも
+  // 検証するが、最終ガードは DB 側の EXCLUDE 制約（btree_gist × tstzrange の半開区間）。
+  // 旧 @@unique([userId, startPlanned]) は「開始時刻がずれた重複」を通してしまい、
+  // 複数管理者の同時操作を止められなかったため置き換えた。Prisma スキーマでは
+  // EXCLUDE を表現できないので、制約はマイグレーション SQL 側で張る
+  // （EventShift_user_no_overlap）。
   @@index([eventId])
+  @@index([eventDayId])
   @@index([userId, startPlanned, endPlanned])
 }
 
@@ -1245,15 +1483,200 @@ model DealerEventReport {
   /// 所感。
   impression    String?
 
+  // ── 共通の催事への関連（代理店-01）──
+  /// 確定した催事。マスタ未登録の場所でも提出できるよう NULL 許容。
+  /// NULL の行は「未紐付け」としてイベント詳細とは別の導線から確認する。
+  eventId    String?
+  /// 催事のどの開催日についての報告か。複数日開催の識別に使う。
+  eventDayId String?
+  /// 数値の集計単位。既存行は UNKNOWN（フォームが聞いていなかった）。
+  reportScope DealerReportScope @default(UNKNOWN)
+  /// この報告が訂正・差し替えた元の報告。連鎖の末尾だけを集計対象にする。
+  supersedesReportId String? @unique
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // 複合外部キー。relationshipId 単独ではなく (relationshipId, wholesalerId) で参照し、
   // 「自社の relationship なのに wholesalerId は別代理店」という不整合を DB で塞ぐ。
   relationship Relationship @relation(fields: [relationshipId, wholesalerId], references: [id, wholesalerId])
+  event        Event?       @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  eventDay     EventDay?    @relation(fields: [eventDayId], references: [id], onDelete: SetNull)
+  supersedes   DealerEventReport?  @relation("DealerEventReportCorrection", fields: [supersedesReportId], references: [id], onDelete: SetNull)
+  supersededBy DealerEventReport?  @relation("DealerEventReportCorrection")
 
   @@index([wholesalerId, eventDate])
   @@index([relationshipId, eventDate])
+  @@index([eventId])
+  @@index([eventDayId])
+}
+
+/// 催事日報の数値が「誰の実績か」。
+///
+/// 既存フォームはこれを聞いていないため、移行済みの行は UNKNOWN になる。
+/// 集計は UNKNOWN を合計へ混ぜず、対象外件数として件数だけ出す
+/// （複数スタッフが同じブース全体の数値を出していた場合の水増しを防ぐ）。
+enum DealerReportScope {
+  /// 提出者ひとりの実績。
+  PERSON
+  /// 提出した会社の合計。
+  COMPANY
+  /// ブース全体（他社を含む）の合計。
+  BOOTH
+  /// 単位が確定できない（既存データの既定値）。
+  UNKNOWN
+}
+
+/// 二次店ポータルのアポイント区分。Google フォーム 2 種のどちらで提出されたかを表す。
+enum PartnerAppointmentKind {
+  /// 「住設事業部/加盟店-①初訪アポフォーム」
+  FIRST_VISIT
+  /// 「住設事業部/加盟店-②訪問アポフォーム」
+  VISIT
+}
+
+/**
+ * 二次店が提出する訪問アポ（Google フォーム「②訪問アポフォーム」の置き換え）。
+ *
+ * 既存 Appointment に相乗りしない理由:
+ *   このフォームには顧客情報も訪問日時も無い。Appointment は customerId と
+ *   scheduledAt が NOT NULL なので、相乗りさせるとダミー顧客・架空日時を
+ *   作らざるを得なくなり、既存のアポイント一覧・集計の意味が壊れる。
+ *   画面は同じ「アポイント登録」のタブとして見せ、保存先だけを分ける。
+ *
+ * 分離キーは relationshipId（提出した二次店）。wholesalerId は取引先の代理店で、
+ * どちらも認証済みユーザーからサーバー側で決定し、フォームからは受け取らない。
+ *
+ * 列はフォームの 5 項目 + テナント分離 + 監査列だけ。フォームに無い項目は持たない。
+ */
+model DealerVisitAppointment {
+  id              String @id @default(cuid())
+  /// 取引先の代理店（テナント分離キー）。
+  wholesalerId    String
+  /// 提出した二次店（卸業者×二次店）。RLS の分離キー。
+  relationshipId  String
+  /// 提出者（認証済みユーザー）。
+  createdByUserId String
+
+  /// トス部署（自由記述）。Customer.tossDept と同義。
+  tossDept        String
+  /// マエカク実施者（自由記述）。Customer.maekakuOperator と同義。
+  maekakuOperator String
+  /// クローズ部署（自由記述）。既存の「所属部署」(Customer.belongDept) とは
+  /// 別概念のため読み替えず、この列で持つ。
+  closeDept       String
+  /// 営業担当者。自社に登録済みの販売員を指す。
+  salespersonId   String
+  /// 販売チャネル。既存 SalesChannel と選択肢が一致するため再利用する。
+  salesChannel    SalesChannel
+
+  // ── 共通の顧客・アポイントへの関連（代理店-01）──
+  /// 対応する顧客。このフォームは顧客名を聞かないので、紐付けは人が確認して行う。
+  /// 架空の顧客を作って埋めないため NULL 許容のままにする。
+  customerId    String?
+  /// 対応するアポイント。日時を持たないフォームなので、日時のある Appointment が
+  /// 別に登録されたときだけ結び付く。
+  appointmentId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 複合外部キー。「自社の relationship なのに wholesalerId は別代理店」を DB で塞ぐ。
+  relationship Relationship @relation(fields: [relationshipId, wholesalerId], references: [id, wholesalerId])
+  salesperson  Salesperson  @relation(fields: [salespersonId], references: [id])
+  customer     Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  appointment  Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+
+  @@index([wholesalerId, createdAt])
+  @@index([relationshipId, createdAt])
+  @@index([salespersonId])
+  @@index([customerId])
+  @@index([appointmentId])
+}
+
+/// 成約フォームの「所属」。VE = バリューエコロジー社員 / PS = それ以外。
+enum DealerContractAffiliation {
+  VE
+  PS
+}
+
+/**
+ * 成約フォームの「アポ獲得時チャネル」。
+ *
+ * 既存 SalesChannel（訪問販売 / 反響 / 催事 / 紹介 / その他）や
+ * AcquisitionChannel（催事 / 飛び込み / テレマ / 紹介 / その他）とは
+ * 選択肢が一致しない（テレアポがあり「その他」が無い）ため、意味の違う
+ * 既存 enum へ読み替えず専用に持つ。
+ */
+enum DealerContractChannel {
+  VISIT_SALES
+  TELE_APPOINTMENT
+  REFERRAL
+  EVENT
+  INBOUND
+}
+
+/**
+ * 二次店が提出する成約報告（Google フォーム「成約フォーム」の置き換え）。
+ *
+ * 既存 Contract に相乗りしない理由:
+ *   Contract は dealId（@unique・必須）/ customerId / contractAmount /
+ *   cancelDeadline が必須で、商談（Deal）から積み上がる粗利・インセンティブ計算の
+ *   起点になっている。このフォームにはそれらの項目が無く、埋めるにはダミー値の
+ *   生成が必要になる。既存の契約・粗利・インセンティブの意味を壊さないため別テーブルにする。
+ *
+ * 列はフォームの 9 項目 + テナント分離 + 監査列だけ。
+ */
+model DealerContractReport {
+  id              String @id @default(cuid())
+  /// 取引先の代理店（テナント分離キー）。
+  wholesalerId    String
+  /// 提出した二次店（卸業者×二次店）。RLS の分離キー。
+  relationshipId  String
+  /// 提出者（認証済みユーザー）。
+  createdByUserId String
+
+  /// ご契約日（日付のみ）。
+  contractDate       DateTime
+  /// トス日（日付のみ）。
+  tossDate           DateTime
+  /// トス部署。
+  tossDept           String
+  /// アポ獲得者（自由記述。Salesperson へは紐付けない — フォームは記名欄のため）。
+  apptGetter         String
+  /// 営業担当者（自由記述。同上）。
+  salesRep           String
+  /// 取次拠点。
+  referralBranch     String
+  /// 所属（VE / PS）。
+  affiliation        DealerContractAffiliation
+  /// 所属部署。
+  affiliationDept    String
+  /// アポ獲得時チャネル。
+  acquisitionChannel DealerContractChannel
+
+  // ── 共通の顧客・商談・契約への関連（代理店-01）──
+  /// 対応する顧客。フォームは顧客名を聞かないので人が確認して紐付ける。
+  customerId String?
+  /// 対応する商談。
+  dealId     String?
+  /// 対応する正式契約。この報告から Contract を自動生成することはしない
+  /// （金額・解約期限・粗利を持たないため、架空値での穴埋めになる）。
+  contractId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  relationship Relationship @relation(fields: [relationshipId, wholesalerId], references: [id, wholesalerId])
+  customer     Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  deal         Deal?        @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  contract     Contract?    @relation(fields: [contractId], references: [id], onDelete: SetNull)
+
+  @@index([wholesalerId, contractDate])
+  @@index([relationshipId, contractDate])
+  @@index([customerId])
+  @@index([dealId])
+  @@index([contractId])
 }
 
 model Customer {
@@ -1409,6 +1832,9 @@ model Customer {
   messages     CustomerMessage[]
   existingEquipments CustomerExistingEquipment[]
   proposedProductRef Product? @relation("CustomerProposedProduct", fields: [proposedProductId], references: [id], onDelete: SetNull)
+  /// パートナー会社が提出した訪問アポ報告・成約報告のうち、この顧客に紐付いたもの。
+  dealerVisitAppointments DealerVisitAppointment[]
+  dealerContractReports   DealerContractReport[]
 
   @@index([wholesalerId, phone])
   @@index([wholesalerId, status, createdAt])
@@ -1429,10 +1855,15 @@ enum GuideAttendee {
 
 // 既設設備カテゴリ（ガス給湯機 / エコキュート / 太陽光）。ContractEquipment の
 // EquipmentCategory（§16.3）とは別 enum（値域・意味が異なるため共有しない）。
+/// 既設の家庭設備。複数の設備状況を 1 顧客に記録できる（CustomerExistingEquipment）。
+/// IH / エアコン / 蓄電池 は業務要望で追加した値。既存 3 値の意味は変えていない。
 enum ExistingEquipmentCategory {
   GAS_WATER_HEATER
   ECO_CUTE
   PV
+  IH
+  AIR_CONDITIONER
+  BATTERY
 }
 
 // 設置有無 3 値: あり / なし / 不明。
@@ -1478,16 +1909,23 @@ model CustomerActivity {
   // 見積提示カテゴリ（category = "quote"）のときの提示金額（円）。それ以外は null。
   amount          Int?
   // 記録の担当者（営業担当。createdByUserId = 作成者/監査 とは別概念）。未設定は null。
+  // 引継ぎ・共同対応では、担当者を変えても createdByUserId は元のまま残る。
   assigneeUserId  String?
+  /// 接点を持った催事（どこで）。文字列一致ではなく id で結ぶ。催事外の接点は null。
+  eventId         String?
   createdByUserId String
+  /// 直近に更新した利用者。誰が何を直したかを追えるようにする（作成者とは別）。
+  updatedByUserId String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   customer Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  event    Event?         @relation(fields: [eventId], references: [id], onDelete: SetNull)
   tasks    CustomerTask[]
   files    CustomerFile[]
 
   @@index([customerId, occurredAt])
+  @@index([eventId])
 }
 
 // 発生タスク（商談履歴に紐づく ToDo）。タスク一覧タイルにも表示。
@@ -1638,6 +2076,12 @@ model Appointment {
   acquiredOrgType        TenantType
   acquiredRelationshipId String?
   appointmentType        String?
+  /// 二次店ポータルのフォーム区分（初訪アポ / 訪問アポ）。
+  ///
+  /// 既存の appointmentType（「初回訪問」「現地調査同行」等の自由記述で、
+  /// アポイントの内容・段階を表す代理店側の項目）とは別概念なので流用しない。
+  /// 代理店が直接登録したアポイントでは null のまま。
+  partnerKind            PartnerAppointmentKind?
   status                 AppointmentStatus @default(UNCONFIRMED)
   note                   String?
   // F-063: アポイント取得日（現 createdAt 近似運用を明示項目化／docs/05 §17.1.7）。
@@ -1648,6 +2092,13 @@ model Appointment {
   customer Customer @relation(fields: [customerId], references: [id])
   event    Event?   @relation(fields: [eventId], references: [id])
   preCall  PreCall?
+  /// 取得担当者。一覧を担当者名で並べ替えるために関連として持つ
+  /// （以前は id 文字列だけだったので、名前順が DB 側で組めなかった）。
+  acquiredByUser User @relation("AppointmentAcquiredBy", fields: [acquiredByUserId], references: [id])
+  /// 取得したパートナー会社との取引関係。会社名での並べ替えに使う。
+  acquiredRelationship Relationship? @relation("AppointmentAcquiredRelationship", fields: [acquiredRelationshipId], references: [id])
+  /// パートナー会社が提出した訪問アポ報告のうち、このアポイントに紐付いたもの。
+  dealerVisitAppointments DealerVisitAppointment[]
 
   @@index([customerId])
   @@index([status, scheduledAt])
@@ -1834,6 +2285,8 @@ model Deal {
 
   customer Customer  @relation(fields: [customerId], references: [id])
   contract Contract?
+  /// パートナー会社が提出した成約報告のうち、この商談に紐付いたもの。
+  dealerContractReports DealerContractReport[]
 
   @@index([customerId])
   @@index([status, createdAt])
@@ -1887,6 +2340,9 @@ model Contract {
   equipment     ContractEquipment[]
   payment       ContractPayment?
   costs         ContractCost[]
+  /// パートナー会社の成約報告のうち、この正式契約に紐付いたもの。
+  /// 報告から契約を自動生成はしない（金額・解約期限を持たないため）。
+  dealerContractReports DealerContractReport[]
 
   @@index([wholesalerId, status, contractDate])
   @@index([ownerRelationshipId, status])

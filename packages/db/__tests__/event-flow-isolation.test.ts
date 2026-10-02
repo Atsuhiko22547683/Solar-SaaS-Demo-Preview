@@ -508,9 +508,11 @@ describe("event-flow — saas-admin bypass", () => {
 });
 
 describe("event-flow — EventShift constraints", () => {
-  it("rejects a second EventShift with the same userId + startPlanned (DB UNIQUE)", async () => {
-    // Same user, same startPlanned, different end → still rejected by the
-    // `(userId, startPlanned)` UNIQUE that the migration creates.
+  it("rejects an overlapping EventShift for the same user (EXCLUDE constraint)", async () => {
+    // 旧 `(userId, startPlanned)` UNIQUE は「開始時刻がずれた重複」を通してしまい、
+    // 複数の管理者が同時に別の催事へ同じスタッフを入れるのを止められなかった。
+    // いまは予定時間帯そのものに EXCLUDE 制約（btree_gist × tsrange 半開区間）を
+    // 張っているので、開始時刻が違っても重なっていれば DB が拒否する。
     await expect(
       withTenant(ctxForWholesaler(fixture.tenantA.id, fixture.tenantA.userId), (tx) =>
         tx.eventShift.create({
@@ -518,15 +520,37 @@ describe("event-flow — EventShift constraints", () => {
             eventId: fixture.eventA,
             userId: fixture.tenantA.userId,
             role: "CATCH",
-            startPlanned: new Date("2026-06-15T09:00:00+09:00"),
-            endPlanned: new Date("2026-06-15T12:00:00+09:00"),
+            // 既存は 09:00-12:00。開始時刻をずらしても区間が重なるので拒否される。
+            startPlanned: new Date("2026-06-15T10:00:00+09:00"),
+            endPlanned: new Date("2026-06-15T14:00:00+09:00"),
           },
         }),
       ),
-      // Prisma cannot always recover the constraint name from inside an
-      // application-layer-bypassed RLS path, so we match the generic
-      // "Unique constraint failed" error string the engine surfaces.
-    ).rejects.toThrow(/Unique constraint failed/);
+    ).rejects.toThrow(/EventShift_user_no_overlap|exclusion constraint/i);
+  });
+
+  it("allows an adjacent EventShift for the same user (end == next start)", async () => {
+    // 半開区間なので「前の催事が 18:00 終了・次が 18:00 開始」は重複にしない。
+    // fixture の既存シフトは 09:00-18:00。
+    const created = await withTenant(
+      ctxForWholesaler(fixture.tenantA.id, fixture.tenantA.userId),
+      (tx) =>
+        tx.eventShift.create({
+          data: {
+            eventId: fixture.eventA,
+            userId: fixture.tenantA.userId,
+            role: "TOSS",
+            startPlanned: new Date("2026-06-15T18:00:00+09:00"),
+            endPlanned: new Date("2026-06-15T21:00:00+09:00"),
+          },
+          select: { id: true },
+        }),
+    );
+    expect(created.id).toBeTruthy();
+    // 後続のテストに影響しないよう片付ける。
+    await withTenant(ctxForWholesaler(fixture.tenantA.id, fixture.tenantA.userId), (tx) =>
+      tx.eventShift.delete({ where: { id: created.id } }),
+    );
   });
 
   it("rejects EventShift with endPlanned <= startPlanned (CHECK constraint)", async () => {
