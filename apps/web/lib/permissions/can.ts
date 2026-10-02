@@ -92,15 +92,75 @@ export type Capability = "settings" | "payment";
  *                   通常機能   設定   決済管理
  *   オーナー            ○       ○       ○
  *   システム管理者       ○       ○       ×
- *   一般ユーザー         ○       ×       ○
+ *   一般ユーザー         ○       ×       ×
+ *
+ * 決済管理は「BizOrch の利用契約・利用料」を扱う画面なので、
+ * 契約名義であるオーナー専用にする（業務データの権限とは別軸）。
  */
 const CAPABILITY_ROLES: Record<Capability, SystemRole[]> = {
   settings: ["OWNER", "SYSTEM_ADMIN"],
-  payment: ["OWNER", "GENERAL_USER"],
+  payment: ["OWNER"],
 };
 
 export function isSystemRole(role: string): role is SystemRole {
   return (SYSTEM_ROLES as readonly string[]).includes(role);
+}
+
+/**
+ * システムユーザー管理の階層。数字が大きいほど上位。
+ *
+ *   OWNER (3) > SYSTEM_ADMIN (2) > GENERAL_USER (1)
+ *
+ * 「自分より上位のユーザーは登録・編集・削除できない」を表すためだけの序列で、
+ * 機能の可否（設定 / 決済管理）は capability 側が持つ。両者は別軸。
+ */
+const ROLE_RANK: Record<SystemRole, number> = {
+  OWNER: 3,
+  SYSTEM_ADMIN: 2,
+  GENERAL_USER: 1,
+};
+
+/**
+ * ロール集合の階層ランク。
+ *
+ * 旧ロール（WHOLESALER_ADMIN 等）しか持たないユーザーは 0 を返す。
+ * 旧ロールを高権限と推定しないため — 推定すると、名前が似ているだけの
+ * 過去データが管理権限を持ってしまう。
+ */
+export function roleRank(roles: readonly string[]): number {
+  return roles.reduce((max, r) => (isSystemRole(r) ? Math.max(max, ROLE_RANK[r]) : max), 0);
+}
+
+/**
+ * actor が target のロールを扱えるか（同階層以下なら可）。
+ *
+ * 登録時の「指定しようとしているロール」と、編集時の「変更後ロール」の
+ * どちらの検証にも使う。
+ */
+export function canManageRole(actorRoles: readonly string[], targetRole: string): boolean {
+  const actor = roleRank(actorRoles);
+  if (actor === 0) return false;
+  return actor >= roleRank([targetRole]);
+}
+
+/**
+ * actor が target ユーザーを管理できるか（登録・編集・削除）。
+ *
+ * target 側が旧ロールだけを持つ場合はランク 0 なので、上位ロールから見て
+ * 常に管理可能になる（新ロールへ移行させられる）。
+ */
+export function canManageUser(
+  actorRoles: readonly string[],
+  targetRoles: readonly string[],
+): boolean {
+  const actor = roleRank(actorRoles);
+  if (actor === 0) return false;
+  return actor >= roleRank(targetRoles);
+}
+
+/** actor が新規登録時に指定できるロール（上位は出さない）。 */
+export function assignableRoles(actorRoles: readonly string[]): SystemRole[] {
+  return SYSTEM_ROLES.filter((r) => canManageRole(actorRoles, r));
 }
 
 /** 指定ロールの集合がそのカテゴリを使えるか（サイドバー表示の判定にも使う）。 */
@@ -140,6 +200,24 @@ const ALL_WHOLESALER_ROLES: AppRole[] = [
 ];
 
 const ALL_DEALER_ROLES: AppRole[] = ["DEALER_ADMIN", "DEALER_STAFF"];
+
+/**
+ * 製品カタログ（商品マスタ）の管理ロール。
+ *
+ * 正式仕様では OWNER / SYSTEM_ADMIN / GENERAL_USER の 3 ロールとも
+ * 登録・編集・削除・有効無効切替ができる。製品カタログは通常業務機能で、
+ * 設定 / 決済管理のような capability ゲートは掛けない
+ * （システムユーザー管理の階層 OWNER > SYSTEM_ADMIN > GENERAL_USER は
+ * ユーザー管理専用のもので、商品管理には持ち込まない）。
+ *
+ * 3 ロールは expandRoles で旧ロール語彙にも展開されるが、それに頼らず
+ * 明示的に並べる — 「誰が触れるか」をこの 1 行で読めるようにし、
+ * 将来 expandRoles が変わっても仕様が揺れないようにするため。
+ *
+ * 旧ロールについては従来どおり WHOLESALER_ADMIN のみ。マスタ運用担当だけに
+ * 書き込みを許す既存ルール（docs/02 §F-012）を広げる話ではないため。
+ */
+const CATALOG_MANAGE_ROLES: AppRole[] = [...SYSTEM_ROLES, "WHOLESALER_ADMIN"];
 
 // Coarse SP-01 matrix. Extend per-feature in subsequent sprints rather than
 // inlining branching here. The key is `<domain>.<verb>`.
@@ -325,7 +403,8 @@ const POLICY: Record<PermissionAction, ActionPolicy> = {
 
   // --- 決済管理（/payments） ---
   //
-  // 契約済み顧客の決済状況の確認。Stripe API はまだ接続しないので read のみ。
+  // BizOrch の利用契約（プラン / 利用料 / 契約期間 / 支払い状況）の確認。
+  // 太陽光顧客の決済ではない。Stripe API はまだ接続しないので read のみ。
   "payment.read": {
     roles: ALL_WHOLESALER_ROLES,
     capability: "payment",
@@ -413,16 +492,24 @@ const POLICY: Record<PermissionAction, ActionPolicy> = {
     roles: [...ALL_WHOLESALER_ROLES, ...ALL_DEALER_ROLES],
   },
   "product.create": {
-    roles: ["WHOLESALER_ADMIN"],
+    roles: CATALOG_MANAGE_ROLES,
   },
   "product.update": {
-    roles: ["WHOLESALER_ADMIN"],
+    roles: CATALOG_MANAGE_ROLES,
   },
+  // 価格改定（版管理）は旧マスタ画面 /masters/products の機能で、
+  // カタログ画面は使わない。従来どおりマスタ運用担当のみ。
   "product.revise": {
     roles: ["WHOLESALER_ADMIN"],
   },
   "product.retire": {
-    roles: ["WHOLESALER_ADMIN"],
+    roles: CATALOG_MANAGE_ROLES,
+  },
+  // 一覧上の「有効 / 無効」チェックボックス。削除（product.retire）とは
+  // 別のアクションキーにする — 日常的な出し入れと、カタログから落とす操作を
+  // 権限・監査ログの両方で区別できるようにするため。
+  "product.set_active": {
+    roles: CATALOG_MANAGE_ROLES,
   },
 
   // --- Installer master (F-013) — docs/02 §F-013 / docs/05 §3.3.
@@ -466,11 +553,58 @@ const POLICY: Record<PermissionAction, ActionPolicy> = {
   //
   // スコープはロールでは決まらない。実際に読み書きできる範囲は
   // getTenantContext() が解決する relationshipIds と RLS が決める。
+  //
+  // 二次店管理者（DEALER_ADMIN）と二次店スタッフ（DEALER_STAFF）の違い:
+  //   - 販売員情報の管理は管理者だけ。スタッフは画面から隠すのではなく、
+  //     ここでアクションごと拒否する（URL 直打ち・Server Action 直接呼び出しも 403）。
+  //   - 報告系（アポ / 成約 / 日報）はどちらも登録できるが、スタッフが読める・
+  //     直せるのは本人提出分だけ。その絞り込みは requirePartnerContext の
+  //     ownedBy* ヘルパが担う（ロール表では表せない行単位の条件のため）。
   "partner_salesperson.read": {
-    roles: ALL_DEALER_ROLES,
+    roles: ["DEALER_ADMIN"],
     requireTenantScope: false,
   },
   "partner_salesperson.write": {
+    roles: ["DEALER_ADMIN"],
+    requireTenantScope: false,
+  },
+  // フォームの担当者セレクト用（id と氏名だけ）。管理画面の閲覧権限とは別に持つ —
+  // スタッフも自社の販売員を担当者として選べる必要があるため。
+  "partner_salesperson.options": {
+    roles: ALL_DEALER_ROLES,
+    requireTenantScope: false,
+  },
+  // --- スタッフ向けの閲覧系（カタログ / 顧客・商談 / シフト）---
+  "partner_catalog.read": {
+    roles: ALL_DEALER_ROLES,
+    requireTenantScope: false,
+  },
+  "partner_customer.read": {
+    roles: ALL_DEALER_ROLES,
+    requireTenantScope: false,
+  },
+  // 商談情報の編集。顧客の基本情報や担当者の変更はこのアクションでは扱わない。
+  "partner_deal.write": {
+    roles: ALL_DEALER_ROLES,
+    requireTenantScope: false,
+  },
+  "partner_shift.read": {
+    roles: ALL_DEALER_ROLES,
+    requireTenantScope: false,
+  },
+  // 個人設定（本人の販売員情報の閲覧・編集）。対象は「ログイン利用者に紐づく行」だけで、
+  // 他人の情報は where の userId 条件で対象外になる（権限では分けない）。
+  "partner_profile.read": {
+    roles: ALL_DEALER_ROLES,
+    requireTenantScope: false,
+  },
+  "partner_profile.write": {
+    roles: ALL_DEALER_ROLES,
+    requireTenantScope: false,
+  },
+  // 催事シフトの出退勤（本人の打刻）。配置の変更（partner_shift.write）とは別。
+  // 「本人の割当だけ」は lib/partner/attendance.ts が userId で絞って担保する。
+  "partner_shift.clock": {
     roles: ALL_DEALER_ROLES,
     requireTenantScope: false,
   },
@@ -490,9 +624,91 @@ const POLICY: Record<PermissionAction, ActionPolicy> = {
     roles: ALL_DEALER_ROLES,
     requireTenantScope: false,
   },
-  // 代理店側の読み取り専用ビュー（二次店が提出した日報の一覧・詳細）。
+  "partner_visit_appointment.read": {
+    roles: ALL_DEALER_ROLES,
+    requireTenantScope: false,
+  },
+  "partner_visit_appointment.write": {
+    roles: ALL_DEALER_ROLES,
+    requireTenantScope: false,
+  },
+  "partner_contract_report.read": {
+    roles: ALL_DEALER_ROLES,
+    requireTenantScope: false,
+  },
+  "partner_contract_report.write": {
+    roles: ALL_DEALER_ROLES,
+    requireTenantScope: false,
+  },
+  // --- 二次店管理者だけの領域（DEALER_ADMIN）-------------------------------
+  //
+  // 「自社のスタッフ・提出物・顧客を管理する」側の機能。スタッフから隠すのでは
+  // なく、ここでアクションごと拒否する（URL 直打ち・Server Action 直接呼び出しも
+  // 403）。対象範囲は relationshipId / tenantId と RLS が決めるので、ここでは
+  // ロールだけを見る（requireTenantScope: false は他の partner_* と同じ）。
+  //
+  // 代理店側の同名アクション（member.read / user.update / customer.update …）とは
+  // 別キーにする。あちらは代理店テナントの設定機能で、許可ロールも対象データも違う。
+  "partner_user.read": {
+    roles: ["DEALER_ADMIN"],
+    requireTenantScope: false,
+  },
+  "partner_user.write": {
+    roles: ["DEALER_ADMIN"],
+    requireTenantScope: false,
+  },
+  // 営業フィー（手数料率と確定インセンティブ）の閲覧。率の設定は代理店側の
+  // commission_rate.write なので、二次店側に write は無い。
+  "partner_commission.read": {
+    roles: ["DEALER_ADMIN"],
+    requireTenantScope: false,
+  },
+  // 自社顧客の基本情報の編集 / 削除。スタッフは商談情報（partner_deal.write）
+  // だけで、顧客そのものは触れない。
+  "partner_customer.write": {
+    roles: ["DEALER_ADMIN"],
+    requireTenantScope: false,
+  },
+  "partner_customer.delete": {
+    roles: ["DEALER_ADMIN"],
+    requireTenantScope: false,
+  },
+  // 出店希望の閲覧・提出（パートナー管理者の業務）。
+  "partner_lane_preference.read": {
+    roles: ["DEALER_ADMIN"],
+    requireTenantScope: false,
+  },
+  "partner_lane_preference.write": {
+    roles: ["DEALER_ADMIN"],
+    requireTenantScope: false,
+  },
+  // 場所確保の相談。提出とは別建てだが、同じく管理者の業務。
+  "partner_consultation.read": {
+    roles: ["DEALER_ADMIN"],
+    requireTenantScope: false,
+  },
+  "partner_consultation.write": {
+    roles: ["DEALER_ADMIN"],
+    requireTenantScope: false,
+  },
+  // 催事シフトの配置（自社スタッフの割当）。閲覧は partner_shift.read で両区分。
+  "partner_shift.write": {
+    roles: ["DEALER_ADMIN"],
+    requireTenantScope: false,
+  },
+  // 代理店側: パートナー会社の出店希望への回答・相談への返信。
+  "lane_preference.answer": {
+    roles: ["WHOLESALER_ADMIN", "WHOLESALER_EVENT_TEAM"],
+  },
+  // 代理店側の読み取り専用ビュー（二次店が提出した内容の一覧・詳細）。
   // 登録・編集は二次店だけが行うので read しか無い。
   "dealer_event_report.read": {
+    roles: ALL_WHOLESALER_ROLES,
+  },
+  "dealer_visit_appointment.read": {
+    roles: ALL_WHOLESALER_ROLES,
+  },
+  "dealer_contract_report.read": {
     roles: ALL_WHOLESALER_ROLES,
   },
 
@@ -567,6 +783,54 @@ const POLICY: Record<PermissionAction, ActionPolicy> = {
   },
   "commission_setting.update": {
     roles: ["WHOLESALER_ADMIN"],
+  },
+
+  // --- 運営管理サイト（BizOrch 運営管理 / APP_VARIANT=system-admin）。
+  //
+  // 「代理店管理者」「パートナー管理者」であるだけでは入れない。運営者（SAAS_ADMIN）
+  // だけに与える専用のアクションとして切り出し、ページ・Server Action の入口で
+  // それぞれ検証する。`assertCan` は saas-admin を最初に return で抜けるので、
+  // ここは非運営者を落とすための表（明示性のために SAAS_ADMIN も書いておく）。
+  //
+  // 会社をまたぐ取得・更新はこれらのアクションを通した専用処理だけが行う。
+  // 既存のテナント分離・RLS は解除しない（運営者の文脈でのみバイパスされる既存動作を、
+  // 運営権限を確かめたうえで使う）。
+  "system_admin.access": {
+    roles: ["SAAS_ADMIN"],
+    requireTenantScope: false,
+  },
+  "system_admin.company.read": {
+    roles: ["SAAS_ADMIN"],
+    requireTenantScope: false,
+  },
+  "system_admin.company.write": {
+    roles: ["SAAS_ADMIN"],
+    requireTenantScope: false,
+  },
+  "system_admin.user.read": {
+    roles: ["SAAS_ADMIN"],
+    requireTenantScope: false,
+  },
+  "system_admin.user.write": {
+    roles: ["SAAS_ADMIN"],
+    requireTenantScope: false,
+  },
+  /** 運営権限そのものの付与・解除。会社・利用者の変更とは分ける。 */
+  "system_admin.operator.read": {
+    roles: ["SAAS_ADMIN"],
+    requireTenantScope: false,
+  },
+  "system_admin.operator.write": {
+    roles: ["SAAS_ADMIN"],
+    requireTenantScope: false,
+  },
+  "system_admin.audit.read": {
+    roles: ["SAAS_ADMIN"],
+    requireTenantScope: false,
+  },
+  "system_admin.status.read": {
+    roles: ["SAAS_ADMIN"],
+    requireTenantScope: false,
   },
 
   // --- SaaS-admin tenant management (F-004 / docs/05 §4.3 / T-02-08).

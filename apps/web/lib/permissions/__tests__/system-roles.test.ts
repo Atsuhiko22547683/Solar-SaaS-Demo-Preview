@@ -3,7 +3,7 @@
 //                   通常機能   設定   決済管理
 //   オーナー            ○       ○       ○
 //   システム管理者       ○       ○       ×
-//   一般ユーザー         ○       ×       ○
+//   一般ユーザー         ○       ×       ×
 //
 // 単純な上下関係ではないので、カテゴリごとに個別に確認する。
 
@@ -74,17 +74,19 @@ describe("設定 — オーナー / システム管理者だけ", () => {
   });
 });
 
-describe("決済管理 — オーナー / 一般ユーザーだけ", () => {
+// 決済管理は BizOrch の利用契約（プラン / 利用料 / 契約期間）を扱う画面なので、
+// 契約名義であるオーナー専用。
+describe("決済管理 — オーナーだけ", () => {
   it("オーナーは決済管理を開ける", () => {
     expect(() => assertCan({ user: owner, action: "payment.read" })).not.toThrow();
   });
 
-  it("一般ユーザーは決済管理を開ける", () => {
-    expect(() => assertCan({ user: generalUser, action: "payment.read" })).not.toThrow();
-  });
-
   it("システム管理者は決済管理を開けない", () => {
     expect(() => assertCan({ user: systemAdmin, action: "payment.read" })).toThrow(ForbiddenError);
+  });
+
+  it("一般ユーザーは決済管理を開けない", () => {
+    expect(() => assertCan({ user: generalUser, action: "payment.read" })).toThrow(ForbiddenError);
   });
 });
 
@@ -98,7 +100,7 @@ describe("hasCapability — サイドバーの出し分けに使う判定", () =
   it("決済管理", () => {
     expect(hasCapability(["OWNER"], "payment")).toBe(true);
     expect(hasCapability(["SYSTEM_ADMIN"], "payment")).toBe(false);
-    expect(hasCapability(["GENERAL_USER"], "payment")).toBe(true);
+    expect(hasCapability(["GENERAL_USER"], "payment")).toBe(false);
   });
 
   it("旧ロールしか持たない既存ユーザーは従来どおり（カテゴリ制限なし）", () => {
