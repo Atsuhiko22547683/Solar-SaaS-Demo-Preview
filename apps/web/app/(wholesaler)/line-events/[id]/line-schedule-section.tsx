@@ -4,14 +4,8 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import {
-  buildDemoAppointments,
-  buildDemoEventReports,
-} from "@/components/reports/result-report-data";
-import {
-  AcquiredAppointmentsTable,
-  EventReportsView,
-} from "@/components/reports/result-report-dialog";
+import { AcquiredAppointmentsTable } from "@/components/reports/acquired-appointments-table";
+import { DealerReportsSection } from "@/components/reports/dealer-reports-section";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -19,7 +13,21 @@ import { labels } from "@/lib/i18n/labels";
 
 import { updateLineDatesAction } from "./actions";
 
+import type { AcquiredAppointmentRow } from "@/app/(wholesaler)/event-detail/acquired-appointment-data";
+import type { DealerEventReportBundle } from "@/app/(wholesaler)/event-detail/dealer-report-data";
+
 const DAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
+
+// 日報が 1 件も無い日の集計。0 を並べるだけで、件数を作らない。
+const EMPTY_SUMMARY = {
+  lotteryTotal: 0,
+  seatedTotal: 0,
+  apptTotal: 0,
+  countedReports: 0,
+  unknownScopeReports: 0,
+  boothReports: 0,
+  supersededReports: 0,
+};
 
 // 月曜始まりの曜日ヘッダー（登録ダイアログと統一）。
 const MON_WEEK_LABELS = ["月", "火", "水", "木", "金", "土", "日"];
@@ -61,8 +69,13 @@ interface LineScheduleSectionProps {
   targetMonth: string;
   scheduledDates: string[];
   contractNote: string | null;
-  // 催事場所（レーンイベント名 = 開催場所名）。成果報告ポップアップに渡す。
-  venuePlace: string;
+  /**
+   * このレーンで確定した催事に提出された日報を、開催日 'YYYY-MM-DD' ごとに束ねたもの。
+   * サーバー側で DB から読んで渡す。日付が無ければその日は日報なし。
+   */
+  reportsByDate: Record<string, DealerEventReportBundle>;
+  /** 開催日ごとの獲得アポイント。サーバー側で DB から読んで渡す。 */
+  appointmentsByDate: Record<string, AcquiredAppointmentRow[]>;
 }
 
 export function LineScheduleSection({
@@ -70,7 +83,8 @@ export function LineScheduleSection({
   targetMonth,
   scheduledDates,
   contractNote,
-  venuePlace,
+  reportsByDate,
+  appointmentsByDate,
 }: LineScheduleSectionProps) {
   const router = useRouter();
   const t = labels.lineEvent;
@@ -138,25 +152,11 @@ export function LineScheduleSection({
       .replace("{dow}", DAY_LABELS[dow] ?? "");
   }, [popupDate, t.datePopup.titleFormat]);
 
-  // 日付ポップアップで表示する報告一式（開始/終了/成果）。デモ値を決定論的に生成。
-  const popupReports = useMemo(
-    () =>
-      popupDate
-        ? buildDemoEventReports(`${lineEventId}-${popupDate}`, { date: popupDate, venuePlace })
-        : null,
-    [popupDate, lineEventId, venuePlace],
-  );
+  // その日の日報。DB にある提出だけを出す（表示のたびに実績を作らない）。
+  const popupBundle = popupDate ? (reportsByDate[popupDate] ?? null) : null;
 
-  // アポ取り顧客（成果のアポ数に揃えた件数を生成）。
-  const popupAppointments = useMemo(
-    () =>
-      popupReports && popupDate
-        ? buildDemoAppointments(`${lineEventId}-${popupDate}`, popupReports.result.apptTotal, {
-            date: popupDate,
-          })
-        : [],
-    [popupReports, lineEventId, popupDate],
-  );
+  // その日に獲得したアポイント。DB にある行だけを出す。
+  const popupAppointments = popupDate ? (appointmentsByDate[popupDate] ?? []) : [];
 
   return (
     <>
@@ -384,7 +384,7 @@ export function LineScheduleSection({
         </DialogContent>
       </Dialog>
 
-      {/* 日付ポップアップ — 報告/アポはプレースホルダー（将来データ連携時に差し込む） */}
+      {/* 日付ポップアップ — 日報は DB の提出をそのまま出す。 */}
       <Dialog open={popupDate != null} onOpenChange={(next) => !next && setPopupDate(null)}>
         <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
           <DialogHeader>
@@ -392,15 +392,15 @@ export function LineScheduleSection({
           </DialogHeader>
 
           <div className="mt-2 space-y-6">
-            {/* 報告（開始/終了/成果）— 入れ子ダイアログにせずポップアップ内に直接表示。 */}
-            {popupReports ? <EventReportsView reports={popupReports} /> : null}
+            {/* 日報・実績（パートナー会社）— 単発の催事詳細と同じ見せ方に揃える。 */}
+            <DealerReportsSection bundle={popupBundle ?? { rows: [], summary: EMPTY_SUMMARY }} />
 
             {/* アポ取り顧客一覧 — イベントで獲得したアポ顧客（デモ値、成果のアポ数に整合） */}
             <div>
               <p className="text-ink mb-2 text-sm font-semibold">
                 {t.datePopup.appointmentSection}
               </p>
-              <AcquiredAppointmentsTable customers={popupAppointments} />
+              <AcquiredAppointmentsTable rows={popupAppointments} />
             </div>
           </div>
         </DialogContent>

@@ -20,7 +20,27 @@ import { revalidatePath } from "next/cache";
 import { NotFoundError, ValidationError } from "@/lib/errors";
 import { withServerActionContext } from "@/lib/tenancy/server-action";
 
+import type { TxClient } from "@solar/db";
+
 const LIST_PATH = "/masters/stores";
+
+/**
+ * 開催エリアに顧客エリアを入れさせない。
+ *
+ * Area は EVENT / CUSTOMER を type 列で分けた 1 テーブルなので、id だけ渡されると
+ * 用途違いのエリアも紐付けられてしまう。画面側では EVENT だけを候補に出すが、
+ * サーバーでも type を確かめる。
+ */
+async function assertEventArea(tx: TxClient, areaId: string | null | undefined): Promise<void> {
+  if (!areaId) return;
+  const area = await tx.area.findUnique({ where: { id: areaId }, select: { type: true } });
+  if (!area) throw new NotFoundError("エリアが見つかりません");
+  if (area.type !== "EVENT") {
+    throw new ValidationError("開催エリアには、イベント用のエリアを選んでください", {
+      field: "areaId",
+    });
+  }
+}
 
 export interface CreateStoreResult {
   id: string;
@@ -36,6 +56,7 @@ export const createStoreAction = withServerActionContext<StoreInput, CreateStore
       throw new ValidationError("wholesalerId is required for store master");
     }
     const parsed = StoreInputSchema.parse(input);
+    await assertEventArea(tx, parsed.areaId);
 
     const created = await tx.store.create({
       data: {
@@ -44,6 +65,9 @@ export const createStoreAction = withServerActionContext<StoreInput, CreateStore
         ...(parsed.venueProviderId !== undefined
           ? { venueProviderId: parsed.venueProviderId }
           : {}),
+        ...(parsed.postalCode !== undefined ? { postalCode: parsed.postalCode } : {}),
+        ...(parsed.address !== undefined ? { address: parsed.address } : {}),
+        ...(parsed.areaId !== undefined ? { areaId: parsed.areaId } : {}),
         ...(parsed.isActive !== undefined ? { isActive: parsed.isActive } : {}),
       },
       select: { id: true },
@@ -80,14 +104,16 @@ export const updateStoreAction = withServerActionContext<UpdateStoreInput, Updat
     if (!existing) {
       throw new NotFoundError("店舗が見つかりません");
     }
+    await assertEventArea(tx, parsed.areaId);
 
     const updated = await tx.store.update({
       where: { id: input.id },
       data: {
         ...(parsed.name !== undefined ? { name: parsed.name } : {}),
-        ...("venueProviderId" in parsed
-          ? { venueProviderId: parsed.venueProviderId }
-          : {}),
+        ...("venueProviderId" in parsed ? { venueProviderId: parsed.venueProviderId } : {}),
+        ...("postalCode" in parsed ? { postalCode: parsed.postalCode } : {}),
+        ...("address" in parsed ? { address: parsed.address } : {}),
+        ...("areaId" in parsed ? { areaId: parsed.areaId } : {}),
         ...(parsed.isActive !== undefined ? { isActive: parsed.isActive } : {}),
       },
       select: { id: true },

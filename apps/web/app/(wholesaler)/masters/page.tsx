@@ -7,22 +7,45 @@ import { assertSettingsAccess } from "@/lib/permissions/settings-guard";
 
 import { AreasTabContent } from "./areas/areas-tab-content";
 import { getMastersHubSummary } from "./data";
+import { listStoreFilterOptions, listStores } from "./stores/data";
+import { StoreListSection } from "./stores/store-list-section";
 import { VenueProviderRow } from "./venue-provider-row";
 
-// /masters — エリア・場所管理。2 タブ構成（エリア設定 → 場所提供元）。
-// 場所提供元は 1 : N で店舗（VenueProvider.stores）を持つ親子関係。タブ自身は
-// 左寄せ + 各タブ幅を grid で統一。
+// /masters — エリア・場所管理。3 タブ構成（開催場所・店舗 → 場所提供元 → エリア設定）。
+//
+// 最初に出すのは「開催場所・店舗」。この画面で利用者が探しているのは実際に催事を行う
+// 場所とその住所・地域・関連催事で、都道府県が並ぶだけのエリア設定ではないため。
+// エリア設定は分類の定義なので最後に置く。
+//
+// 店舗一覧の実体は stores/store-list-section.tsx で、/masters/stores と共用する
+// （同じ管理画面を二重に作らない）。
 //
 // 二次店の管理はここではなく「設定 > 二次店管理」(/masters/relationships) が担う。
-// エリア・場所の責務だけをこのハブに残し、二次店一覧タブは削除した。
 
 export const dynamic = "force-dynamic";
 
-export default async function MastersHubPage() {
+interface PageProps {
+  searchParams: Promise<{ q?: string; areaId?: string; venueProviderId?: string }>;
+}
+
+export default async function MastersHubPage({ searchParams }: PageProps) {
   // 設定配下は OWNER / SYSTEM_ADMIN のみ。URL 直打ちもここで 403 にする。
   await assertSettingsAccess();
 
-  const summary = await getMastersHubSummary();
+  const params = await searchParams;
+  const q = params.q?.trim() ?? "";
+  const areaId = params.areaId?.trim() ?? "";
+  const venueProviderId = params.venueProviderId?.trim() ?? "";
+
+  const [summary, storeRows, storeOptions] = await Promise.all([
+    getMastersHubSummary(),
+    listStores({
+      ...(q ? { name: q } : {}),
+      ...(areaId ? { areaId } : {}),
+      ...(venueProviderId ? { venueProviderId } : {}),
+    }),
+    listStoreFilterOptions(),
+  ]);
   const t = labels.masters;
   const c = labels.common;
   const venueProvider = labels.venueProvider;
@@ -35,19 +58,56 @@ export default async function MastersHubPage() {
         <p className="text-muted-foreground text-sm">{t.subtitle}</p>
       </div>
 
-      <Tabs defaultValue="areas" className="space-y-4">
+      {/* 既定は「開催場所・店舗」。検索条件つきで開いたときもこのタブを見せる。 */}
+      <Tabs defaultValue="stores" className="space-y-4">
         {/* TabsList は左寄せ + 各タブ等幅。w-fit でリスト自身は内容幅に縮める */}
-        <TabsList className="grid w-fit grid-cols-2 gap-1">
-          <TabsTrigger value="areas" className="w-40">
-            エリア設定
+        <TabsList className="grid w-fit grid-cols-3 gap-1">
+          <TabsTrigger value="stores" className="w-40">
+            {store.venueSection.title}
           </TabsTrigger>
           <TabsTrigger value="venueProviders" className="w-40">
             場所提供元
           </TabsTrigger>
+          <TabsTrigger value="areas" className="w-40">
+            エリア設定
+          </TabsTrigger>
         </TabsList>
 
-        {/* タブ 1: エリア設定 — クライアント側コンポーネントが
-            イベントエリア / 顧客エリアのサブタブ + 新規/編集モーダルを管理。 */}
+        {/* タブ 1: 開催場所・店舗 — この画面の主役。 */}
+        <TabsContent value="stores">
+          <section
+            aria-labelledby="tab-stores-heading"
+            className="border-border bg-card space-y-4 rounded-md border p-4 sm:p-6"
+          >
+            <header className="flex flex-wrap items-start justify-between gap-3">
+              <div className="space-y-1">
+                <h2 id="tab-stores-heading" className="text-lg font-semibold">
+                  {store.venueSection.title}
+                </h2>
+                <p className="text-muted-foreground text-sm">{store.venueSection.description}</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button asChild variant="outline" size="sm">
+                  <Link href="/masters/stores">{t.embedded.openFullPage}</Link>
+                </Button>
+                <Button asChild size="sm">
+                  <Link href="/masters/stores/new">{store.new}</Link>
+                </Button>
+              </div>
+            </header>
+            <StoreListSection
+              rows={storeRows}
+              options={storeOptions}
+              action="/masters"
+              filter={{ q, areaId, venueProviderId }}
+              showHeading={false}
+            />
+          </section>
+        </TabsContent>
+
+        {/* タブ 3: エリア設定 — 催事の分類・検索に使う地域区分の定義。
+            クライアント側コンポーネントがイベントエリア / 顧客エリアのサブタブと
+            新規/編集モーダルを管理する。 */}
         <TabsContent value="areas">
           <section
             aria-labelledby="tab-areas-heading"

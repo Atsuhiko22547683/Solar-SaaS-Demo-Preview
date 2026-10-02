@@ -42,6 +42,7 @@ export interface UnifiedEventRow {
   kind: "candidate" | "event";
   scheduledDate: string;
   area: string | null;
+  /** 開催場所（店舗名）。場所提供元とは別。イベント詳細と同じ値を出す。 */
   venue: string | null;
   holdingStatus: HoldingStatus;
   assignStatus: AssignStatus;
@@ -134,7 +135,7 @@ async function queryUnifiedRows(
       scheduledDate: true,
       area: true,
       status: true,
-      venueProviderId: true,
+      storeName: true,
       event: { select: { id: true } },
     },
   });
@@ -155,29 +156,12 @@ async function queryUnifiedRows(
         select: {
           scheduledDate: true,
           area: true,
-          venueProviderId: true,
+          storeName: true,
         },
       },
       _count: { select: { dealers: true } },
     },
   });
-
-  // Resolve venue provider names
-  const vpIds = new Set<string>();
-  for (const c of candidates) {
-    if (c.venueProviderId) vpIds.add(c.venueProviderId);
-  }
-  for (const e of events) {
-    if (e.eventCandidate.venueProviderId) vpIds.add(e.eventCandidate.venueProviderId);
-  }
-  const providers =
-    vpIds.size > 0
-      ? await tx.venueProvider.findMany({
-          where: { id: { in: [...vpIds] } },
-          select: { id: true, name: true },
-        })
-      : [];
-  const vpNameById = new Map(providers.map((p) => [p.id, p.name]));
 
   const rows: UnifiedEventRow[] = [];
 
@@ -188,7 +172,7 @@ async function queryUnifiedRows(
       kind: "candidate",
       scheduledDate: c.scheduledDate.toISOString(),
       area: c.area,
-      venue: c.venueProviderId ? (vpNameById.get(c.venueProviderId) ?? null) : null,
+      venue: c.storeName,
       holdingStatus: deriveHoldingStatus("candidate", c.status),
       assignStatus: deriveAssignStatus("candidate", false),
       detailHref: `/event-detail/${c.id}`,
@@ -201,20 +185,18 @@ async function queryUnifiedRows(
       kind: "event",
       scheduledDate: e.eventCandidate.scheduledDate.toISOString(),
       area: e.eventCandidate.area,
-      venue: e.eventCandidate.venueProviderId
-        ? (vpNameById.get(e.eventCandidate.venueProviderId) ?? null)
-        : null,
+      venue: e.eventCandidate.storeName,
       holdingStatus: deriveHoldingStatus("event", e.status),
       assignStatus: deriveAssignStatus("event", e._count.dealers > 0),
       detailHref: `/event-detail/${e.eventCandidateId}`,
     });
   }
 
-  rows.sort(
-    (a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime(),
-  );
+  rows.sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime());
 
-  const venues = [...new Set(rows.map((r) => r.venue).filter((v): v is string => v != null))].sort();
+  const venues = [
+    ...new Set(rows.map((r) => r.venue).filter((v): v is string => v != null)),
+  ].sort();
 
   return { rows, venues };
 }

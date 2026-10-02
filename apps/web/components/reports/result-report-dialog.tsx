@@ -9,7 +9,7 @@
 // もしくは制御コンポーネントとして:
 //   <ResultReportDialog data={report} open={open} onOpenChange={setOpen} />
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import {
@@ -21,15 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { labels } from "@/lib/i18n/labels";
 
-import { buildDemoCustomerReport } from "./customer-report-data";
-import { CustomerReportDialog } from "./customer-report-dialog";
-
-import type {
-  AcquiredCustomer,
-  EventBasicReport,
-  EventReportsBundle,
-  ResultReportData,
-} from "./result-report-data";
+import type { ResultReportData } from "./result-report-data";
 
 const DOW = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -139,117 +131,6 @@ export function ResultReportView({ data }: { data: ResultReportData }) {
         </p>
       </div>
     </div>
-  );
-}
-
-// 開始 / 終了報告の小カード（提出者・時刻・コメント）。
-function ReportNote({ label, report }: { label: string; report: EventBasicReport }) {
-  return (
-    <div className="border-hairline-light rounded-md border p-3">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-ink text-sm font-semibold">{label}</p>
-        <Badge variant="success">{labels.resultReport.submitted}</Badge>
-      </div>
-      <p className="text-mute-light mt-1 text-xs tabular-nums">
-        {report.submitter}・{report.submittedAt}
-      </p>
-      <p className="text-body-light mt-1.5 text-sm leading-relaxed">{report.comment}</p>
-    </div>
-  );
-}
-
-// イベント1開催日の報告一式：開始 / 終了 / 成果（日報）をインライン表示する共通ビュー。
-// レーン日付ポップアップ・単発イベント詳細で同一の見た目に統一するために使う。
-export function EventReportsView({ reports }: { reports: EventReportsBundle }) {
-  const r = labels.resultReport;
-  return (
-    <div className="space-y-5">
-      {/* 開始 / 終了報告 */}
-      <div className="grid gap-3 sm:grid-cols-2">
-        <ReportNote label={r.startReport} report={reports.start} />
-        <ReportNote label={r.endReport} report={reports.end} />
-      </div>
-      {/* 成果報告（日報） */}
-      <div>
-        <h3 className="text-ink mb-2 text-sm font-semibold">{r.title}</h3>
-        <ResultReportView data={reports.result} />
-      </div>
-    </div>
-  );
-}
-
-// アポ取り顧客一覧 — イベントで獲得したアポ顧客のテーブル。空のときは案内文。
-// 行クリックで「初訪アポフォーム」ポップアップを開く。
-export function AcquiredAppointmentsTable({ customers }: { customers: AcquiredCustomer[] }) {
-  const a = labels.eventList.appointmentColumns;
-  const TH = "px-3 py-2 text-left text-xs font-semibold text-mute-light";
-
-  const [selected, setSelected] = useState<AcquiredCustomer | null>(null);
-  const reportData = useMemo(
-    () =>
-      selected
-        ? buildDemoCustomerReport(`${selected.name}-${selected.dateTime}`, {
-            customerName: selected.name,
-            area: selected.address,
-            firstVisitDisplay: selected.dateTime,
-          })
-        : null,
-    [selected],
-  );
-
-  if (customers.length === 0) {
-    return <p className="text-mute-light text-sm">{labels.eventList.appointmentPlaceholder}</p>;
-  }
-  return (
-    <>
-      <div className="border-hairline-light overflow-x-auto rounded-md border">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-hairline-light bg-surface-soft/50 border-b">
-              <th className={TH}>{a.customerName}</th>
-              <th className={TH}>{a.dateTime}</th>
-              <th className={TH}>{a.address}</th>
-              <th className={TH}>{a.memo}</th>
-            </tr>
-          </thead>
-          <tbody className="divide-hairline-light divide-y">
-            {customers.map((c, i) => (
-              <tr
-                key={i}
-                tabIndex={0}
-                role="button"
-                aria-label={`${c.name}${labels.customer.honorific}`}
-                className="hover:bg-page active:bg-surface-soft focus-visible:bg-page focus-visible:ring-primary/40 cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset"
-                onClick={() => setSelected(c)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    setSelected(c);
-                  }
-                }}
-              >
-                <td className="text-ink whitespace-nowrap px-3 py-2.5 font-medium">
-                  {c.name}
-                  {labels.customer.honorific}
-                </td>
-                <td className="text-body-light whitespace-nowrap px-3 py-2.5 tabular-nums">
-                  {c.dateTime}
-                </td>
-                <td className="text-body-light px-3 py-2.5">{c.address}</td>
-                <td className="text-body-light px-3 py-2.5">{c.memo}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <CustomerReportDialog
-        data={reportData}
-        customerName={selected ? `${selected.name}${labels.customer.honorific}` : ""}
-        open={selected != null}
-        onOpenChange={(next) => !next && setSelected(null)}
-      />
-    </>
   );
 }
 

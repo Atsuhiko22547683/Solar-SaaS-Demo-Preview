@@ -27,6 +27,11 @@ export default async function LanePreferencesPage({ searchParams }: PageProps) {
   const targetMonth =
     params.month && /^\d{4}-(0[1-9]|1[0-2])$/.test(params.month) ? params.month : currentMonth();
   const relationshipId = params.relationshipId ?? "";
+  // 詳細へ渡す検索条件（対象月・取引先）。戻ったときに別の月へ飛ばさない。
+  const listQuery = new URLSearchParams({
+    month: targetMonth,
+    ...(relationshipId ? { relationshipId } : {}),
+  }).toString();
 
   const [rows, relationships] = await Promise.all([
     listLanePreferences({ targetMonth, relationshipId: relationshipId || undefined }),
@@ -64,7 +69,8 @@ export default async function LanePreferencesPage({ searchParams }: PageProps) {
         {rows.length === 0 ? (
           <div className="text-mute-light px-6 py-12 text-center text-sm">{t.empty}</div>
         ) : (
-          <LanePreferenceAccordion rows={rows} />
+          // 詳細へ検索条件を引き継ぎ、戻ったときに同じ月へ帰れるようにする。
+          <LanePreferenceAccordion rows={rows} query={listQuery} />
         )}
       </Card>
     </div>

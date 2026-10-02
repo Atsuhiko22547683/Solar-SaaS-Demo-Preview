@@ -105,6 +105,40 @@ export const saveAssignAction = withServerActionContext<SaveAssignInput, SaveAss
       });
       eventId = event.id;
 
+      // 開催日を 1 日ぶん作る（候補の予定日）。複数日催事や開催時間は
+      // /events/[id]/days で足す。時間は未定なので入れない（架空の時間で埋めない）。
+      const candidate = await tx.eventCandidate.findUnique({
+        where: { id: input.eventCandidateId },
+        select: { scheduledDate: true },
+      });
+      if (candidate) {
+        await tx.eventDay.upsert({
+          where: {
+            eventId_eventDate: {
+              eventId: event.id,
+              eventDate: new Date(
+                Date.UTC(
+                  candidate.scheduledDate.getUTCFullYear(),
+                  candidate.scheduledDate.getUTCMonth(),
+                  candidate.scheduledDate.getUTCDate(),
+                ),
+              ),
+            },
+          },
+          create: {
+            eventId: event.id,
+            eventDate: new Date(
+              Date.UTC(
+                candidate.scheduledDate.getUTCFullYear(),
+                candidate.scheduledDate.getUTCMonth(),
+                candidate.scheduledDate.getUTCDate(),
+              ),
+            ),
+          },
+          update: {},
+        });
+      }
+
       await tx.eventCandidate.update({
         where: { id: input.eventCandidateId },
         data: { status: "DECIDED" },

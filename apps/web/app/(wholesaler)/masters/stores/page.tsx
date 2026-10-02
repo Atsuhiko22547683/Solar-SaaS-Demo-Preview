@@ -1,95 +1,47 @@
-import Link from "next/link";
+// 開催場所・店舗の一覧（店舗マスタ）。
+//
+// 表示の実体は store-list-section.tsx にあり、エリア・場所管理のハブ（/masters）の
+// 最初のタブでも同じものを使う。店舗管理の画面を二重に作らないため。
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { formatDateTime } from "@/lib/format/date";
+import { ListPageHeader } from "@/components/list/list-shell";
 import { labels } from "@/lib/i18n/labels";
 
-import { listStores } from "./data";
-
-// 店舗マスタ 一覧. areas と同じ plain table + GET-form フィルタ。
-// イベント候補登録フォームの店舗選択肢をここで管理する。
+import { listStoreFilterOptions, listStores } from "./data";
+import { StoreListSection } from "./store-list-section";
 
 export const dynamic = "force-dynamic";
 
 interface PageProps {
-  searchParams: Promise<{ name?: string }>;
+  // 旧 URL（?name=）で来ても拾えるようにしておく。
+  searchParams: Promise<{ q?: string; name?: string; areaId?: string; venueProviderId?: string }>;
 }
 
 export default async function StoresListPage({ searchParams }: PageProps) {
   const params = await searchParams;
-  const filterName = params.name?.trim() ?? "";
-  const rows = await listStores({
-    ...(filterName ? { name: filterName } : {}),
-  });
+  const q = (params.q ?? params.name ?? "").trim();
+  const areaId = params.areaId?.trim() ?? "";
+  const venueProviderId = params.venueProviderId?.trim() ?? "";
+
+  const [rows, options] = await Promise.all([
+    listStores({
+      ...(q ? { name: q } : {}),
+      ...(areaId ? { areaId } : {}),
+      ...(venueProviderId ? { venueProviderId } : {}),
+    }),
+    listStoreFilterOptions(),
+  ]);
 
   const t = labels.storeMaster;
-  const c = labels.common;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-ink text-xl font-bold">{t.title}</h1>
-          <p className="text-muted-foreground text-sm">{t.listTitle}</p>
-        </div>
-        <Button asChild>
-          <Link href="/masters/stores/new">{t.new}</Link>
-        </Button>
-      </div>
-
-      <form method="get" className="flex max-w-xl items-center gap-2">
-        <Input
-          type="search"
-          name="name"
-          defaultValue={filterName}
-          placeholder={t.searchByName}
-          aria-label={t.searchByName}
-        />
-        <Button type="submit" variant="outline">
-          {c.search}
-        </Button>
-      </form>
-
-      {rows.length === 0 ? (
-        <div className="border-border bg-muted/30 rounded-md border p-8 text-center">
-          <p className="text-foreground font-medium">{t.empty}</p>
-          <p className="text-muted-foreground mt-2 text-sm">{t.emptyCta}</p>
-          <Button asChild className="mt-4">
-            <Link href="/masters/stores/new">{t.new}</Link>
-          </Button>
-        </div>
-      ) : (
-        <div className="border-border overflow-x-auto rounded-md border">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/40 text-left">
-              <tr>
-                <th className="px-3 py-2 font-medium">{t.fields.name}</th>
-                <th className="px-3 py-2 font-medium">{t.fields.isActive}</th>
-                <th className="px-3 py-2 font-medium">{t.fields.updatedAt}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.id} className="border-border border-t">
-                  <td className="px-3 py-2">
-                    <Link
-                      href={`/masters/stores/${r.id}`}
-                      className="text-primary underline-offset-4 hover:underline"
-                    >
-                      {r.name}
-                    </Link>
-                  </td>
-                  <td className="px-3 py-2">{r.isActive ? c.active : c.inactive}</td>
-                  <td className="text-muted-foreground px-3 py-2 text-xs">
-                    {formatDateTime(r.updatedAt)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <ListPageHeader title={t.venueSection.title} />
+      <StoreListSection
+        rows={rows}
+        options={options}
+        action="/masters/stores"
+        filter={{ q, areaId, venueProviderId }}
+      />
     </div>
   );
 }

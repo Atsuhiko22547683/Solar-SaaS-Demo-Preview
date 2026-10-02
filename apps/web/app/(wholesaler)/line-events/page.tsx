@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { labels } from "@/lib/i18n/labels";
 
 import {
-  listActiveAreas,
+  listActiveEventAreas,
   listActiveDealers,
   listActiveStores,
   listActiveVenueProviders,
@@ -38,7 +38,7 @@ export default async function LineEventsPage({ searchParams }: PageProps) {
   const [rows, venueProviders, areas, stores, selfStaff, dealers] = await Promise.all([
     listLineEvents({ targetMonth, venueProviderId: venueProviderId || undefined }),
     listActiveVenueProviders(),
-    listActiveAreas(),
+    listActiveEventAreas(),
     listActiveStores(),
     listSelfStaff(),
     listActiveDealers(),

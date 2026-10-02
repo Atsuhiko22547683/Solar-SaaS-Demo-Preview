@@ -6,6 +6,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { DealerReportsSection } from "@/components/reports/dealer-reports-section";
 import { buildDemoResultReport } from "@/components/reports/result-report-data";
 import { ResultReportTrigger } from "@/components/reports/result-report-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +21,7 @@ import { ReportMetrics } from "./reports/report-metrics";
 import { ResultReportForm } from "./reports/result-form";
 import { SalespersonAssign } from "./salesperson-assign";
 import { StatusSelect } from "./status-select";
+import { getDealerEventReportsForEvent } from "../../event-detail/dealer-report-data";
 import { canUpdateSalesperson, listActiveSalespeople } from "../../salespeople/data";
 
 export const dynamic = "force-dynamic";
@@ -48,6 +50,9 @@ export default async function WholesalerEventDetailPage({ params }: PageProps) {
   // アサインの変更は salesperson.update（卸業者管理者）のみ。参照ロールには
   // 保存ボタンを出さず、アサイン済みのバッジ表示に落とす。
   const canAssignSalespeople = await canUpdateSalesperson();
+
+  // パートナー会社の日報は Event に紐付く。ここでも同じ読み取りを使う。
+  const dealerReports = await getDealerEventReportsForEvent(data.id);
 
   const t = labels.event;
   // 追加集計項目は自社（卸業者）の成果報告にぶら下がる。未提出なら null。
@@ -309,6 +314,9 @@ export default async function WholesalerEventDetailPage({ params }: PageProps) {
           </ul>
         )}
       </section>
+
+      {/* パートナー会社の日報・実績 — /event-detail と同じ DB の提出を見る。 */}
+      <DealerReportsSection bundle={dealerReports} />
 
       {/* Report actions (T-04-03) */}
       <section aria-label={labels.eventReport.sections.actions}>

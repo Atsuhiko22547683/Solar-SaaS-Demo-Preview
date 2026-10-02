@@ -24,7 +24,7 @@ import { labels } from "@/lib/i18n/labels";
 import { assertCan } from "@/lib/permissions/can";
 import { getTenantContext } from "@/lib/tenancy/context";
 
-import { listActiveAreas, listActiveDealers } from "../../event-detail/data";
+import { listActiveCustomerAreas, listActiveDealers } from "../../event-detail/data";
 import { listAssignableStaff } from "../../salespeople/data";
 import { listWholesalerUsers } from "../data";
 import { BasicInfoInlineEdit, MemoInlineEdit } from "./basic-info-edit";
@@ -42,6 +42,8 @@ import {
 } from "./customer-project-info";
 import { CustomerTasks } from "./customer-tasks";
 import { getCustomerDetail } from "./data";
+import { getCustomerDealerSubmissions } from "./dealer-submission-data";
+import { DealerSubmissionsCard } from "./dealer-submissions-card";
 import { EditAssigneeDialog } from "./edit-assignee-dialog";
 import { NegotiationStatusPanel } from "./negotiation-status-panel";
 import { NewActivityDialog } from "./new-activity-dialog";
@@ -315,7 +317,7 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
 
   const [users, areas, dealers, projectInfo, projectInfoEditable] = await Promise.all([
     listWholesalerUsers(),
-    listActiveAreas(),
+    listActiveCustomerAreas(),
     listActiveDealers(),
     getCustomerProjectInfo(id),
     getCustomerProjectInfoEditable(id),
@@ -323,6 +325,10 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
   // 担当者に指定できるスタッフ（自社 + 二次店）。上と同時に走らせると 1 リクエストで
   // 開くトランザクションが増えるので逐次で取る。
   const assignableStaff = await listAssignableStaff();
+
+  // パートナー会社からの提出（訪問アポ報告 / 成約報告）。独立メニューではなく
+  // 顧客詳細でも見られるようにする（代理店-01）。
+  const dealerSubmissions = await getCustomerDealerSubmissions(detail.id);
 
   const t = labels.customer;
   const d = t.detail;
@@ -511,7 +517,10 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
           {/* 二次店ポータルから登録された催事情報（閲覧のみ）。
               代理店側で編集はしない — 登録・修正は二次店ポータルが行う。 */}
           <Card className="p-5">
-            <CustomerVenueInfo venue={detail.venueInfo} />
+            <CustomerVenueInfo
+              venue={detail.venueInfo}
+              closeCompanyName={detail.closeCompanyName}
+            />
           </Card>
 
           {/* 現状情報の詳細 — 住環境ヒアリング(既設設備/家族属性/連絡先) + 概況。
@@ -583,6 +592,9 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
               </div>
               <CustomerHistory entries={historyEntries} />
             </Card>
+
+            {/* パートナー会社からの提出。商談履歴の隣に置き、同じ顧客の情報として並べる。 */}
+            <DealerSubmissionsCard data={dealerSubmissions} />
 
             {/* 右: 見積（見積提示の記録一覧） */}
             <Card className="p-5">

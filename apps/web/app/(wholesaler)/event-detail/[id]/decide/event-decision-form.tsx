@@ -11,7 +11,7 @@
 // On submit, calls `decideAndRedirectAction` which either redirects to
 // /events/<id>/shifts (non-CANCELLED) or /events (CANCELLED).
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -95,18 +95,14 @@ export function EventDecisionForm({ eventCandidateId, relationships }: Props) {
         await decideAndRedirectAction({
           eventCandidateId,
           mode,
-          requiredPeople:
-            requiredPeople !== "" ? parseInt(requiredPeople, 10) : undefined,
-          dealerRelationshipIds:
-            selectedRelIds.size > 0 ? Array.from(selectedRelIds) : undefined,
+          requiredPeople: requiredPeople !== "" ? parseInt(requiredPeople, 10) : undefined,
+          dealerRelationshipIds: selectedRelIds.size > 0 ? Array.from(selectedRelIds) : undefined,
           reason: reason.trim() || undefined,
           note: note.trim() || undefined,
         });
       } catch (err) {
         const message =
-          err instanceof Error && err.message
-            ? err.message
-            : labels.common.unknownError;
+          err instanceof Error && err.message ? err.message : labels.common.unknownError;
         setServerError(message);
       }
     });
@@ -126,7 +122,7 @@ export function EventDecisionForm({ eventCandidateId, relationships }: Props) {
               <label
                 key={m}
                 className={[
-                  "border rounded-md p-3 cursor-pointer transition-colors",
+                  "cursor-pointer rounded-md border p-3 transition-colors",
                   mode === m
                     ? "border-primary bg-primary/5"
                     : "border-border hover:border-muted-foreground",
@@ -140,8 +136,8 @@ export function EventDecisionForm({ eventCandidateId, relationships }: Props) {
                   onChange={() => setMode(m)}
                   className="sr-only"
                 />
-                <p className="font-medium text-sm">{t.modes[m]}</p>
-                <p className="text-muted-foreground text-xs mt-1">{t.modeDescriptions[m]}</p>
+                <p className="text-sm font-medium">{t.modes[m]}</p>
+                <p className="text-muted-foreground mt-1 text-xs">{t.modeDescriptions[m]}</p>
               </label>
             ))}
           </div>
@@ -149,7 +145,7 @@ export function EventDecisionForm({ eventCandidateId, relationships }: Props) {
 
         {/* SELF / JOINT: requiredPeople */}
         {mode === "SELF" || mode === "JOINT" ? (
-          <div className="space-y-1 max-w-xs">
+          <div className="max-w-xs space-y-1">
             <Label htmlFor="requiredPeople-input">{t.fields.requiredPeople}</Label>
             <Input
               id="requiredPeople-input"
@@ -171,11 +167,11 @@ export function EventDecisionForm({ eventCandidateId, relationships }: Props) {
                 {labels.eventCandidate.visibility.noRelationships}
               </p>
             ) : (
-              <div className="border-border divide-border overflow-hidden rounded-md border divide-y">
+              <div className="border-border divide-border divide-y overflow-hidden rounded-md border">
                 {relationships.map((r) => (
                   <label
                     key={r.relationshipId}
-                    className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-muted/40"
+                    className="hover:bg-muted/40 flex cursor-pointer items-center gap-3 px-3 py-2"
                   >
                     <input
                       type="checkbox"
@@ -185,11 +181,11 @@ export function EventDecisionForm({ eventCandidateId, relationships }: Props) {
                     />
                     <span className="text-sm">{r.dealerName}</span>
                     {r.hasPreference ? (
-                      <span className="ml-auto text-xs text-primary border border-primary/30 rounded px-1">
+                      <span className="text-primary border-primary/30 ml-auto rounded border px-1 text-xs">
                         {t.preferenceStatus.submitted}
                       </span>
                     ) : (
-                      <span className="ml-auto text-xs text-muted-foreground">
+                      <span className="text-muted-foreground ml-auto text-xs">
                         {t.preferenceStatus.notSubmitted}
                       </span>
                     )}
@@ -211,7 +207,7 @@ export function EventDecisionForm({ eventCandidateId, relationships }: Props) {
               rows={3}
               maxLength={2000}
               placeholder={t.placeholders.reason}
-              className="border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring flex min-h-[80px] w-full rounded-md border px-3 py-2 text-sm shadow-sm focus-visible:ring-1 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+              className="border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring flex min-h-[80px] w-full rounded-md border px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 disabled:cursor-not-allowed disabled:opacity-50"
             />
             <p className="text-muted-foreground text-xs">{t.hints.cancelledNoEvent}</p>
           </div>
@@ -229,7 +225,7 @@ export function EventDecisionForm({ eventCandidateId, relationships }: Props) {
             onChange={(e) => setNote(e.target.value)}
             rows={2}
             maxLength={2000}
-            className="border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring flex min-h-[60px] w-full rounded-md border px-3 py-2 text-sm shadow-sm focus-visible:ring-1 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+            className="border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring flex min-h-[60px] w-full rounded-md border px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 disabled:cursor-not-allowed disabled:opacity-50"
           />
         </div>
 
@@ -258,7 +254,7 @@ export function EventDecisionForm({ eventCandidateId, relationships }: Props) {
         <DialogContent className="max-w-sm">
           <DialogTitle>{t.actions.confirmTitle}</DialogTitle>
           <p className="text-muted-foreground text-sm">{confirmMessage}</p>
-          <div className="flex justify-end gap-2 mt-4">
+          <div className="mt-4 flex justify-end gap-2">
             <Button variant="outline" onClick={() => setConfirmOpen(false)}>
               {t.actions.cancelAction}
             </Button>

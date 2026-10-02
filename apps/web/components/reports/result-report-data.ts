@@ -91,7 +91,10 @@ function todayStr(): string {
 }
 
 // イベント/日付をシードにした決定論的なデモ成果報告を生成する。
-export function buildDemoResultReport(seed: string, ctx: ResultReportContext = {}): ResultReportData {
+export function buildDemoResultReport(
+  seed: string,
+  ctx: ResultReportContext = {},
+): ResultReportData {
   const rng = makeRng(seed || "demo");
   const pick = <T>(arr: readonly T[]): T => arr[Math.floor(rng() * arr.length)]!;
   const between = (min: number, max: number) => min + Math.floor(rng() * (max - min + 1));
@@ -129,117 +132,5 @@ export function buildDemoResultReport(seed: string, ctx: ResultReportContext = {
     apptSingle,
     salesChannel: ctx.channel ?? pick(CHANNELS),
     impression: pick(IMPRESSIONS),
-  };
-}
-
-// 開始 / 終了報告（コメント主体の簡易レポート）。
-export interface EventBasicReport {
-  submitter: string;
-  submittedAt: string; // 表示用文字列（YYYY/MM/DD HH:MM）
-  comment: string;
-}
-
-// 1 イベント（1 開催日）の報告一式：開始 / 終了 / 成果（日報）。
-export interface EventReportsBundle {
-  start: EventBasicReport;
-  end: EventBasicReport;
-  result: ResultReportData;
-}
-
-const REPORTERS = ["イベント班 田中", "イベント班 佐藤", "コール班 鈴木", "直販 高橋"];
-const START_COMMENTS = [
-  "設営完了、定刻に開始しました。来場者の出足は良好です。",
-  "ブース設営完了。チラシ配布を開始しました。",
-  "設営完了。隣接催事もあり人通りは多めです。",
-];
-const END_COMMENTS = [
-  "撤収完了。大きなトラブルなく終了しました。",
-  "終了。獲得アポのフォローは明日以降に実施します。",
-  "撤収完了。雨天で午後の客足はやや鈍化しました。",
-];
-
-// イベントで獲得したアポ顧客（アポ取り顧客一覧の 1 行）。
-export interface AcquiredCustomer {
-  name: string; // 顧客名
-  dateTime: string; // アポ日時（表示用）
-  address: string; // 住所（市区まで）
-  memo: string; // メモ（状況）
-}
-
-const APPT_FAMILIES = [
-  "佐藤","鈴木","高橋","田中","伊藤","渡辺","山本","中村","小林","加藤",
-  "吉田","山田","佐々木","松本","井上","木村","林","清水","森","池田",
-];
-const APPT_GIVENS = [
-  "大輔","健一","翔太","直樹","美咲","陽子","結衣","真一","裕子","隆",
-  "聡","典子","和也","愛","健太","恵子","浩二","明美","拓也","真由美",
-];
-const APPT_CITIES = [
-  "東京都世田谷区","東京都杉並区","神奈川県横浜市港北区","神奈川県川崎市宮前区",
-  "埼玉県さいたま市見沼区","埼玉県川口市","千葉県船橋市","千葉県松戸市",
-  "群馬県前橋市","栃木県宇都宮市",
-];
-const APPT_MEMOS = [
-  "マエカク済 / 訪問予定",
-  "見込み高（太陽光＋蓄電池）",
-  "再アプローチ予定",
-  "ローン審査の連絡待ち",
-  "現地調査の日程を調整中",
-  "ご家族同席で再提案予定",
-  "他社相見積もり中",
-];
-const DOW2 = ["日", "月", "火", "水", "木", "金", "土"];
-
-function fmtApptDateTime(baseDate: string, addDays: number, hh: number, mm: number): string {
-  const [y, m, d] = baseDate.split("-").map(Number);
-  const dt = new Date(y!, m! - 1, d! + addDays);
-  return `${dt.getMonth() + 1}/${String(dt.getDate()).padStart(2, "0")}（${DOW2[dt.getDay()]}）${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
-}
-
-// イベントで獲得したアポ顧客を決定論的に生成。count は成果報告のアポ数に揃える想定。
-export function buildDemoAppointments(
-  seed: string,
-  count: number,
-  ctx: ResultReportContext = {},
-): AcquiredCustomer[] {
-  const rng = makeRng(`${seed}-appts`);
-  const pick = <T>(arr: readonly T[]): T => arr[Math.floor(rng() * arr.length)]!;
-  const between = (min: number, max: number) => min + Math.floor(rng() * (max - min + 1));
-  const base = ctx.date ?? todayStr();
-  const n = Math.max(0, Math.min(count, 12));
-  const rows: AcquiredCustomer[] = [];
-  for (let i = 0; i < n; i++) {
-    rows.push({
-      name: `${pick(APPT_FAMILIES)} ${pick(APPT_GIVENS)}`,
-      dateTime: fmtApptDateTime(base, between(1, 12), pick([10, 11, 13, 14, 15, 16, 18, 19]), pick([0, 30])),
-      address: pick(APPT_CITIES),
-      memo: pick(APPT_MEMOS),
-    });
-  }
-  return rows;
-}
-
-// 開始 / 終了 / 成果 をまとめて生成（決定論的）。成果から稼働時刻を引き継ぐ。
-export function buildDemoEventReports(
-  seed: string,
-  ctx: ResultReportContext = {},
-): EventReportsBundle {
-  const result = buildDemoResultReport(seed, ctx);
-  const rng = makeRng(`${seed}-reports`);
-  const pick = <T>(arr: readonly T[]): T => arr[Math.floor(rng() * arr.length)]!;
-  const reporter = pick(REPORTERS);
-  const dateStr = result.eventDate.replace(/-/g, "/");
-  return {
-    start: {
-      submitter: reporter,
-      submittedAt: `${dateStr} ${result.startTime}`,
-      comment: pick(START_COMMENTS),
-    },
-    end: {
-      submitter: reporter,
-      submittedAt: `${dateStr} ${result.endTime}`,
-      comment: pick(END_COMMENTS),
-    },
-    result,
   };
 }

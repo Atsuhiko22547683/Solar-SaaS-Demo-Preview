@@ -8,7 +8,7 @@
 
 import "server-only";
 
-import { toEventCandidateWholesalerDto } from "@solar/contracts";
+import { toEventCandidateWholesalerDto, VENUE_CHAIN_VALUES } from "@solar/contracts";
 
 import { auth } from "@/auth";
 import { UnauthorizedError } from "@/lib/errors";
@@ -53,6 +53,12 @@ export interface EventCandidateDetail extends EventCandidateForWholesalerDto {
   venueProviderName: string | null;
   venueProviderArea: string | null;
   venueProviderAddress: string | null;
+  /** 店舗マスタへの参照。開催当時の記録（storeName / address）とは別に持つ。 */
+  storeId: string | null;
+  /** 現在の店舗マスタの名称・住所（改称されていれば開催当時の記録と違う）。 */
+  storeMasterName: string | null;
+  storeMasterAddress: string | null;
+  storeMasterAreaName: string | null;
   venueProviderNote: string | null;
   venueProviderContractType: string | null;
   venueProviderFixedFee: string | null;
@@ -149,6 +155,17 @@ export async function listEventCandidates(
   });
 }
 
+/**
+ * DB の VenueChain をイベント候補の値域へ寄せる。
+ *
+ * VenueChain には二次店ポータルの初訪アポフォーム用に CAINZ（W / V の別を持たない
+ * 粒度）が追加されている。イベント候補はその値を選択肢に出さないので、
+ * 値域外は未設定として扱う（イベント候補側の選択肢・既存データは変えていない）。
+ */
+function toEventVenueChain(v: string | null): VenueChainValue | null {
+  return VENUE_CHAIN_VALUES.find((x) => x === v) ?? null;
+}
+
 export async function getEventCandidate(id: string): Promise<EventCandidateDetail | null> {
   const ctx = await requireWholesalerCtx();
   return withTenant(ctx, async (tx) => {
@@ -161,6 +178,10 @@ export async function getEventCandidate(id: string): Promise<EventCandidateDetai
         venueNegotiationId: true,
         targetMonth: true,
         scheduledDate: true,
+        storeId: true,
+        store: {
+          select: { id: true, name: true, address: true, area: { select: { name: true } } },
+        },
         storeName: true,
         address: true,
         area: true,
@@ -271,10 +292,15 @@ export async function getEventCandidate(id: string): Promise<EventCandidateDetai
 
     return {
       ...dto,
-      venueChain: r.venueChain,
+      venueChain: toEventVenueChain(r.venueChain),
       boothArea: r.boothArea,
       boothAreaNote: r.boothAreaNote,
       productCategory: r.productCategory,
+      // 店舗マスタの現在値。開催当時の記録（dto.storeName / dto.address）とは別に返す。
+      storeId: r.storeId,
+      storeMasterName: r.store?.name ?? null,
+      storeMasterAddress: r.store?.address ?? null,
+      storeMasterAreaName: r.store?.area?.name ?? null,
       venueProviderName: provider?.name ?? null,
       venueProviderArea: provider?.area ?? null,
       venueProviderAddress: provider?.address ?? null,
@@ -374,19 +400,24 @@ export async function listActiveVenueProviders(): Promise<ActiveVenueProviderOpt
   });
 }
 
-// エリアマスタ一覧（新規イベント候補登録時のエリア選択肢、有効なもののみ）。
+// エリアマスタ一覧（有効なもののみ）。
 // 同じ三段 idiom（requireWholesalerCtx = auth → assertCan('event_candidate.read')
 // → withTenant）を踏襲する。エリアマスタの CRUD は /masters/areas が担う。
+//
+// **用途で必ず type を絞る。** 開催エリア（EVENT）と顧客エリア（CUSTOMER）は
+// 名前が似ているだけの別マスタで、値域も違う（EVENT=「埼玉県」、CUSTOMER=「埼玉エリア」）。
+// 以前はここで type を絞っておらず、イベント登録に顧客エリアが、顧客編集に開催エリアが
+// 出ていた。呼び出し側が用途を選べるよう、専用の関数に分けている。
 export interface AreaOption {
   id: string;
   name: string;
 }
 
-export async function listActiveAreas(): Promise<AreaOption[]> {
+async function listActiveAreasByType(type: "EVENT" | "CUSTOMER"): Promise<AreaOption[]> {
   const ctx = await requireWholesalerCtx();
   return withTenant(ctx, async (tx) => {
     const rows = await tx.area.findMany({
-      where: { isActive: true },
+      where: { isActive: true, type },
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     });
@@ -394,13 +425,31 @@ export async function listActiveAreas(): Promise<AreaOption[]> {
   });
 }
 
-// 店舗マスタ一覧（新規イベント候補登録時の店舗選択肢、有効なもののみ）。
-// listActiveAreas と同じ三段 idiom（requireWholesalerCtx = auth →
-// assertCan('event_candidate.read') → withTenant）を踏襲する。店舗マスタの
-// CRUD は /masters/stores が担う。
+/** 開催エリア（イベント候補・ラインイベント・店舗マスタで使う）。 */
+export async function listActiveEventAreas(): Promise<AreaOption[]> {
+  return listActiveAreasByType("EVENT");
+}
+
+/** 顧客エリア（顧客詳細の基本情報で使う）。 */
+export async function listActiveCustomerAreas(): Promise<AreaOption[]> {
+  return listActiveAreasByType("CUSTOMER");
+}
+
+// 店舗マスタ一覧（イベント候補の開催場所選択肢、有効なもののみ）。
+// listActiveEventAreas と同じ三段 idiom を踏襲する。店舗マスタの CRUD は
+// /masters/stores が担う。
+//
+// 住所・場所提供元・開催エリアはここで一緒に返す。画面が別々の入力から組み立てると、
+// 「カインズ 大宮店なのに場所提供元はスーパービバホーム」のような組合せが作れてしまう。
 export interface StoreOption {
   id: string;
   name: string;
+  venueProviderId: string | null;
+  venueProviderName: string | null;
+  postalCode: string | null;
+  address: string | null;
+  areaId: string | null;
+  areaName: string | null;
 }
 
 export async function listActiveStores(): Promise<StoreOption[]> {
@@ -409,9 +458,27 @@ export async function listActiveStores(): Promise<StoreOption[]> {
     const rows = await tx.store.findMany({
       where: { isActive: true },
       orderBy: { name: "asc" },
-      select: { id: true, name: true },
+      select: {
+        id: true,
+        name: true,
+        postalCode: true,
+        address: true,
+        venueProviderId: true,
+        venueProvider: { select: { name: true } },
+        areaId: true,
+        area: { select: { name: true } },
+      },
     });
-    return rows;
+    return rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      venueProviderId: r.venueProviderId,
+      venueProviderName: r.venueProvider?.name ?? null,
+      postalCode: r.postalCode,
+      address: r.address,
+      areaId: r.areaId,
+      areaName: r.area?.name ?? null,
+    }));
   });
 }
 

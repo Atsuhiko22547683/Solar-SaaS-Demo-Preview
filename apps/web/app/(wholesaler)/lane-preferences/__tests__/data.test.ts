@@ -98,7 +98,7 @@ beforeEach(() => {
 });
 
 describe("listLanePreferences", () => {
-  it("filters by month + relationship, sorts items by priority, resolves link names", async () => {
+  it("filters by month + relationship, orders items by lane then priority, resolves link names", async () => {
     authMock.mockResolvedValue(WS_ADMIN_SESSION);
     lanePreferenceFindManyMock.mockResolvedValue([
       {
@@ -106,19 +106,16 @@ describe("listLanePreferences", () => {
         relationshipId: "rel_alpha",
         targetMonth: "2026-06",
         note: "毎週水曜希望",
+        // 申告レーン数。明細数（2）とは別の値にして、導出に戻っていないことを確かめる。
+        laneCount: 1,
+        status: "SUBMITTED",
         submittedAt: new Date("2026-06-01T01:15:00Z"),
-        // Intentionally out of priority order to verify the sort.
+        // 並びは DB 側（orderBy laneNo, priority）で決める契約になったので、
+        // モックも DB が返す順（レーン内で昇順）で返す。
         items: [
           {
-            priority: 2,
-            venueLabel: "コメリ 大宮店",
-            venueProviderId: null,
-            storeId: "st_1",
-            lineEventId: null,
-            desiredDates: ["2026-06-06"],
-            memo: null,
-          },
-          {
+            id: "li_1",
+            laneNo: 1,
             priority: 1,
             venueLabel: "カインズ 大宮店",
             venueProviderId: "vp_1",
@@ -126,6 +123,21 @@ describe("listLanePreferences", () => {
             lineEventId: "le_a",
             desiredDates: ["2026-06-03", "2026-06-10"],
             memo: "駐車場側希望",
+            conditionNote: null,
+            adoptions: [],
+          },
+          {
+            id: "li_2",
+            laneNo: 1,
+            priority: 2,
+            venueLabel: "コメリ 大宮店",
+            venueProviderId: null,
+            storeId: "st_1",
+            lineEventId: null,
+            desiredDates: ["2026-06-06"],
+            memo: null,
+            conditionNote: "いずれか 2 日間を希望",
+            adoptions: [],
           },
         ],
       },
@@ -134,7 +146,7 @@ describe("listLanePreferences", () => {
       { id: "rel_alpha", dealer: { name: "株式会社ABCプロモーション" } },
     ]);
     venueProviderFindManyMock.mockResolvedValue([{ id: "vp_1", name: "イオンタウン株式会社" }]);
-    storeFindManyMock.mockResolvedValue([{ id: "st_1", name: "コメリ大宮" }]);
+    storeFindManyMock.mockResolvedValue([{ id: "st_1", name: "コメリ大宮", venueProvider: null }]);
     lineEventFindManyMock.mockResolvedValue([{ id: "le_a", name: "イオンモール幕張新都心" }]);
 
     const rows = await listLanePreferences({
@@ -149,11 +161,25 @@ describe("listLanePreferences", () => {
       dealerName: "株式会社ABCプロモーション",
       targetMonth: "2026-06",
       note: "毎週水曜希望",
-      laneCount: 2,
+      // 申告値をそのまま返す。明細数（2）から導出しない。
+      laneCount: 1,
+      laneCountFromItems: 1,
+      itemCount: 2,
+      status: "SUBMITTED",
     });
-    // Priority ascending: 1 before 2.
-    expect(rows[0]!.items.map((i) => i.priority)).toEqual([1, 2]);
+    // 並べ替えは DB 側で行う契約（取得済みの配列を JS で並べ直さない）。
+    const itemsArg = (
+      lanePreferenceFindManyMock.mock.calls[0]![0] as {
+        select: { items: { orderBy: unknown } };
+      }
+    ).select.items;
+    expect(itemsArg.orderBy).toEqual([{ laneNo: "asc" }, { priority: "asc" }]);
+    expect(rows[0]!.items.map((i) => [i.laneNo, i.priority])).toEqual([
+      [1, 1],
+      [1, 2],
+    ]);
     expect(rows[0]!.items[0]).toMatchObject({
+      laneNo: 1,
       priority: 1,
       venueLabel: "カインズ 大宮店",
       venueProviderId: "vp_1",
@@ -164,11 +190,16 @@ describe("listLanePreferences", () => {
     });
     expect(rows[0]!.items[0]!.desiredDates).toEqual(["2026-06-03", "2026-06-10"]);
     expect(rows[0]!.items[1]).toMatchObject({
+      laneNo: 1,
       priority: 2,
       venueLabel: "コメリ 大宮店",
+      // 店舗マスタに紐付いているのに親チェーンが無い明細では提供元名を出さない
+      // （ラベルと無関係な提供元が並ぶのを防ぐ）。
       venueProviderName: null,
       storeId: "st_1",
       storeName: "コメリ大宮",
+      // 個別条件は希望順位とは別の軸としてそのまま返す。
+      conditionNote: "いずれか 2 日間を希望",
     });
 
     const where = lanePreferenceFindManyMock.mock.calls[0]![0] as {
@@ -187,8 +218,12 @@ describe("listLanePreferences", () => {
         targetMonth: "2026-06",
         note: null,
         submittedAt: new Date("2026-06-02T00:00:00Z"),
+        laneCount: 1,
+        status: "SUBMITTED",
         items: [
           {
+            id: "li_x",
+            laneNo: 1,
             priority: 1,
             venueLabel: "ビバホーム",
             venueProviderId: null,
@@ -196,6 +231,8 @@ describe("listLanePreferences", () => {
             lineEventId: "le_x",
             desiredDates: [],
             memo: null,
+            conditionNote: null,
+            adoptions: [],
           },
         ],
       },

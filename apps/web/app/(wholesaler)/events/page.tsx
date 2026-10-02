@@ -9,7 +9,7 @@ import { EventView } from "./event-view";
 import { MonthlyView } from "./monthly-view";
 import { NewEventDialog } from "./new-event-dialog";
 import { listUnifiedEvents, listUnifiedEventsMonthly } from "./unified-data";
-import { listActiveAreas, listActiveStores, listActiveVenueProviders } from "../event-detail/data";
+import { listActiveStores } from "../event-detail/data";
 
 import type { HoldingStatus, AssignStatus } from "./unified-data";
 
@@ -35,7 +35,7 @@ export default async function UnifiedEventsPage({ searchParams }: PageProps) {
       ? (params.assign as AssignStatus)
       : undefined;
 
-    const [result, venueProviders, areas, stores] = await Promise.all([
+    const [result, stores] = await Promise.all([
       listUnifiedEventsMonthly({
         from: params.from,
         to: params.to,
@@ -43,8 +43,6 @@ export default async function UnifiedEventsPage({ searchParams }: PageProps) {
         holdingStatus: holding,
         assignStatus: assign,
       }),
-      listActiveVenueProviders(),
-      listActiveAreas(),
       listActiveStores(),
     ]);
 
@@ -59,7 +57,7 @@ export default async function UnifiedEventsPage({ searchParams }: PageProps) {
             <Button asChild variant="outline">
               <Link href="/events">{t.weeklyView}</Link>
             </Button>
-            <NewEventDialog venueProviders={venueProviders} areas={areas} stores={stores} />
+            <NewEventDialog stores={stores} />
           </div>
         </div>
 
@@ -79,12 +77,7 @@ export default async function UnifiedEventsPage({ searchParams }: PageProps) {
   // Weekly view (default)
   const weekParam =
     params.week && /^\d{4}-\d{2}-\d{2}$/.test(params.week) ? params.week : undefined;
-  const [result, venueProviders, areas, stores] = await Promise.all([
-    listUnifiedEvents(weekParam),
-    listActiveVenueProviders(),
-    listActiveAreas(),
-    listActiveStores(),
-  ]);
+  const [result, stores] = await Promise.all([listUnifiedEvents(weekParam), listActiveStores()]);
 
   return (
     <div className="space-y-6">
@@ -97,7 +90,7 @@ export default async function UnifiedEventsPage({ searchParams }: PageProps) {
           <Button asChild variant="outline">
             <Link href="/events?view=monthly">{t.monthlyView}</Link>
           </Button>
-          <NewEventDialog venueProviders={venueProviders} areas={areas} stores={stores} />
+          <NewEventDialog stores={stores} />
         </div>
       </div>
 

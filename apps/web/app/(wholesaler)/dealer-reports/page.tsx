@@ -4,6 +4,7 @@
 
 import Link from "next/link";
 
+import { IntegratedViewNotice } from "@/components/layout/integrated-view-notice";
 import {
   ListFilterCard,
   ListPageHeader,
@@ -22,6 +23,7 @@ import { listDealerOptions, listDealerReports } from "./data";
 export const dynamic = "force-dynamic";
 
 const t = labels.dealerReportView;
+const n = labels.integratedViewNotice;
 const r = labels.partner.report;
 
 interface PageProps {
@@ -38,6 +40,12 @@ export default async function DealerReportsPage({ searchParams }: PageProps) {
   return (
     <div className="space-y-6">
       <ListPageHeader title={t.listTitle} subtitle={t.listSubtitle} />
+
+      {/* 統合先への案内。旧 URL を残したまま、同じ内容が見られる場所を示す（代理店-01）。 */}
+      <IntegratedViewNotice
+        body={n.dealerReports}
+        links={[{ href: "/events", label: n.links.events }]}
+      />
 
       <ListFilterCard>
         <form method="get" className="flex flex-wrap items-end gap-3">

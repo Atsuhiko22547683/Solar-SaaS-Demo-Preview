@@ -15,10 +15,10 @@ import { withTenant } from "@/lib/tenancy/with-tenant";
 
 import type { LineEventStatus } from "@solar/contracts";
 
-// listActiveVenueProviders / listActiveAreas / アサイン候補 loader は単発側を再利用する。
+// listActiveVenueProviders / listActiveEventAreas / アサイン候補 loader は単発側を再利用する。
 export {
   listActiveVenueProviders,
-  listActiveAreas,
+  listActiveEventAreas,
   listActiveStores,
   listSelfStaff,
   listActiveDealers,

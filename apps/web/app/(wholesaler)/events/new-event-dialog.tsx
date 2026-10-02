@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -17,12 +18,12 @@ import { labels } from "@/lib/i18n/labels";
 
 import { createEventCandidateAction } from "../event-detail/actions";
 
-import type { ActiveVenueProviderOption, AreaOption, StoreOption } from "../event-detail/data";
+import type { StoreOption } from "../event-detail/data";
 import type { EventCandidateInput } from "@solar/contracts";
 
+// 開催場所は店舗マスタ 1 本に集約したので、場所提供元・エリアの候補は受け取らない。
+// （別々の候補から組み立てると、店舗と提供元がちぐはぐな組合せを作れてしまう。）
 interface NewEventDialogProps {
-  venueProviders: ActiveVenueProviderOption[];
-  areas: AreaOption[];
   stores: StoreOption[];
 }
 
@@ -37,11 +38,9 @@ const STATUS_TO_PAYLOAD: Record<StatusChoice, "DRAFT" | "DECIDED" | "CANCELLED">
 };
 
 interface FormState {
-  venueProviderId: string;
+  /** 開催場所は店舗マスタの行を選ぶ。住所・場所提供元・開催エリアはここから決まる。 */
+  storeId: string;
   scheduledDate: string;
-  storeName: string;
-  area: string;
-  address: string;
   status: StatusChoice;
   contractType: "" | "FIXED" | "PERFORMANCE" | "OTHER";
   fixedFee: string;
@@ -50,11 +49,8 @@ interface FormState {
 }
 
 const EMPTY: FormState = {
-  venueProviderId: "",
+  storeId: "",
   scheduledDate: "",
-  storeName: "",
-  area: "",
-  address: "",
   status: "pending",
   contractType: "",
   fixedFee: "",
@@ -65,7 +61,7 @@ const EMPTY: FormState = {
 const SELECT_CLASS =
   "flex h-10 w-full rounded-md border border-hairline-light bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30";
 
-export function NewEventDialog({ venueProviders, areas, stores }: NewEventDialogProps) {
+export function NewEventDialog({ stores }: NewEventDialogProps) {
   const router = useRouter();
   const t = labels.eventCandidate;
   const c = labels.common;
@@ -75,6 +71,9 @@ export function NewEventDialog({ venueProviders, areas, stores }: NewEventDialog
   const [values, setValues] = useState<FormState>(EMPTY);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  // 選んだ店舗。住所 / 場所提供元 / 開催エリアはここからだけ表示する。
+  const selectedStore = stores.find((s) => s.id === values.storeId) ?? null;
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setValues((prev) => ({ ...prev, [key]: value }));
@@ -88,8 +87,8 @@ export function NewEventDialog({ venueProviders, areas, stores }: NewEventDialog
       setError(t.errors.scheduledDateRequired);
       return;
     }
-    if (!values.storeName.trim()) {
-      setError(t.errors.storeNameRequired);
+    if (!values.storeId) {
+      setError(t.errors.storeRequired);
       return;
     }
 
@@ -99,13 +98,13 @@ export function NewEventDialog({ venueProviders, areas, stores }: NewEventDialog
       try {
         // 対象年月は実施予定日 (YYYY-MM-DD) の先頭 7 文字から自動算出し、
         // 回答期限は実施予定日と同値にする（いずれもフォームからは入力しない）。
+        //
+        // 店舗名・住所・場所提供元・開催エリアはここから送らない。サーバーが storeId
+        // から店舗マスタを引いて確定する（画面の値とマスタがずれないようにする）。
         const payload: EventCandidateInput = {
-          venueProviderId: blank(values.venueProviderId),
+          storeId: values.storeId,
           targetMonth: values.scheduledDate.slice(0, 7),
           scheduledDate: new Date(values.scheduledDate),
-          storeName: values.storeName.trim(),
-          address: blank(values.address),
-          area: blank(values.area),
           deadlineAt: new Date(values.scheduledDate),
           contractType: values.contractType === "" ? undefined : values.contractType,
           fixedFee: values.contractType === "FIXED" ? blank(values.fixedFee) : undefined,
@@ -136,78 +135,53 @@ export function NewEventDialog({ venueProviders, areas, stores }: NewEventDialog
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="mt-2 space-y-5" noValidate>
-          {/* 場所提供元 */}
+          {/* 開催店舗 — 店舗マスタが正本。住所 / 場所提供元 / 開催エリアはここから決まる。 */}
           <div className="space-y-1.5">
-            <label className="text-mute-light text-xs font-semibold" htmlFor="ne-venue">
-              {t.fields.venueProvider}
+            <label className="text-mute-light text-xs font-semibold" htmlFor="ne-store">
+              {t.fields.store} <span className="text-danger">*</span>
             </label>
             <select
-              id="ne-venue"
-              value={values.venueProviderId}
-              onChange={(e) => update("venueProviderId", e.target.value)}
+              id="ne-store"
+              value={values.storeId}
+              onChange={(e) => update("storeId", e.target.value)}
               className={SELECT_CLASS}
+              aria-describedby="ne-store-hint"
             >
               <option value="">{c.notSet}</option>
-              {venueProviders.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.name}
-                  {v.area ? `（${v.area}）` : ""}
+              {stores.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.venueProviderName ? `${s.venueProviderName} ` : ""}
+                  {s.name}
                 </option>
               ))}
             </select>
+            <p id="ne-store-hint" className="text-mute-light text-xs">
+              {t.storeHint}
+              {stores.length === 0 ? ` — ${t.storeUnregistered}` : ""}
+            </p>
+            <Link
+              href="/masters/stores"
+              className="text-primary inline-block text-xs underline underline-offset-2"
+            >
+              {t.storeMasterLink}
+            </Link>
           </div>
 
-          {/* 店舗名 / エリア */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <label className="text-mute-light text-xs font-semibold" htmlFor="ne-store">
-                {t.fields.storeName} <span className="text-danger">*</span>
-              </label>
-              <select
-                id="ne-store"
-                value={values.storeName}
-                onChange={(e) => update("storeName", e.target.value)}
-                className={SELECT_CLASS}
-              >
-                <option value="">{c.notSet}</option>
-                {stores.map((s) => (
-                  <option key={s.id} value={s.name}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
+          {/* 選んだ店舗から決まる内容（読み取り専用）。入力欄にすると値がずれる。 */}
+          <dl className="border-hairline-light bg-surface-soft/40 grid grid-cols-1 gap-x-4 gap-y-2 rounded-md border p-3 text-sm sm:grid-cols-3">
+            <div>
+              <dt className="text-mute-light text-xs font-semibold">{t.fields.venueProvider}</dt>
+              <dd className="text-ink">{selectedStore?.venueProviderName ?? c.notSet}</dd>
             </div>
-            <div className="space-y-1.5">
-              <label className="text-mute-light text-xs font-semibold" htmlFor="ne-area">
-                {t.fields.area}
-              </label>
-              <select
-                id="ne-area"
-                value={values.area}
-                onChange={(e) => update("area", e.target.value)}
-                className={SELECT_CLASS}
-              >
-                <option value="">{c.notSet}</option>
-                {areas.map((a) => (
-                  <option key={a.id} value={a.name}>
-                    {a.name}
-                  </option>
-                ))}
-              </select>
+            <div>
+              <dt className="text-mute-light text-xs font-semibold">{t.fields.area}</dt>
+              <dd className="text-ink">{selectedStore?.areaName ?? c.notSet}</dd>
             </div>
-          </div>
-
-          {/* 住所 */}
-          <div className="space-y-1.5">
-            <label className="text-mute-light text-xs font-semibold" htmlFor="ne-address">
-              {t.fields.address}
-            </label>
-            <Input
-              id="ne-address"
-              value={values.address}
-              onChange={(e) => update("address", e.target.value)}
-            />
-          </div>
+            <div>
+              <dt className="text-mute-light text-xs font-semibold">{t.fields.address}</dt>
+              <dd className="text-ink break-words">{selectedStore?.address ?? c.notSet}</dd>
+            </div>
+          </dl>
 
           {/* 実施日 / ステータス */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

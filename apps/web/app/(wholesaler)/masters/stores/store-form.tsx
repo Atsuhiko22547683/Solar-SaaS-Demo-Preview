@@ -38,17 +38,26 @@ type Mode =
 interface FormValues {
   name: string;
   venueProviderId: string;
+  postalCode: string;
+  address: string;
+  areaId: string;
 }
 
 const FormValuesSchema = z.object({
   name: z.string().trim().min(1, "名称を入力してください").max(255),
   venueProviderId: z.string(),
+  postalCode: z.string().trim().max(16),
+  address: z.string().trim().max(255),
+  areaId: z.string(),
 });
 
 function toFormValues(initial?: StoreInput): FormValues {
   return {
     name: initial?.name ?? "",
     venueProviderId: initial?.venueProviderId ?? "",
+    postalCode: initial?.postalCode ?? "",
+    address: initial?.address ?? "",
+    areaId: initial?.areaId ?? "",
   };
 }
 
@@ -56,15 +65,20 @@ function toPayload(v: FormValues): StoreInput {
   return StoreInputSchema.parse({
     name: v.name.trim(),
     venueProviderId: v.venueProviderId.length > 0 ? v.venueProviderId : null,
+    postalCode: v.postalCode.trim().length > 0 ? v.postalCode.trim() : null,
+    address: v.address.trim().length > 0 ? v.address.trim() : null,
+    areaId: v.areaId.length > 0 ? v.areaId : null,
   });
 }
 
 export interface StoreFormProps {
   mode: Mode;
   venueProviders: Array<{ id: string; name: string }>;
+  /** 開催エリア候補（AreaType.EVENT のみ）。顧客エリアは渡さない。 */
+  eventAreas: Array<{ id: string; name: string }>;
 }
 
-export function StoreForm({ mode, venueProviders }: StoreFormProps) {
+export function StoreForm({ mode, venueProviders, eventAreas }: StoreFormProps) {
   const router = useRouter();
   const t = labels.storeMaster;
   const c = labels.common;
@@ -163,6 +177,59 @@ export function StoreForm({ mode, venueProviders }: StoreFormProps) {
                 </FormLabel>
                 <FormControl>
                   <Input autoComplete="off" aria-required="true" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          {/* 所在地と開催エリアはここが正本。イベント登録の住所・エリアはこれを使う。 */}
+          <p className="text-muted-foreground text-sm">{t.venueHint}</p>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="postalCode"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t.fields.postalCode}</FormLabel>
+                  <FormControl>
+                    <Input autoComplete="off" inputMode="numeric" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="areaId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t.fields.area}</FormLabel>
+                  <FormControl>
+                    <select
+                      {...field}
+                      className="border-input bg-background flex h-10 w-full rounded-md border px-3 py-2 text-sm"
+                    >
+                      <option value="">— 未選択 —</option>
+                      {eventAreas.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.name}
+                        </option>
+                      ))}
+                    </select>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          <FormField
+            control={form.control}
+            name="address"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t.fields.address}</FormLabel>
+                <FormControl>
+                  <Input autoComplete="off" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>

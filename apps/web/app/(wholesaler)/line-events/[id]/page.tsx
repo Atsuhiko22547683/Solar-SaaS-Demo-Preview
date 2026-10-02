@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate } from "@/lib/format/date";
 import { labels } from "@/lib/i18n/labels";
 
+import { getAcquiredAppointmentsForLineEvent } from "../../event-detail/acquired-appointment-data";
+import { getDealerEventReportsForLineEvent } from "../../event-detail/dealer-report-data";
 import { getLineEvent, listActiveDealers, listSelfStaff } from "../data";
 import { LineAssignSection } from "./line-assign-section";
 import { LineScheduleSection } from "./line-schedule-section";
@@ -18,10 +20,13 @@ interface PageProps {
 
 export default async function LineEventDetailPage({ params }: PageProps) {
   const { id } = await params;
-  const [row, selfStaff, dealers] = await Promise.all([
+  const [row, selfStaff, dealers, reportsByDate, appointmentsByDate] = await Promise.all([
     getLineEvent(id),
     listSelfStaff(),
     listActiveDealers(),
+    // 開催日ごとの日報・獲得アポイント。このレーンで確定した催事のものだけを読む。
+    getDealerEventReportsForLineEvent(id),
+    getAcquiredAppointmentsForLineEvent(id),
   ]);
   if (!row) notFound();
 
@@ -127,7 +132,8 @@ export default async function LineEventDetailPage({ params }: PageProps) {
         targetMonth={row.targetMonth}
         scheduledDates={row.scheduledDates}
         contractNote={row.contractNote}
-        venuePlace={row.name}
+        reportsByDate={reportsByDate}
+        appointmentsByDate={appointmentsByDate}
       />
 
       {/* アサイン情報 */}

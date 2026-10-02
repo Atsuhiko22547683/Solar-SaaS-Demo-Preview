@@ -111,6 +111,66 @@ export interface CreateEventCandidateResult {
   id: string;
 }
 
+/** 店舗マスタから確定した開催場所。storeName / address / area は開催当時の記録になる。 */
+interface ResolvedVenue {
+  storeId: string | null;
+  storeName?: string;
+  address?: string | null;
+  area?: string | null;
+  venueProviderId?: string | null;
+}
+
+/**
+ * 開催場所を店舗マスタから確定する。
+ *
+ * storeId が来たら、店舗名・住所・開催エリア・場所提供元はすべてマスタから取る。
+ * 画面から一緒に送られてきた値は採用しない（ブラウザの値を信用しない）。
+ * 場所提供元も一緒に送られていて、店舗マスタ上の親と違うときは拒否する
+ * — これが「カインズ 大宮店 なのに 場所提供元がスーパービバホーム」を塞ぐ防波堤。
+ *
+ * storeId が無い場合はマスタ未登録の場所の登録とみなし、送られた値をそのまま使う。
+ */
+async function resolveVenueFromStore(
+  tx: TxClient,
+  input: { storeId?: string; venueProviderId?: string | null },
+): Promise<ResolvedVenue> {
+  if (!input.storeId) return { storeId: null };
+
+  const store = await tx.store.findUnique({
+    where: { id: input.storeId },
+    select: {
+      id: true,
+      name: true,
+      address: true,
+      venueProviderId: true,
+      isActive: true,
+      area: { select: { name: true } },
+    },
+  });
+  // RLS で他テナントの店舗は引けない。見つからない = 自社の店舗ではない。
+  if (!store) throw new NotFoundError("店舗が見つかりません");
+  if (!store.isActive) {
+    throw new ValidationError("停止中の店舗は選択できません", { field: "storeId" });
+  }
+  if (
+    input.venueProviderId !== undefined &&
+    input.venueProviderId !== null &&
+    input.venueProviderId !== store.venueProviderId
+  ) {
+    throw new ValidationError("選択した店舗と場所提供元の組合せが正しくありません", {
+      field: "venueProviderId",
+    });
+  }
+
+  return {
+    storeId: store.id,
+    storeName: store.name,
+    address: store.address,
+    area: store.area?.name ?? null,
+    venueProviderId: store.venueProviderId,
+  };
+}
+
 export const createEventCandidateAction = withServerActionContext<
   EventCandidateInput,
   CreateEventCandidateResult
@@ -155,16 +215,28 @@ export const createEventCandidateAction = withServerActionContext<
     const initialStatus =
       parsed.status && CREATABLE_STATUSES.has(parsed.status) ? parsed.status : "DRAFT";
 
+    // 開催場所は店舗マスタを正本にする。storeId が来たら名称・住所・エリア・提供元は
+    // マスタから確定し、画面から来た同名の値は捨てる。
+    const venue = await resolveVenueFromStore(tx, {
+      storeId: parsed.storeId,
+      venueProviderId: parsed.venueProviderId ?? null,
+    });
+    const storeName = venue.storeName ?? parsed.storeName;
+    if (!storeName) {
+      throw new ValidationError("開催場所を選択してください", { field: "storeId" });
+    }
+
     const created = await tx.eventCandidate.create({
       data: {
         wholesalerId: ctx.wholesalerId,
-        venueProviderId: parsed.venueProviderId,
+        venueProviderId: venue.storeId ? venue.venueProviderId : parsed.venueProviderId,
         venueNegotiationId: parsed.venueNegotiationId,
         targetMonth: parsed.targetMonth,
         scheduledDate: parsed.scheduledDate,
-        storeName: parsed.storeName,
-        address: parsed.address,
-        area: parsed.area,
+        storeId: venue.storeId,
+        storeName,
+        address: venue.storeId ? venue.address : parsed.address,
+        area: venue.storeId ? venue.area : parsed.area,
         deadlineAt: parsed.deadlineAt,
         contractType: parsed.contractType,
         fixedFee: parsed.fixedFee,
@@ -222,20 +294,41 @@ export const updateEventCandidateAction = withServerActionContext<
       assertNonDraftPatchAllowed(parsed);
     }
 
+    // 店舗を差し替えたときだけ、開催場所一式をマスタから引き直す。
+    // 店舗を触らないパッチでは開催当時の記録（storeName / address / area）を維持する。
+    const venue =
+      parsed.storeId !== undefined
+        ? await resolveVenueFromStore(tx, {
+            storeId: parsed.storeId,
+            venueProviderId: parsed.venueProviderId ?? null,
+          })
+        : null;
+
     const updated = await tx.eventCandidate.update({
       where: { id: input.id },
       data: {
-        ...("venueProviderId" in parsed && parsed.venueProviderId !== undefined
-          ? { venueProviderId: parsed.venueProviderId }
-          : {}),
+        ...(venue?.storeId
+          ? {
+              storeId: venue.storeId,
+              storeName: venue.storeName!,
+              address: venue.address ?? null,
+              area: venue.area ?? null,
+              venueProviderId: venue.venueProviderId ?? null,
+            }
+          : {
+              ...("storeId" in parsed ? { storeId: parsed.storeId ?? null } : {}),
+              ...("venueProviderId" in parsed && parsed.venueProviderId !== undefined
+                ? { venueProviderId: parsed.venueProviderId }
+                : {}),
+              ...(parsed.storeName !== undefined ? { storeName: parsed.storeName } : {}),
+              ...("address" in parsed ? { address: parsed.address } : {}),
+              ...("area" in parsed ? { area: parsed.area } : {}),
+            }),
         ...("venueNegotiationId" in parsed && parsed.venueNegotiationId !== undefined
           ? { venueNegotiationId: parsed.venueNegotiationId }
           : {}),
         ...(parsed.targetMonth !== undefined ? { targetMonth: parsed.targetMonth } : {}),
         ...(parsed.scheduledDate !== undefined ? { scheduledDate: parsed.scheduledDate } : {}),
-        ...(parsed.storeName !== undefined ? { storeName: parsed.storeName } : {}),
-        ...("address" in parsed ? { address: parsed.address } : {}),
-        ...("area" in parsed ? { area: parsed.area } : {}),
         ...(parsed.deadlineAt !== undefined ? { deadlineAt: parsed.deadlineAt } : {}),
         ...("contractType" in parsed ? { contractType: parsed.contractType } : {}),
         ...("fixedFee" in parsed ? { fixedFee: parsed.fixedFee } : {}),

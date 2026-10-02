@@ -14,18 +14,13 @@
 
 import "server-only";
 
-import {
-  SaveLanePreferenceInputSchema,
-  type LanePreferenceDto,
-  type LanePreferenceItemDto,
-  type SaveLanePreferenceInput,
-} from "@solar/contracts";
-
 import { auth } from "@/auth";
-import { ForbiddenError, UnauthorizedError } from "@/lib/errors";
+import { UnauthorizedError } from "@/lib/errors";
 import { assertCan } from "@/lib/permissions/can";
 import { getTenantContext } from "@/lib/tenancy/context";
 import { withTenant } from "@/lib/tenancy/with-tenant";
+
+import type { LanePreferenceDto, LanePreferenceItemDto } from "@solar/contracts";
 
 // 二次店プルダウンは line-events と同じ ACTIVE relationship 一覧を再利用する。
 export { listActiveDealers as listActiveRelationships } from "../event-detail/data";
@@ -96,8 +91,15 @@ export async function listLanePreferences(
         targetMonth: true,
         note: true,
         submittedAt: true,
+        status: true,
+        laneCount: true,
         items: {
+          // レーン番号 → 順位の順で並べる。priority だけで並べると別レーンの
+          // 第一希望どうしが混ざり、レーンの区別が画面から消える。
+          orderBy: [{ laneNo: "asc" }, { priority: "asc" }],
           select: {
+            id: true,
+            laneNo: true,
             priority: true,
             venueLabel: true,
             venueProviderId: true,
@@ -105,6 +107,20 @@ export async function listLanePreferences(
             lineEventId: true,
             desiredDates: true,
             memo: true,
+            conditionNote: true,
+            adoptions: {
+              select: {
+                eventId: true,
+                decidedAt: true,
+                event: {
+                  select: {
+                    eventCandidate: {
+                      select: { id: true, storeName: true, scheduledDate: true },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
       },
@@ -141,6 +157,8 @@ export async function listLanePreferences(
       ),
     );
 
+    // 店舗マスタは「店舗 → 親チェーン」も一緒に取る。場所提供元の表示は必ず
+    // 店舗マスタ経由に限定して、ラベルと提供元がちぐはぐな組合せを画面に出さない。
     const [rels, venueProviders, stores, lineEvents] = await Promise.all([
       tx.relationship.findMany({
         where: { id: { in: relationshipIds } },
@@ -155,7 +173,7 @@ export async function listLanePreferences(
       storeIds.length > 0
         ? tx.store.findMany({
             where: { id: { in: storeIds } },
-            select: { id: true, name: true },
+            select: { id: true, name: true, venueProvider: { select: { id: true, name: true } } },
           })
         : [],
       // LineEvent は name のみ — fixedFee / performanceRate / scheduledDates は select しない。
@@ -170,33 +188,62 @@ export async function listLanePreferences(
     const dealerNameByRel = new Map(rels.map((r) => [r.id, r.dealer.name]));
     const providerNameById = new Map(venueProviders.map((p) => [p.id, p.name]));
     const storeNameById = new Map(stores.map((s) => [s.id, s.name]));
+    // 店舗から辿れる場所提供元だけを「確かめられた提供元」として扱う。
+    const providerByStoreId = new Map(
+      stores.map((s) => [
+        s.id,
+        s.venueProvider ? { id: s.venueProvider.id, name: s.venueProvider.name } : null,
+      ]),
+    );
     const lineNameById = new Map(lineEvents.map((le) => [le.id, le.name]));
 
     return prefs.map((p) => {
-      const items: LanePreferenceItemDto[] = p.items
-        .slice()
-        .sort((a, b) => a.priority - b.priority)
-        .map((i) => ({
+      const items: LanePreferenceItemDto[] = p.items.map((i) => {
+        // 店舗マスタに紐付いていれば、その親チェーンを場所提供元として出す。
+        // 紐付いていない明細では、単独でぶら下がっている venueProviderId は
+        // 店舗との整合を確かめられないので名前を出さない（null のまま）。
+        const viaStore = i.storeId ? (providerByStoreId.get(i.storeId) ?? null) : null;
+        const providerId = viaStore?.id ?? i.venueProviderId ?? null;
+        const providerName = viaStore
+          ? viaStore.name
+          : i.storeId
+            ? null
+            : i.venueProviderId
+              ? (providerNameById.get(i.venueProviderId) ?? null)
+              : null;
+        return {
+          laneNo: i.laneNo,
           priority: i.priority,
           venueLabel: i.venueLabel,
-          venueProviderId: i.venueProviderId ?? null,
-          venueProviderName: i.venueProviderId
-            ? (providerNameById.get(i.venueProviderId) ?? null)
-            : null,
+          venueProviderId: providerId,
+          venueProviderName: providerName,
           storeId: i.storeId ?? null,
           storeName: i.storeId ? (storeNameById.get(i.storeId) ?? null) : null,
           lineEventId: i.lineEventId ?? null,
           lineName: i.lineEventId ? (lineNameById.get(i.lineEventId) ?? null) : null,
           desiredDates: Array.isArray(i.desiredDates) ? (i.desiredDates as string[]) : [],
           memo: i.memo ?? null,
-        }));
+          conditionNote: i.conditionNote ?? null,
+          adoptions: i.adoptions.map((ad) => ({
+            eventId: ad.eventId,
+            eventCandidateId: ad.event.eventCandidate.id,
+            storeNameAtEvent: ad.event.eventCandidate.storeName,
+            scheduledDate: ad.event.eventCandidate.scheduledDate.toISOString(),
+            decidedAt: ad.decidedAt.toISOString(),
+          })),
+        };
+      });
       return {
         id: p.id,
         relationshipId: p.relationshipId,
         dealerName: dealerNameByRel.get(p.relationshipId) ?? "—",
         targetMonth: p.targetMonth,
         note: p.note,
-        laneCount: items.length, // 導出（§3.4.1-(5)）
+        // 申告されたレーン数。明細数から導出しない（別の意味なので）。
+        laneCount: p.laneCount,
+        laneCountFromItems: new Set(items.map((i) => i.laneNo)).size,
+        itemCount: items.length,
+        status: p.status,
         submittedAt: p.submittedAt.toISOString(),
         items,
       };
@@ -204,75 +251,10 @@ export async function listLanePreferences(
   });
 }
 
-// 二次店提出 (F-021 連動 / §3.4.5)。upsert(対象月 × relationship 一意)・priority サーバ再採番。
-export async function saveLanePreference(
-  rawInput: SaveLanePreferenceInput,
-): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
-  const { ctx, user } = await buildActor();
-  assertCan({
-    user,
-    action: "lane_preference.write",
-    resource: ctx.wholesalerId ? { wholesalerId: ctx.wholesalerId } : undefined,
-  });
-
-  const parsed = SaveLanePreferenceInputSchema.safeParse(rawInput);
-  if (!parsed.success) {
-    return { ok: false, error: "invalid_input" };
-  }
-  const input = parsed.data;
-
-  // relationshipId は ctx 由来（送信値を信用しない）。二次店は当該卸業者との関係を
-  // 1 つ持つ前提。複数解決される場合は曖昧として弾く（明示選択は Phase 2）。
-  if (ctx.relationshipIds.length !== 1) {
-    return { ok: false, error: "ambiguous_relationship" };
-  }
-  const relationshipId = ctx.relationshipIds[0]!;
-
-  return withTenant(ctx, async (tx) => {
-    const rel = await tx.relationship.findUnique({
-      where: { id: relationshipId },
-      select: { wholesalerId: true },
-    });
-    if (!rel) {
-      throw new ForbiddenError("Relationship not visible in tenant context");
-    }
-
-    // priority はフォーム行順で 1..N にサーバ再採番（クライアント送信 priority は無視）。
-    const itemCreate = input.items.map((it, idx) => ({
-      priority: idx + 1,
-      venueLabel: it.venueLabel,
-      venueProviderId: it.venueProviderId ?? null,
-      storeId: it.storeId ?? null,
-      lineEventId: it.lineEventId ?? null,
-      desiredDates: it.desiredDates,
-      memo: it.memo ?? null,
-    }));
-
-    const pref = await tx.lanePreference.upsert({
-      where: {
-        relationshipId_targetMonth: {
-          relationshipId,
-          targetMonth: input.targetMonth,
-        },
-      },
-      create: {
-        wholesalerId: rel.wholesalerId,
-        relationshipId,
-        targetMonth: input.targetMonth,
-        note: input.note ?? null,
-        submittedBy: ctx.actorUserId,
-        items: { create: itemCreate },
-      },
-      update: {
-        note: input.note ?? null,
-        submittedBy: ctx.actorUserId,
-        submittedAt: new Date(),
-        // 再提出は全件入れ替え（差分管理しない）。
-        items: { deleteMany: {}, create: itemCreate },
-      },
-      select: { id: true },
-    });
-
-    return { ok: true as const, id: pref.id };
-  });
-}
+// 出店希望の保存（提出）は、業務の持ち主であるパートナー側へ移した:
+//   apps/web/app/(partner)/p-lane-preferences/actions.ts
+// 旧 saveLanePreference は「取引先代理店 1 社固定」を前提にしていて、複数代理店から
+// 依頼を受ける構成では成立しない（relationshipIds が 2 件以上で必ず失敗した）。
+// また明細の全件入れ替えで代理店からの回答も失われていたため、同じ表に対する
+// 書き込み口を 2 つ残さず、レーン番号・個別条件・回答スレッドに対応した新しい
+// 実装 1 本に寄せている。この画面は閲覧と回答だけを担う。

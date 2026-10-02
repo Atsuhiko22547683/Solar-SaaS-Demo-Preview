@@ -112,6 +112,8 @@ export interface CustomerDetail {
    * 代理店が直接登録した顧客では null。解決は lib/partner/venue-info.ts。
    */
   venueInfo: ResolvedVenueInfo | null;
+  /** クローズ会社（二次店が初訪アポフォームで選んだ会社）の表示名。 */
+  closeCompanyName: string | null;
   id: string;
   name: string; // masked
   kana: string | null;
@@ -507,6 +509,9 @@ export async function getCustomerDetail(id: string): Promise<CustomerDetail | nu
     return {
       // 二次店が登録した催事情報。イベント紐付けがあればそちらを正とする。
       venueInfo: resolveVenueInfo(customer.sourceEvent?.eventCandidate ?? null, customer),
+      closeCompanyName: customer.closingRelationshipId
+        ? (dealerNameByRelId.get(customer.closingRelationshipId) ?? null)
+        : null,
       id: customer.id,
       name: displayName,
       kana: customer.kana,

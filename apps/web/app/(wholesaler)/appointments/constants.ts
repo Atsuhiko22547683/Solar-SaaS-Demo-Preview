@@ -47,3 +47,22 @@ export function preCallResultVariant(r: PreCallResult): BadgeVariant {
       return "secondary";
   }
 }
+
+/** フォーム区分（初訪 / 訪問）。アポイント種別（初回訪問・見積提示…）とは別概念。 */
+export const PARTNER_APPOINTMENT_KIND_VALUES = ["FIRST_VISIT", "VISIT"] as const;
+export type PartnerAppointmentKindValue = (typeof PARTNER_APPOINTMENT_KIND_VALUES)[number];
+
+/**
+ * マエカク対応状況の値域。"NONE" は未実施（PreCall が無い）。
+ * 表示順は「承認 → 折返し → 日程変更 → 不在 → 中止 → 未実施」の業務順で、
+ * enum の文字列順には依存しない。
+ */
+export const PRE_CALL_FILTER_VALUES = [
+  "APPROVED",
+  "CALLBACK",
+  "RESCHEDULED",
+  "ABSENT",
+  "CANCELLED",
+  "NONE",
+] as const;
+export type PreCallFilterValue = (typeof PRE_CALL_FILTER_VALUES)[number];
