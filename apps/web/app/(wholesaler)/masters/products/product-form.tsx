@@ -14,6 +14,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
+  ProductCategorySchema,
   ProductInputSchema,
   ProductUpdateSchema,
   type ProductCategory,
@@ -74,7 +75,7 @@ type Mode =
 
 const CreateFormSchema = z
   .object({
-    category: z.enum(["PANEL", "BATTERY", "POWER_CONDITIONER", "MOUNT", "OTHER_PART", "SET"]),
+    category: ProductCategorySchema,
     maker: z.string().trim().min(1, "メーカーを入力してください").max(255),
     name: z.string().trim().min(1, "商品名を入力してください").max(255),
     modelNo: z.string().max(255).optional().default(""),
@@ -106,7 +107,7 @@ const CreateFormSchema = z
 type CreateFormValues = z.input<typeof CreateFormSchema>;
 
 const EditFormSchema = z.object({
-  category: z.enum(["PANEL", "BATTERY", "POWER_CONDITIONER", "MOUNT", "OTHER_PART", "SET"]),
+  category: ProductCategorySchema,
   maker: z.string().trim().min(1, "メーカーを入力してください").max(255),
   name: z.string().trim().min(1, "商品名を入力してください").max(255),
   modelNo: z.string().max(255).optional().default(""),
