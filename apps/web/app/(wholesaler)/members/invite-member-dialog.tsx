@@ -27,16 +27,18 @@ import { inviteWholesalerMemberAction } from "./actions";
 // 正式仕様の 3 ロール。旧ロール（管理者 / イベントチーム / コールチーム /
 // 直販営業 / 現場要員）は選択肢から外した。業務上の役割分担は
 // スタッフマスタ（Salesperson）側で表現する。
-const WHOLESALER_ROLES = ["OWNER", "SYSTEM_ADMIN", "GENERAL_USER"] as const;
+//
+// 実際に選べるのは「ログイン中ユーザーと同じか下位」だけで、その一覧は
+// サーバー側（listAssignableMemberRoles）が決める。ここで隠すのは導線であって、
+// 検証ではない — Server Action 側でも同じ階層チェックを行う。
+type WholesalerRole = "OWNER" | "SYSTEM_ADMIN" | "GENERAL_USER";
 
-type WholesalerRole = (typeof WHOLESALER_ROLES)[number];
-
-export function InviteMemberDialog() {
+export function InviteMemberDialog({ roles }: { roles: WholesalerRole[] }) {
   const t = labels.memberManagement;
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<WholesalerRole>("GENERAL_USER");
+  const [role, setRole] = useState<WholesalerRole>(roles[roles.length - 1] ?? "GENERAL_USER");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -92,7 +94,7 @@ export function InviteMemberDialog() {
               onChange={(e) => setRole(e.target.value as WholesalerRole)}
               className="border-input bg-background ring-offset-background focus-visible:ring-ring h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
             >
-              {WHOLESALER_ROLES.map((r) => (
+              {roles.map((r) => (
                 <option key={r} value={r}>
                   {t.wholesalerRoles[r]}
                 </option>

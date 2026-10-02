@@ -24,7 +24,7 @@ import {
 import { labels } from "@/lib/i18n/labels";
 import { assertSettingsAccess } from "@/lib/permissions/settings-guard";
 
-import { listDealerMembers, listWholesalerMembers } from "./data";
+import { listAssignableMemberRoles, listDealerMembers, listWholesalerMembers } from "./data";
 import { InviteMemberDialog } from "./invite-member-dialog";
 import { MemberTable } from "./member-table";
 import { RoleGuide } from "./role-guide";
@@ -50,6 +50,8 @@ export default async function SystemUsersPage({ searchParams }: PageProps) {
     tab === "own" ? listWholesalerMembers() : Promise.resolve([]),
     tab === "dealer" ? listDealerMembers() : Promise.resolve([]),
   ]);
+  // 招待・編集で指定できるロールは「自分と同じか下位」だけ。
+  const invitableRoles = await listAssignableMemberRoles();
   const rows = tab === "own" ? users : dealerUsers;
 
   return (
@@ -58,7 +60,7 @@ export default async function SystemUsersPage({ searchParams }: PageProps) {
         title={t.wholesalerTitle}
         subtitle={t.wholesalerSubtitle}
         // 招待は自社アカウントに対する操作なので、自社タブでだけ出す。
-        action={tab === "own" ? <InviteMemberDialog /> : undefined}
+        action={tab === "own" ? <InviteMemberDialog roles={invitableRoles} /> : undefined}
       />
 
       {/* 権限の早見表。編集ダイアログのロール選択肢と同じ 3 種類。 */}
@@ -86,7 +88,7 @@ export default async function SystemUsersPage({ searchParams }: PageProps) {
         emptyTitle={tab === "own" ? t.empty : t.dealerTabEmpty}
         emptyBody={tab === "own" ? t.emptyCta : t.dealerTabEmptyCta}
       >
-        <MemberTable users={rows} variant={tab} />
+        <MemberTable users={rows} variant={tab} assignableRoles={invitableRoles} />
       </ListTableCard>
     </div>
   );

@@ -132,7 +132,13 @@ test.describe.serial("スタッフとシステムユーザーの分離", () => {
 
     const table = page.getByRole("table");
     await expect(table.getByRole("columnheader", { name: "紐付くスタッフ" })).toHaveCount(0);
-    // 編集・削除の操作列がある。
-    await expect(table.getByRole("columnheader", { name: "操作" })).toBeVisible();
+    // 操作はスタッフ一覧と同じく展開バナー側にある（通常行は情報確認に徹する）。
+    await expect(table.getByRole("columnheader", { name: "操作" })).toHaveCount(0);
+    const firstRow = table.locator("tbody tr").first();
+    await expect(firstRow.getByRole("button", { name: /編集|削除/ })).toHaveCount(0);
+    await firstRow.click();
+    const banner = table.locator("tbody tr").nth(1);
+    await expect(banner.getByRole("button", { name: "編集" })).toBeVisible({ timeout: 90_000 });
+    await expect(banner.getByRole("button", { name: "削除" })).toBeVisible();
   });
 });

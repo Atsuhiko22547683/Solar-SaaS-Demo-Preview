@@ -23,6 +23,8 @@ export function RoleGuide() {
           </div>
         ))}
       </dl>
+      {/* 機能の可否（上）とは別に、ユーザー管理の階層ルールを 1 行だけ添える。 */}
+      <p className="text-mute-light mt-2 text-xs">{t.hierarchyNote}</p>
     </section>
   );
 }

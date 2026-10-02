@@ -28,9 +28,11 @@ import type { AppRole, UserStatus } from "@solar/db";
 
 const t = labels.memberManagement;
 
-// 正式仕様の 3 ロールだけを選ばせる。旧ロールが付いた既存ユーザーを開いた場合は
-// 既定値を「一般ユーザー」にして、保存時に 3 ロールのいずれかへ移行させる。
-const EDITABLE_ROLES = ["OWNER", "SYSTEM_ADMIN", "GENERAL_USER"] as const;
+// 正式仕様の 3 ロール。実際に選べるのは assignableRoles が返す
+// 「自分と同じか下位」だけで、選択肢そのものはサーバー側が決める。
+// ここで隠すのは導線であって検証ではない — 保存時は Server Action の
+// 階層ガードが DB のロールで再判定する。
+type EditableRole = "OWNER" | "SYSTEM_ADMIN" | "GENERAL_USER";
 
 const FIELD =
   "border-ash-light text-ink focus:border-primary focus:ring-primary/40 h-9 w-full rounded-md border bg-white px-3 text-sm focus:outline-none focus:ring-2";
@@ -40,11 +42,14 @@ export function MemberRowActions({
   name,
   roles,
   status,
+  assignableRoles,
 }: {
   id: string;
   name: string;
   roles: AppRole[];
   status: UserStatus;
+  /** ログイン中ユーザーが指定できるロール（上位は含まない）。 */
+  assignableRoles: string[];
 }) {
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
@@ -53,8 +58,9 @@ export function MemberRowActions({
 
   const [nextName, setNextName] = useState(name);
   const [nextRole, setNextRole] = useState<string>(() => {
-    const current = roles.find((r) => (EDITABLE_ROLES as readonly string[]).includes(r));
-    return current ?? "GENERAL_USER";
+    const current = roles.find((r) => assignableRoles.includes(r));
+    // 旧ロールしか持たない相手は、保存時に選択肢の最下位ロールへ移行する。
+    return current ?? assignableRoles[assignableRoles.length - 1] ?? "GENERAL_USER";
   });
   // 削除は別操作なので、この選択肢には DELETED を出さない。
   const [nextStatus, setNextStatus] = useState<string>(status === "DELETED" ? "ACTIVE" : status);
@@ -65,7 +71,7 @@ export function MemberRowActions({
         await updateWholesalerMemberAction({
           id,
           name: nextName.trim(),
-          role: nextRole as (typeof EDITABLE_ROLES)[number],
+          role: nextRole as EditableRole,
           // 招待済み（未受諾）は受諾で変わる状態なので、ここでは送らない。
           ...(nextStatus === "ACTIVE" || nextStatus === "SUSPENDED"
             ? { status: nextStatus as "ACTIVE" | "SUSPENDED" }
@@ -134,7 +140,7 @@ export function MemberRowActions({
                 className={FIELD}
                 onChange={(e) => setNextRole(e.target.value)}
               >
-                {EDITABLE_ROLES.map((r) => (
+                {assignableRoles.map((r) => (
                   <option key={r} value={r}>
                     {t.wholesalerRoles[r] ?? r}
                   </option>

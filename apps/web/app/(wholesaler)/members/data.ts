@@ -11,6 +11,7 @@ import "server-only";
 import { auth } from "@/auth";
 import { UnauthorizedError } from "@/lib/errors";
 import { assertCan } from "@/lib/permissions/can";
+import { assignableRoles, canManageUser, type SystemRole } from "@/lib/permissions/can";
 import { getTenantContext } from "@/lib/tenancy/context";
 import { withTenant } from "@/lib/tenancy/with-tenant";
 
@@ -24,6 +25,18 @@ export interface MemberListItem {
   twoFactorRequired: boolean;
   status: UserStatus;
   lastLoginAt: string | null;
+  /**
+   * ログイン中ユーザーがこの行を管理（編集 / 削除）できるか。
+   * 自分より上位のロールを持つ相手は false。表示自体は行う。
+   * 実際の遮断は Server Action 側の階層ガードが行い、ここは導線制御。
+   */
+  canManage: boolean;
+}
+
+/** ログイン中ユーザーが新規登録で指定できるロール（上位は含まない）。 */
+export async function listAssignableMemberRoles(): Promise<SystemRole[]> {
+  const { session } = await requireCtx();
+  return assignableRoles(session.user.roles);
 }
 
 async function requireCtx() {
@@ -48,11 +61,11 @@ async function requireCtx() {
     action: "member.read",
     resource: ctx.wholesalerId ? { wholesalerId: ctx.wholesalerId } : undefined,
   });
-  return ctx;
+  return { ctx, session };
 }
 
 export async function listWholesalerMembers(): Promise<MemberListItem[]> {
-  const ctx = await requireCtx();
+  const { ctx, session } = await requireCtx();
   return withTenant(ctx, async (tx) => {
     const users = await tx.user.findMany({
       // 論理削除済み（status = DELETED）は通常一覧に出さない。行は残るので
@@ -70,6 +83,9 @@ export async function listWholesalerMembers(): Promise<MemberListItem[]> {
       },
     });
 
+    // 階層判定はセッションのロールで行う（表示の出し分けのみ。
+    // 書き込み時は Server Action が DB のロールで再判定する）。
+    const actorRoles = session.user.roles;
     return users.map((u) => ({
       id: u.id,
       name: u.name,
@@ -78,6 +94,10 @@ export async function listWholesalerMembers(): Promise<MemberListItem[]> {
       twoFactorRequired: u.twoFactorRequired,
       status: u.status,
       lastLoginAt: u.lastLoginAt?.toISOString() ?? null,
+      canManage: canManageUser(
+        actorRoles,
+        u.roles.map((r) => r.role),
+      ),
     }));
   });
 }
@@ -110,11 +130,10 @@ export interface DealerMemberListItem extends MemberListItem {
  * 結果として、他 Wholesaler 配下の取引先 User には到達できない。
  */
 export async function listDealerMembers(): Promise<DealerMemberListItem[]> {
-  const session = await auth();
-  const ctx = await requireCtx();
+  const { ctx, session } = await requireCtx();
 
   // 取引先のアカウント一覧は卸業者の管理者だけが見る。
-  const roles = session?.user?.roles ?? [];
+  const roles = session.user.roles;
   if (!ctx.isSaasAdmin && !roles.includes("WHOLESALER_ADMIN")) {
     return [];
   }
@@ -156,6 +175,8 @@ export async function listDealerMembers(): Promise<DealerMemberListItem[]> {
     twoFactorRequired: u.twoFactorRequired,
     status: u.status,
     lastLoginAt: u.lastLoginAt?.toISOString() ?? null,
+    // 取引先のアカウントはこの画面では常に閲覧のみ（既存仕様を維持）。
+    canManage: false,
     dealerId: u.tenantId,
     dealerName: u.tenant.name,
   }));

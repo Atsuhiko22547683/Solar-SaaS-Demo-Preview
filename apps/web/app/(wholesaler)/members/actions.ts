@@ -12,6 +12,8 @@ import { z } from "zod";
 import { ValidationError } from "@/lib/errors";
 import { withServerActionContext } from "@/lib/tenancy/server-action";
 
+import { assertCanAssignRole, assertCanManageTargetUser } from "./role-hierarchy";
+
 const LIST_PATH = "/members";
 
 // 新規付与できるのは正式仕様の 3 ロールだけ。旧ロールは既存行のために
@@ -35,11 +37,15 @@ export const inviteWholesalerMemberAction = withServerActionContext<
     action: "user.invite_wholesaler_member",
     resource: ({ ctx }) => (ctx.wholesalerId ? { wholesalerId: ctx.wholesalerId } : undefined),
   },
-  async ({ ctx, input }) => {
+  async ({ ctx, tx, input }) => {
     if (!ctx.tenantId) {
       throw new ValidationError("tenantId is required for member invitation");
     }
     const parsed = InviteWholesalerMemberSchema.parse(input);
+
+    // UI で選択肢を絞るだけでは足りない。直接 action を叩かれても
+    // 自分より上位のロールでは招待できないようにする。
+    await assertCanAssignRole(tx, ctx.actorUserId, parsed.role);
 
     const { invitationId } = await issueUserInvitation({
       tenantId: ctx.tenantId,
@@ -80,12 +86,17 @@ export const updateWholesalerMemberAction = withServerActionContext<
     action: "user.update",
     resource: ({ ctx }) => (ctx.wholesalerId ? { wholesalerId: ctx.wholesalerId } : undefined),
   },
-  async ({ tx, input }) => {
+  async ({ ctx, tx, input }) => {
     const parsed = UpdateMemberSchema.parse(input);
 
     // withTenant 経由なので、他テナントの User はそもそも見えない。
-    const existing = await tx.user.findUnique({ where: { id: parsed.id }, select: { id: true } });
-    if (!existing) throw new ValidationError("ユーザーが見つかりません");
+    // その上で階層を確認する:
+    //   A. 対象ユーザーの「現在の」ロールを管理できること（DB から読み直す）
+    //   B. 変更後のロールも自分以下であること
+    await assertCanManageTargetUser(tx, ctx.actorUserId, parsed.id);
+    if (parsed.role !== undefined) {
+      await assertCanAssignRole(tx, ctx.actorUserId, parsed.role);
+    }
 
     if (parsed.name !== undefined || parsed.status !== undefined) {
       await tx.user.update({
@@ -135,8 +146,8 @@ export const deleteWholesalerMemberAction = withServerActionContext<
       throw new ValidationError("自分自身は削除できません");
     }
 
-    const existing = await tx.user.findUnique({ where: { id: parsed.id }, select: { id: true } });
-    if (!existing) throw new ValidationError("ユーザーが見つかりません");
+    // 自分より上位のユーザーは削除できない（存在確認もここで行う）。
+    await assertCanManageTargetUser(tx, ctx.actorUserId, parsed.id);
 
     await tx.user.update({ where: { id: parsed.id }, data: { status: "DELETED" } });
 
